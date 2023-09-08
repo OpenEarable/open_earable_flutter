@@ -1,80 +1,74 @@
 part of open_earable_flutter;
 
 class BleManager {
-  final FlutterReactiveBle flutterReactiveBle = FlutterReactiveBle();
-  late String deviceName;
+  final FlutterReactiveBle _flutterReactiveBle = FlutterReactiveBle();
 
-  // Some state management stuff
   bool _foundDeviceWaitingToConnect = false;
   bool _scanStarted = false;
   bool _connected = false;
-  // Bluetooth related variables
-  late DiscoveredDevice discoveredDevice;
+  bool get connected => _connected;
+
   late Stream<DiscoveredDevice> _scanStream;
   Stream<DiscoveredDevice> get scanStream => _scanStream;
+
+  late DiscoveredDevice _connectedDevice;
+  DiscoveredDevice get connectedDevice => _connectedDevice;
+
   late Stream<ConnectionStateUpdate> _currentConnectionStream;
   Stream<ConnectionStateUpdate> get currentConnectionStream =>
       _currentConnectionStream;
-  late QualifiedCharacteristic _rxCharacteristic;
 
-  Future<Stream<DiscoveredDevice>> startScan() async {
+  void startScan() async {
+    if (_scanStarted) {
+      return;
+    }
     bool permGranted = false;
     //setState
     _scanStarted = true;
     PermissionStatus permission;
     if (Platform.isAndroid) {
-      permission = await Location().requestPermission();
+      permission = await Permission.location.request();
       if (permission == PermissionStatus.granted) permGranted = true;
     } else if (Platform.isIOS) {
       permGranted = true;
     }
 
     if (permGranted) {
-      _scanStream =
-          flutterReactiveBle.scanForDevices(withServices: [sensorServiceUuid]);
+      _scanStream = _flutterReactiveBle.scanForDevices(withServices: []);
     }
-    return _scanStream;
-    /*
-    if (permGranted) {
-      _scanStream = flutterReactiveBle
-          .scanForDevices(withServices: [sensorServiceUuid]).listen((device) {
-        if (device.name == deviceName) {
-          // setState
-          discoveredDevice = device;
-          _foundDeviceWaitingToConnect = true;
-        }
-      });
-    }
-    */
   }
 
-  void connectToDevice(DiscoveredDevice device) {
-    discoveredDevice = device;
-    _foundDeviceWaitingToConnect = true;
-    //_scanStream.cancel();
-    // Listen to connection state
-    Stream<ConnectionStateUpdate> _currentConnectionStream = flutterReactiveBle
-        .connectToAdvertisingDevice(
-            id: discoveredDevice.id,
-            prescanDuration: const Duration(seconds: 1),
-            withServices: [sensorServiceUuid]);
-    _currentConnectionStream.listen((event) {
+  void connectToDevice(DiscoveredDevice device) async {
+    _scanStarted = false;
+    _currentConnectionStream = _flutterReactiveBle.connectToAdvertisingDevice(
+        id: device.id,
+        prescanDuration: const Duration(seconds: 1),
+        withServices: [sensorServiceUuid]);
+    _currentConnectionStream.listen((event) async {
+      print(event.connectionState);
       switch (event.connectionState) {
         case DeviceConnectionState.connected:
           {
-            _rxCharacteristic = QualifiedCharacteristic(
-                serviceId: sensorServiceUuid,
-                characteristicId: sensorConfigurationCharacteristicUuid,
-                deviceId: event.deviceId);
+            _connectedDevice = device;
+            await _flutterReactiveBle.discoverAllServices(_connectedDevice.id);
+            var services = await _flutterReactiveBle
+                .getDiscoveredServices(_connectedDevice.id);
+            for (final service in services) {
+              print('Service UUID: ${service.id.toString()}');
+            }
+
+            _flutterReactiveBle.characteristicValueStream.listen((values) {
+              print("characteristic value:");
+              print(values);
+            });
+
             // setState
             _foundDeviceWaitingToConnect = false;
             _connected = true;
-
-            break;
           }
-        // Can add various state state updates on disconnect
         case DeviceConnectionState.disconnected:
           {
+            _connected = false;
             break;
           }
         default:
@@ -89,8 +83,8 @@ class BleManager {
     final characteristic = QualifiedCharacteristic(
         serviceId: sensorServiceUuid,
         characteristicId: sensorConfigurationCharacteristicUuid,
-        deviceId: discoveredDevice.id);
-    await flutterReactiveBle.writeCharacteristicWithResponse(
+        deviceId: _connectedDevice.id);
+    await _flutterReactiveBle.writeCharacteristicWithResponse(
       characteristic,
       value: value,
     );
@@ -99,20 +93,20 @@ class BleManager {
   Stream<List<int>> subscribe(
       {required Uuid serviceId, required Uuid characteristicId}) {
     final characteristic = QualifiedCharacteristic(
-        serviceId: sensorServiceUuid,
-        characteristicId: sensorConfigurationCharacteristicUuid,
-        deviceId: discoveredDevice.id);
-    return flutterReactiveBle.subscribeToCharacteristic(characteristic);
+        serviceId: serviceId,
+        characteristicId: characteristicId,
+        deviceId: _connectedDevice.id);
+    return _flutterReactiveBle.subscribeToCharacteristic(characteristic);
   }
 
-  Future<String> readString(
+  Future<List<int>> read(
       {required Uuid serviceId, required Uuid characteristicId}) async {
     final characteristic = QualifiedCharacteristic(
         serviceId: serviceId,
         characteristicId: characteristicId,
-        deviceId: discoveredDevice.id);
+        deviceId: _connectedDevice.id);
     final response =
-        await flutterReactiveBle.readCharacteristic(characteristic);
-    return String.fromCharCodes(response);
+        await _flutterReactiveBle.readCharacteristic(characteristic);
+    return response;
   }
 }
