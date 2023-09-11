@@ -24,9 +24,6 @@ class SensorManager {
               serviceId: sensorServiceUuid,
               characteristicId: sensorDataCharacteristicUuid)
           .listen((data) {
-        print(data);
-        print("LENNGTH ${data.length}");
-        print(_sensorSchemes);
         if (data.isNotEmpty && data[0] == sensorId) {
           Map<String, dynamic> parsedData = parseData(data);
           _sensorDataControllers[sensorId]?.add(parsedData);
