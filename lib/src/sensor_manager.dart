@@ -2,34 +2,104 @@ part of open_earable_flutter;
 
 class SensorManager {
   final BleManager _bleManager;
-  final Map<int, StreamController<List<int>>> _sensorDataControllers = {};
-
+  final Map<int, StreamController<Map<String, dynamic>>>
+      _sensorDataControllers = {};
+  List<SensorScheme>? _sensorSchemes;
   SensorManager({required BleManager bleManager}) : _bleManager = bleManager;
 
   void writeSensorConfig(OpenEarableSensorConfig sensorConfig) async {
-    _bleManager.write(
+    await _bleManager.write(
         serviceId: sensorServiceUuid,
         characteristicId: sensorConfigurationCharacteristicUuid,
         value: sensorConfig.byteList);
+    await readScheme();
   }
 
-  Stream<List<int>> subscribeToSensorData(int sensorId) {
-    print("subscribing to sensor");
+  Stream<Map<String, dynamic>> subscribeToSensorData(int sensorId) {
     if (!_sensorDataControllers.containsKey(sensorId)) {
-      _sensorDataControllers[sensorId] = StreamController<List<int>>();
+      _sensorDataControllers[sensorId] =
+          StreamController<Map<String, dynamic>>();
       _bleManager
           .subscribe(
               serviceId: sensorServiceUuid,
               characteristicId: sensorDataCharacteristicUuid)
           .listen((data) {
-        print("Data from sensorManager $data");
+        print(data);
+        print("LENNGTH ${data.length}");
+        print(_sensorSchemes);
         if (data.isNotEmpty && data[0] == sensorId) {
-          _sensorDataControllers[sensorId]?.add(data);
+          Map<String, dynamic> parsedData = parseData(data);
+          _sensorDataControllers[sensorId]?.add(parsedData);
         }
       }, onError: (error) {});
     }
 
     return _sensorDataControllers[sensorId]!.stream;
+  }
+
+  Map<String, dynamic> parseData(data) {
+    ByteData byteData = ByteData.sublistView(Uint8List.fromList(data));
+    var byteIndex = 0;
+    final sensorId = byteData.getUint8(byteIndex);
+    byteIndex += 1;
+    final timestamp = byteData.getUint32(byteIndex);
+    byteIndex += 4;
+    Map<String, dynamic> parsedData = {};
+    if (_sensorSchemes == null) {}
+    SensorScheme foundScheme = _sensorSchemes!.firstWhere(
+      (scheme) => scheme.sensorId == sensorId,
+    );
+    parsedData["sensorId"] = sensorId;
+    parsedData["timestamp"] = timestamp;
+    parsedData["sensorName"] = foundScheme.sensorName;
+    for (Component component in foundScheme.components) {
+      if (parsedData[component.groupName] == null) {
+        parsedData[component.groupName] = {};
+      }
+      if (parsedData[component.groupName][component.componentName] == null) {
+        parsedData[component.groupName][component.componentName] = {};
+      }
+      final dynamic parsedValue;
+      switch (ParseType.values[component.type]) {
+        case ParseType.PARSE_TYPE_INT8:
+          parsedValue = byteData.getInt8(byteIndex);
+          byteIndex += 1;
+          break;
+        case ParseType.PARSE_TYPE_UINT8:
+          parsedValue = byteData.getUint8(byteIndex);
+          byteIndex += 1;
+          break;
+        case ParseType.PARSE_TYPE_INT16:
+          parsedValue = byteData.getInt16(byteIndex, Endian.little);
+          byteIndex += 2;
+          break;
+        case ParseType.PARSE_TYPE_UINT16:
+          parsedValue = byteData.getUint16(byteIndex, Endian.little);
+          byteIndex += 2;
+          break;
+        case ParseType.PARSE_TYPE_INT32:
+          parsedValue = byteData.getInt32(byteIndex, Endian.little);
+          byteIndex += 4;
+          break;
+        case ParseType.PARSE_TYPE_UINT32:
+          parsedValue = byteData.getUint32(byteIndex, Endian.little);
+          byteIndex += 4;
+          break;
+        case ParseType.PARSE_TYPE_FLOAT:
+          parsedValue = byteData.getFloat32(byteIndex, Endian.little);
+          byteIndex += 4;
+          break;
+        case ParseType.PARSE_TYPE_DOUBLE:
+          parsedValue = byteData.getFloat64(byteIndex, Endian.little);
+          byteIndex += 8;
+          break;
+      }
+      parsedData[component.groupName][component.componentName]["data"] =
+          parsedValue;
+      parsedData[component.groupName][component.componentName]["unit"] =
+          component.unitName;
+    }
+    return parsedData;
   }
 
   void disposeSensorDataController(int sensorId) {
@@ -58,6 +128,92 @@ class SensorManager {
         serviceId: buttonServiceUuid,
         characteristicId: buttonStateCharacteristicUuid);
   }
+
+  Future<void> readScheme() async {
+    List<int> byteStream = await _bleManager.read(
+        serviceId: ParseInfoServiceUuid,
+        characteristicId: SchemeCharacteristicUuid);
+
+    int currentIndex = 0;
+
+    int numSensors = byteStream[currentIndex++];
+    List<SensorScheme> sensorSchemes = [];
+    for (int i = 0; i < numSensors; i++) {
+      int sensorId = byteStream[currentIndex++];
+
+      int nameLength = byteStream[currentIndex++];
+
+      List<int> nameBytes =
+          byteStream.sublist(currentIndex, currentIndex + nameLength);
+      String sensorName = String.fromCharCodes(nameBytes);
+      currentIndex += nameLength;
+
+      int componentCount = byteStream[currentIndex++];
+
+      SensorScheme sensorScheme =
+          SensorScheme(sensorId, sensorName, componentCount);
+
+      for (int j = 0; j < componentCount; j++) {
+        int componentType = byteStream[currentIndex++];
+
+        int groupNameLength = byteStream[currentIndex++];
+
+        List<int> groupNameBytes =
+            byteStream.sublist(currentIndex, currentIndex + groupNameLength);
+        String groupName = String.fromCharCodes(groupNameBytes);
+        currentIndex += groupNameLength;
+
+        int componentNameLength = byteStream[currentIndex++];
+
+        List<int> componentNameBytes = byteStream.sublist(
+            currentIndex, currentIndex + componentNameLength);
+        String componentName = String.fromCharCodes(componentNameBytes);
+        currentIndex += componentNameLength;
+
+        int unitNameLength = byteStream[currentIndex++];
+
+        List<int> unitNameBytes =
+            byteStream.sublist(currentIndex, currentIndex + unitNameLength);
+        String unitName = String.fromCharCodes(unitNameBytes);
+        currentIndex += unitNameLength;
+
+        Component component =
+            Component(componentType, groupName, componentName, unitName);
+        sensorScheme.components.add(component);
+      }
+
+      sensorSchemes.add(sensorScheme);
+    }
+    _sensorSchemes = sensorSchemes;
+  }
+}
+
+class Component {
+  int type;
+  String groupName;
+  String componentName;
+  String unitName;
+
+  Component(this.type, this.groupName, this.componentName, this.unitName);
+
+  @override
+  String toString() {
+    return 'Component(type: $type, groupName: $groupName, componentName: $componentName, unitName: $unitName)';
+  }
+}
+
+class SensorScheme {
+  int sensorId;
+  String sensorName;
+  int componentCount;
+  List<Component> components = [];
+
+  SensorScheme(this.sensorId, this.sensorName, this.componentCount);
+
+  @override
+  String toString() {
+    return 'Sensorscheme(sensorId: $sensorId, sensorName: $sensorName, components: ${components.map((component) => component.toString()).toList()})';
+  }
 }
 
 class OpenEarableSensorConfig {
@@ -84,4 +240,18 @@ class OpenEarableSensorConfig {
   String toString() {
     return 'OpenEarableSensorConfig(sensorId: $sensorId, sampleRate: $samplingRate, latency: $latency)';
   }
+}
+
+enum ParseType {
+  PARSE_TYPE_INT8,
+  PARSE_TYPE_UINT8,
+
+  PARSE_TYPE_INT16,
+  PARSE_TYPE_UINT16,
+
+  PARSE_TYPE_INT32,
+  PARSE_TYPE_UINT32,
+
+  PARSE_TYPE_FLOAT,
+  PARSE_TYPE_DOUBLE
 }

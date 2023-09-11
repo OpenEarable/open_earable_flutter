@@ -20,9 +20,6 @@ class _MyAppState extends State<MyApp> {
   String? _deviceGenerationFuture;
 
   void toggleText() async {
-    await _openEarable.bleManager.read(
-        characteristicId: sensorDataCharacteristicUuid,
-        serviceId: sensorServiceUuid);
     String deviceIdentifier = await _openEarable.readDeviceIdentifier();
     String deviceGeneration = await _openEarable.readDeviceGeneration();
     setState(() {
@@ -118,10 +115,9 @@ class _MyAppState extends State<MyApp> {
     OpenEarableSensorConfig config =
         OpenEarableSensorConfig(sensorId: 0, samplingRate: 1, latency: 0);
     _openEarable.sensorManager.writeSensorConfig(config);
-    //_openEarable.sensorManager.readScheme();
-    //print(
-    //    "SENSOR DATA ${await _openEarable.bleManager.read(characteristicId: sensorDataCharacteristicUuid, serviceId: sensorServiceUuid)}");
-    print("Device identifier: ${await _openEarable.readDeviceIdentifier()}");
-    print("Device generation: ${await _openEarable.readDeviceGeneration()}");
+    _openEarable.sensorManager.readScheme();
+    _openEarable.sensorManager.subscribeToSensorData(0).listen((data) {
+      print(data);
+    });
   }
 }

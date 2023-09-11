@@ -76,7 +76,7 @@ class BleManager {
     });
   }
 
-  void write(
+  Future<void> write(
       {required Uuid serviceId,
       required Uuid characteristicId,
       required List<int> value}) async {
