@@ -19,6 +19,8 @@ class OpenEarable {
   late final RgbLed rgbLed;
   late final SensorManager sensorManager;
   late final AudioPlayer audioPlayer;
+  String? _deviceIdentifier;
+  String? _deviceGeneration;
 
   OpenEarable() {
     bleManager = BleManager();
@@ -27,17 +29,19 @@ class OpenEarable {
     audioPlayer = AudioPlayer(bleManager: bleManager);
   }
 
-  Future<String> readDeviceIdentifier() async {
-    List<int> deviceIdentifier = await bleManager.read(
+  Future<String?> readDeviceIdentifier() async {
+    List<int> deviceIdentifierBytes = await bleManager.read(
         serviceId: deviceInfoServiceUuid,
         characteristicId: deviceIdentifierCharacteristicUuid);
-    return String.fromCharCodes(deviceIdentifier);
+    _deviceIdentifier = String.fromCharCodes(deviceIdentifierBytes);
+    return _deviceIdentifier;
   }
 
-  Future<String> readDeviceGeneration() async {
-    List<int> deviceGeneration = await bleManager.read(
+  Future<String?> readDeviceGeneration() async {
+    List<int> deviceGenerationBytes = await bleManager.read(
         serviceId: deviceInfoServiceUuid,
         characteristicId: deviceGenerationCharacteristicUuid);
-    return String.fromCharCodes(deviceGeneration);
+    _deviceGeneration = String.fromCharCodes(deviceGenerationBytes);
+    return _deviceGeneration;
   }
 }

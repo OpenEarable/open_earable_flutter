@@ -8,6 +8,9 @@ class SensorManager {
   SensorManager({required BleManager bleManager}) : _bleManager = bleManager;
 
   void writeSensorConfig(OpenEarableSensorConfig sensorConfig) async {
+    if (!_bleManager.connected) {
+      Exception("Can't write sensor config. Earable not connected");
+    }
     await _bleManager.write(
         serviceId: sensorServiceUuid,
         characteristicId: sensorConfigurationCharacteristicUuid,
@@ -16,6 +19,9 @@ class SensorManager {
   }
 
   Stream<Map<String, dynamic>> subscribeToSensorData(int sensorId) {
+    if (!_bleManager.connected) {
+      Exception("Can't subscribe to sensor data. Earable not connected");
+    }
     if (!_sensorDataControllers.containsKey(sensorId)) {
       _sensorDataControllers[sensorId] =
           StreamController<Map<String, dynamic>>();
@@ -127,6 +133,9 @@ class SensorManager {
   }
 
   Future<void> readScheme() async {
+    if (!_bleManager.connected) {
+      Exception("Can't read sensor scheme. Earable not connected");
+    }
     List<int> byteStream = await _bleManager.read(
         serviceId: ParseInfoServiceUuid,
         characteristicId: SchemeCharacteristicUuid);
