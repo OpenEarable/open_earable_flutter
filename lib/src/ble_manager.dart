@@ -21,9 +21,6 @@ class BleManager {
   Stream<bool> get connectionStateStream => _connectionStateController.stream;
 
   void startScan() async {
-    if (_scanStarted) {
-      return;
-    }
     bool permGranted = false;
     //setState
     _scanStarted = true;
@@ -36,8 +33,7 @@ class BleManager {
     }
 
     if (permGranted) {
-      _scanStream = _flutterReactiveBle
-          .scanForDevices(withServices: []).asBroadcastStream();
+      _scanStream = _flutterReactiveBle.scanForDevices(withServices: []);
     }
   }
 
