@@ -12,6 +12,7 @@ class MyApp extends StatefulWidget {
   _MyAppState createState() => _MyAppState();
 }
 
+// for testing UI in simulator
 class DummyDevice {
   String id;
   String name;
@@ -41,8 +42,16 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     _startScanning();
+    _setupListeners();
+    for (int i = 0; i < 10; i++) {
+      setState(() {
+        dummyDevices.add(DummyDevice("$i", "Device number $i"));
+      });
+    }
+  }
+
+  void _setupListeners() async {
     _openEarable.bleManager.connectionStateStream.listen((connectionState) {
-      print(connectionState);
       if (connectionState) {
         _readDeviceInfo();
         _writeSensorConfig();
@@ -54,11 +63,6 @@ class _MyAppState extends State<MyApp> {
         _connectedToEarable = connectionState;
       });
     });
-    for (int i = 0; i < 10; i++) {
-      setState(() {
-        dummyDevices.add(DummyDevice("$i", "Device number $i"));
-      });
-    }
   }
 
   @override
@@ -103,19 +107,21 @@ class _MyAppState extends State<MyApp> {
                       itemBuilder: (BuildContext context, int index) {
                         final device = discoveredDevices[index];
                         return Column(children: [
-                          ListTile(
-                            textColor: Colors.black,
-                            selectedTileColor: Colors.grey,
-                            title: Text(device.name),
-                            titleTextStyle: const TextStyle(fontSize: 16),
-                            visualDensity: const VisualDensity(
-                                horizontal: -4, vertical: -4),
-                            trailing: _buildTrailingWidget(device.id),
-                            onTap: () {
-                              setState(() => _waitingToConnect = true);
-                              _connectToDevice(device);
-                            },
-                          ),
+                          Material(
+                              type: MaterialType.transparency,
+                              child: ListTile(
+                                textColor: Colors.black,
+                                selectedTileColor: Colors.grey,
+                                title: Text(device.name),
+                                titleTextStyle: const TextStyle(fontSize: 16),
+                                visualDensity: const VisualDensity(
+                                    horizontal: -4, vertical: -4),
+                                trailing: _buildTrailingWidget(device.id),
+                                onTap: () {
+                                  setState(() => _waitingToConnect = true);
+                                  _connectToDevice(device);
+                                },
+                              )),
                           if (index != discoveredDevices.length - 1)
                             const Divider(
                               height: 1.0,
@@ -129,10 +135,12 @@ class _MyAppState extends State<MyApp> {
                     ))),
             Visibility(
                 visible: _deviceIdentifier != null && _connectedToEarable,
-                child: Text(
-                  "Connected to $_deviceIdentifier $_deviceGeneration",
-                  style: const TextStyle(fontSize: 16),
-                )),
+                child: Padding(
+                    padding: EdgeInsets.fromLTRB(33, 8, 0, 8),
+                    child: Text(
+                      "Connected to $_deviceIdentifier $_deviceGeneration",
+                      style: const TextStyle(fontSize: 16),
+                    ))),
             Center(
               child: ElevatedButton(
                 onPressed: _startScanning,
@@ -166,20 +174,18 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _startScanning() async {
-    print("SCAN STARTED");
-    discoveredDevices = [];
+    discoveredDevices.removeWhere(
+        (device) => device.id != _openEarable.bleManager.connectedDevice?.id);
     _openEarable.bleManager.startScan();
     _scanSubscription?.cancel();
     _scanSubscription =
         _openEarable.bleManager.scanStream.listen((incomingDevice) {
-      print("Found device ${incomingDevice.name}");
-      setState(() {
-        if (incomingDevice.name.isNotEmpty &&
-            !discoveredDevices
-                .any((device) => device.id == incomingDevice.id)) {
+      if (incomingDevice.name.isNotEmpty &&
+          !discoveredDevices.any((device) => device.id == incomingDevice.id)) {
+        setState(() {
           discoveredDevices.add(incomingDevice);
-        }
-      });
+        });
+      }
     });
   }
 
@@ -201,10 +207,7 @@ class _MyAppState extends State<MyApp> {
     _openEarable.sensorManager.subscribeToSensorData(0).listen((data) {
       print(data);
     });
-    _openEarable.sensorManager.getButtonStateStream().listen((event) {
-      print("BUTTON STATE: $event");
-    });
+    _openEarable.sensorManager.getButtonStateStream().listen((event) {});
     await _openEarable.rgbLed.setLEDstate(0);
-    print("SET LED STATE");
   }
 }
