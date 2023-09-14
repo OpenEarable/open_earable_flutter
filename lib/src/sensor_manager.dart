@@ -59,8 +59,8 @@ class SensorManager {
       if (parsedData[component.groupName] == null) {
         parsedData[component.groupName] = {};
       }
-      if (parsedData[component.groupName]["units"] == null) {
-        parsedData[component.groupName]["units"] = {};
+      if (parsedData["units"] == null) {
+        parsedData["units"] = {};
       }
       final dynamic parsedValue;
       switch (ParseType.values[component.type]) {
