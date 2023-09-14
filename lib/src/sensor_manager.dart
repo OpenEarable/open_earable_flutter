@@ -59,8 +59,8 @@ class SensorManager {
       if (parsedData[component.groupName] == null) {
         parsedData[component.groupName] = {};
       }
-      if (parsedData[component.groupName][component.componentName] == null) {
-        parsedData[component.groupName][component.componentName] = {};
+      if (parsedData[component.groupName]["units"] == null) {
+        parsedData[component.groupName]["units"] = {};
       }
       final dynamic parsedValue;
       switch (ParseType.values[component.type]) {
@@ -97,9 +97,8 @@ class SensorManager {
           byteIndex += 8;
           break;
       }
-      parsedData[component.groupName][component.componentName]["data"] =
-          parsedValue;
-      parsedData[component.groupName][component.componentName]["unit"] =
+      parsedData[component.groupName][component.componentName] = parsedValue;
+      parsedData[component.groupName]["units"][component.componentName] =
           component.unitName;
     }
     return parsedData;
