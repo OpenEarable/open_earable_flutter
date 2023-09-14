@@ -98,8 +98,7 @@ class SensorManager {
           break;
       }
       parsedData[component.groupName][component.componentName] = parsedValue;
-      parsedData[component.groupName]["units"][component.componentName] =
-          component.unitName;
+      parsedData["units"][component.componentName] = component.unitName;
     }
     return parsedData;
   }
