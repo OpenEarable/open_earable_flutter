@@ -45,7 +45,7 @@ class SensorManager {
     var byteIndex = 0;
     final sensorId = byteData.getUint8(byteIndex);
     byteIndex += 1;
-    final timestamp = byteData.getUint32(byteIndex);
+    final timestamp = byteData.getUint32(byteIndex, Endian.little);
     byteIndex += 4;
     Map<String, dynamic> parsedData = {};
     if (_sensorSchemes == null) {}
