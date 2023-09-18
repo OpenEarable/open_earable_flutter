@@ -2,8 +2,6 @@ part of open_earable_flutter;
 
 class SensorManager {
   final BleManager _bleManager;
-  final Map<int, StreamController<Map<String, dynamic>>>
-      _sensorDataControllers = {};
   List<SensorScheme>? _sensorSchemes;
   SensorManager({required BleManager bleManager}) : _bleManager = bleManager;
 
@@ -19,25 +17,25 @@ class SensorManager {
   }
 
   Stream<Map<String, dynamic>> subscribeToSensorData(int sensorId) {
+    final StreamController<Map<String, dynamic>> streamController =
+        StreamController();
+
     if (!_bleManager.connected) {
       Exception("Can't subscribe to sensor data. Earable not connected");
     }
-    if (!_sensorDataControllers.containsKey(sensorId)) {
-      _sensorDataControllers[sensorId] =
-          StreamController<Map<String, dynamic>>();
-      _bleManager
-          .subscribe(
-              serviceId: sensorServiceUuid,
-              characteristicId: sensorDataCharacteristicUuid)
-          .listen((data) {
-        if (data.isNotEmpty && data[0] == sensorId) {
-          Map<String, dynamic> parsedData = parseData(data);
-          _sensorDataControllers[sensorId]?.add(parsedData);
-        }
-      }, onError: (error) {});
-    }
 
-    return _sensorDataControllers[sensorId]!.stream;
+    _bleManager
+        .subscribe(
+            serviceId: sensorServiceUuid,
+            characteristicId: sensorDataCharacteristicUuid)
+        .listen((data) {
+      if (data.isNotEmpty && data[0] == sensorId) {
+        Map<String, dynamic> parsedData = parseData(data);
+        streamController.add(parsedData);
+      }
+    }, onError: (error) {});
+
+    return streamController.stream;
   }
 
   Map<String, dynamic> parseData(data) {
