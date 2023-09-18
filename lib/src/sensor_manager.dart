@@ -102,21 +102,6 @@ class SensorManager {
     return parsedData;
   }
 
-  void disposeSensorDataController(int sensorId) {
-    final controller = _sensorDataControllers[sensorId];
-    if (controller != null) {
-      controller.close();
-      _sensorDataControllers.remove(sensorId);
-    }
-  }
-
-  void disposeAllSensorDataControllers() {
-    for (final controller in _sensorDataControllers.values) {
-      controller.close();
-    }
-    _sensorDataControllers.clear();
-  }
-
   Stream getBatteryLevelStream() {
     return _bleManager.subscribe(
         serviceId: batteryServiceUuid,
