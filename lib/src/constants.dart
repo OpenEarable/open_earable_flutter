@@ -14,16 +14,16 @@ final Uuid deviceIdentifierCharacteristicUuid =
 final Uuid deviceGenerationCharacteristicUuid =
     Uuid.parse("45622512-6468-465a-b141-0b9b0f96b468");
 
-final Uuid ParseInfoServiceUuid =
+final Uuid parseInfoServiceUuid =
     Uuid.parse("caa25cb7-7e1b-44f2-adc9-e8c06c9ced43");
-final Uuid SchemeCharacteristicUuid =
+final Uuid schemeCharacteristicUuid =
     Uuid.parse("caa25cb8-7e1b-44f2-adc9-e8c06c9ced43");
-final Uuid SensorNamesCharacteristicUuid =
+final Uuid sensorNamesCharacteristicUuid =
     Uuid.parse("caa25cb9-7e1b-44f2-adc9-e8c06c9ced43");
 
-final Uuid WAVPlayServiceUuid =
+final Uuid wavPlayServiceUuid =
     Uuid.parse("5669146e-476d-11ee-be56-0242ac120002");
-final Uuid WAVPlayCharacteristic =
+final Uuid wavPlayCharacteristic =
     Uuid.parse("566916a8-476d-11ee-be56-0242ac120002");
 
 final Uuid batteryServiceUuid = Uuid.parse("180F");
@@ -34,6 +34,6 @@ final Uuid buttonServiceUuid =
 final Uuid buttonStateCharacteristicUuid =
     Uuid.parse("29c10f38-4773-11ee-be56-0242ac120002");
 
-final Uuid LEDServiceUuid = Uuid.parse("81040a2e-4819-11ee-be56-0242ac120002");
-final Uuid LEDSetStateCharacteristic =
+final Uuid ledServiceUuid = Uuid.parse("81040a2e-4819-11ee-be56-0242ac120002");
+final Uuid ledSetStateCharacteristic =
     Uuid.parse("81040e7a-4819-11ee-be56-0242ac120002");

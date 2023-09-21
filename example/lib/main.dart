@@ -8,21 +8,14 @@ void main() {
 }
 
 class MyApp extends StatefulWidget {
+  const MyApp({super.key});
   @override
-  _MyAppState createState() => _MyAppState();
+  MyAppState createState() => MyAppState();
 }
 
-// for testing UI in simulator
-class DummyDevice {
-  String id;
-  String name;
-  DummyDevice(this.id, this.name);
-}
-
-class _MyAppState extends State<MyApp> {
+class MyAppState extends State<MyApp> {
   final OpenEarable _openEarable = OpenEarable();
   StreamSubscription? _scanSubscription;
-  List dummyDevices = [];
   List discoveredDevices = [];
   bool _connectedToEarable = false;
   bool _waitingToConnect = false;
@@ -43,11 +36,6 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     _startScanning();
     _setupListeners();
-    for (int i = 0; i < 10; i++) {
-      setState(() {
-        dummyDevices.add(DummyDevice("$i", "Device number $i"));
-      });
-    }
   }
 
   void _setupListeners() async {
@@ -149,12 +137,6 @@ class _MyAppState extends State<MyApp> {
             )
           ],
         )),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            _startScanning();
-          },
-          child: const Text("Scan"),
-        ),
       ),
     );
   }
@@ -191,23 +173,12 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _connectToDevice(device) async {
     _scanSubscription?.cancel();
-    _openEarable.sensorManager.disposeAllSensorDataControllers();
-    try {
-      await _openEarable.bleManager.connectToDevice(device);
-    } catch (e) {
-      // Handle connection error.
-    }
+    await _openEarable.bleManager.connectToDevice(device);
   }
 
   Future<void> _writeSensorConfig() async {
     OpenEarableSensorConfig config =
         OpenEarableSensorConfig(sensorId: 3, samplingRate: 0, latency: 0);
     _openEarable.sensorManager.writeSensorConfig(config);
-    _openEarable.sensorManager.readScheme();
-    _openEarable.sensorManager.subscribeToSensorData(0).listen((data) {
-      print(data);
-    });
-    _openEarable.sensorManager.getButtonStateStream().listen((event) {});
-    await _openEarable.rgbLed.setLEDstate(0);
   }
 }
