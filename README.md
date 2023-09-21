@@ -55,27 +55,27 @@ To get started with the OpenEarable Flutter package, follow these steps:
 	  Sensor data is returned as a dictionary:
 	  ```json
 		{
-		  sensorId: 0,
-		  timestamp: 163538,
-		  sensorName: ACC_GYRO_MAG,
-		  ACC: {
-		    units: {X: g, Y: g, Z: g},
-		    X: 5.255882263183594,
-		    Y: -2.622856855392456,
-		    Z: 8.134146690368652
-		  },
-		  GYRO: {
-		    units: {X: dps, Y: dps, Z: dps},
-		    X: 0.007621999830007553,
-		    Y: -0.030487999320030212,
-		    Z: -0.015243999660015106
-		  },
-		  MAG: {
-		    units: {X: uT, Y: uT, Z: uT},
-		    X: -566.1000366210938,
-		    Y: -95.70000457763672,
-		    Z: -117.30000305175781
-		  }
+			"sensorId": 0,
+			"timestamp": 163538,
+			"sensorName": "ACC_GYRO_MAG",
+			"ACC": {
+				"units": {"X": "g", "Y": "g", "Z": "g"},
+				"X": 5.255882263183594,
+				"Y": -2.622856855392456,
+				"Z": 8.134146690368652
+			},
+			"GYRO": {
+				"units": {"X": "dps", "Y": "dps", "Z": "dps"},
+				"X": 0.007621999830007553,
+				"Y": -0.030487999320030212,
+				"Z": -0.015243999660015106
+			},
+			"MAG": {
+				"units": {"X": "uT", "Y": "uT", "Z": "uT"},
+				"X": -566.1000366210938,
+				"Y": -95.70000457763672,
+				"Z": -117.30000305175781
+			}
 		}
 	  ```
 	- Battery Level percentage:
