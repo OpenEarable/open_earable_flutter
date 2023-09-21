@@ -23,7 +23,7 @@ class OpenEarable {
   late final BleManager bleManager;
   late final RgbLed rgbLed;
   late final SensorManager sensorManager;
-  late final WavAudioPlayer audioPlayer;
+  late final WavAudioPlayer wavAudioPlayer;
   String? _deviceIdentifier;
   String? _deviceGeneration;
 
@@ -34,7 +34,7 @@ class OpenEarable {
     bleManager = BleManager();
     rgbLed = RgbLed(bleManager: bleManager);
     sensorManager = SensorManager(bleManager: bleManager);
-    audioPlayer = WavAudioPlayer(bleManager: bleManager);
+    wavAudioPlayer = WavAudioPlayer(bleManager: bleManager);
   }
 
   /// Reads the device identifier from the connected OpenEarable device.
