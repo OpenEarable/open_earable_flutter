@@ -180,5 +180,6 @@ class MyAppState extends State<MyApp> {
     OpenEarableSensorConfig config =
         OpenEarableSensorConfig(sensorId: 3, samplingRate: 0, latency: 0);
     _openEarable.sensorManager.writeSensorConfig(config);
+    //_openEarable.sensorManager.subscribeToSensorData(3);
   }
 }
