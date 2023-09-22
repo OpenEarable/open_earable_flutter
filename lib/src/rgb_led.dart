@@ -13,20 +13,21 @@ class RgbLed {
 
   /// Writes the state of the RGB LED on the OpenEarable device.
   ///
-  /// The [state] parameter represents the desired LED state. You can choose from the following states:
-  /// - [LedState.off]: Turns off the LED.
-  /// - [LedState.green]: Sets the LED to green.
-  /// - [LedState.blue]: Sets the LED to blue.
-  /// - [LedState.red]: Sets the LED to red.
-  /// - [LedState.cyan]: Sets the LED to cyan.
-  /// - [LedState.yellow]: Sets the LED to yellow.
-  /// - [LedState.magenta]: Sets the LED to magenta.
-  /// - [LedState.white]: Sets the LED to white.
+  /// Parameters:
+  /// - `r`: The red color component value (0-255) for the LED.
+  /// - `g`: The green color component value (0-255) for the LED.
+  /// - `b`: The blue color component value (0-255) for the LED.
   ///
-  /// Use this method to easily write the state of the RGB LED on the OpenEarable device.
-  Future<void> writeLedState(LedState state) async {
-    ByteData data = ByteData(1);
-    data.setUint8(0, state.index);
+  /// Use this method to easily set the color of the in-built RGB LED on the OpenEarable device.
+  Future<void> writeLedColor(
+      {required int r, required int g, required int b}) async {
+    if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255) {
+      throw ArgumentError('The color values must be in range 0-255');
+    }
+    ByteData data = ByteData(3);
+    data.setUint8(0, r);
+    data.setUint8(0, g);
+    data.setUint8(0, b);
     await _bleManager.write(
         serviceId: ledServiceUuid,
         characteristicId: ledSetStateCharacteristic,

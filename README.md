@@ -92,13 +92,10 @@ To get started with the OpenEarable Flutter package, follow these steps:
  - Control built-in LED:
 	 **This does not work at the moment**
 	 ```dart
-	 openEarable.rgbLed.setLEDstate(LedColor.green);
+	 openEarable.rgbLed.writeLedColor(r: 0, g: 255, b: 0);
 	 ```
 - Control WAV audio player:
   **Has not been tested yet**
 	 ```dart
 	 openEarable.wavAudioPlayer.writeState(WavAudioPlayerState.start, "audio.wav");
 	 ```
-	 
-	 
-
