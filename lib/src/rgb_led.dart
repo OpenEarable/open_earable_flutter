@@ -26,8 +26,8 @@ class RgbLed {
     }
     ByteData data = ByteData(3);
     data.setUint8(0, r);
-    data.setUint8(0, g);
-    data.setUint8(0, b);
+    data.setUint8(1, g);
+    data.setUint8(2, b);
     await _bleManager.write(
         serviceId: ledServiceUuid,
         characteristicId: ledSetStateCharacteristic,
