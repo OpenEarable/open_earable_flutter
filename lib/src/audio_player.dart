@@ -31,8 +31,8 @@ class WavAudioPlayer {
   /// service and characteristic using BLE communication.
   ///
   /// - [state]: The playback state to be written.
-  /// - [name]: The name of the audio file.
-  void writeWAVState(WavAudioPlayerState state, String name) {
+  /// - [name]: The name of the audio file. This parameter is optional.
+  void writeWAVState(WavAudioPlayerState state, {String name = ""}) {
     ByteData data = ByteData(2 + name.length);
     data.setUint8(0, state.index);
     data.setUint8(1, name.length);
