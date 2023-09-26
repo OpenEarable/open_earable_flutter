@@ -72,8 +72,8 @@ class BleManager {
       Exception("Write failed because no Earable is connected");
     }
     final characteristic = QualifiedCharacteristic(
-        serviceId: sensorServiceUuid,
-        characteristicId: sensorConfigurationCharacteristicUuid,
+        serviceId: serviceId,
+        characteristicId: characteristicId,
         deviceId: _connectedDevice!.id);
     await _flutterReactiveBle.writeCharacteristicWithResponse(
       characteristic,

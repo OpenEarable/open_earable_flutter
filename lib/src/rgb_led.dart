@@ -31,7 +31,7 @@ class RgbLed {
     await _bleManager.write(
         serviceId: ledServiceUuid,
         characteristicId: ledSetStateCharacteristic,
-        byteData: data.buffer.asInt8List());
+        byteData: data.buffer.asUint8List());
   }
 }
 
