@@ -97,5 +97,5 @@ To get started with the OpenEarable Flutter package, follow these steps:
 - Control WAV audio player:
   **Has not been tested yet**
 	 ```dart
-	 openEarable.wavAudioPlayer.writeState(WavAudioPlayerState.start, "audio.wav");
+	 openEarable.wavAudioPlayer.writeState(WavAudioPlayerState.start, name = "audio.wav");
 	 ```
