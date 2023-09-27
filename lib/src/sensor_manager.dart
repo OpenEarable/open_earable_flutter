@@ -61,7 +61,7 @@ class SensorManager {
     byteIndex += 4;
     Map<String, dynamic> parsedData = {};
     if (_sensorSchemes == null) {
-      _readSensorScheme();
+      await _readSensorScheme();
     }
     SensorScheme foundScheme = _sensorSchemes!.firstWhere(
       (scheme) => scheme.sensorId == sensorId,

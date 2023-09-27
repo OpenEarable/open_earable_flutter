@@ -127,7 +127,7 @@ enum AudioPlayerState {
   idle,
 
   /// Play the audio file.
-  play,
+  start,
 
   /// Pause the audio file.
   pause,
