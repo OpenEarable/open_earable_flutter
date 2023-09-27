@@ -71,9 +71,9 @@ class AudioPlayer {
   ///
   /// Example usage:
   /// ```dart
-  /// playWav(AudioPlayerState.play, name: 'mySound.wav');
+  /// setWavState(AudioPlayerState.play, name: 'mySound.wav');
   /// ```
-  void playWav(AudioPlayerState state, {String name = ""}) {
+  void setWavState(AudioPlayerState state, {String name = ""}) {
     _writeAudioPlayerState(SoundType.wav, state, name);
   }
 
@@ -90,9 +90,10 @@ class AudioPlayer {
   ///
   /// Example usage:
   /// ```dart
-  /// playFreq(AudioPlayerState.play, 440.0, 0);
+  /// setFrequencyState(AudioPlayerState.play, 440.0, 0);
   /// ```
-  void playFreq(AudioPlayerState state, double frequency, int waveForm) {
+  void setFrequencyState(
+      AudioPlayerState state, double frequency, int waveForm) {
     _writeAudioPlayerState(SoundType.frequency, state, "",
         waveForm: waveForm, frequency: frequency);
   }
@@ -105,9 +106,9 @@ class AudioPlayer {
   ///
   /// Example usage:
   /// ```dart
-  /// playJingle(AudioPlayerState.play, name: 'jingle.wav');
+  /// setJingleState(AudioPlayerState.play, name: 'jingle.wav');
   /// ```
-  void playJingle(AudioPlayerState state, {String name = ""}) {
+  void setJingleState(AudioPlayerState state, {String name = ""}) {
     _writeAudioPlayerState(SoundType.jingle, state, name);
   }
 
