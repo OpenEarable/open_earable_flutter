@@ -3,7 +3,6 @@
 This Dart package provides functionality for interacting with OpenEarable devices. It enables you to communicate with OpenEarable devices, control LED colors, play audio files, and access raw sensor data.
 
 ## Getting Started
-
 To get started with the OpenEarable Flutter package, follow these steps:
 
 1. **Installation**: Add the package to your `pubspec.yaml` file:
@@ -94,8 +93,30 @@ To get started with the OpenEarable Flutter package, follow these steps:
 	 ```dart
 	 openEarable.rgbLed.writeLedColor(r: 0, g: 255, b: 0);
 	 ```
-- Control WAV audio player:
-  **Has not been tested yet**
-	 ```dart
-	 openEarable.wavAudioPlayer.writeState(WavAudioPlayerState.start, name: "audio.wav");
-	 ```
+- Control audio player:
+  - Play WAV files
+		**Has not been tested yet**
+		```dart
+		openEarable.audioPlayer.setWavState(state, name: "audio.wav");
+		```
+			- state: WavAudioPlayerState
+    	- name: filename of audio file stored on earable
+	- Play Frequency:
+	  ```dart
+		openEarable.audioPlayer.setFrequencyState(
+      state, frequency, waveForm);
+		```
+		- state: WavAudioPlayerState
+		- frequency: double
+		- waveForm: int
+	- Play Jingle:
+		```dart
+		openEarable.audioPlayer.setJingleState(state, name: "success.wav")
+		```
+		- state: WavAudioPlayerState
+    - name: filename of jingle stored on earable
+  - Put audio player into idle state:
+		```dart
+		openEarable.audioPlayer.setIdle()
+		```
+
