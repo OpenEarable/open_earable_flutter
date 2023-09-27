@@ -21,9 +21,9 @@ final Uuid schemeCharacteristicUuid =
 final Uuid sensorNamesCharacteristicUuid =
     Uuid.parse("caa25cb9-7e1b-44f2-adc9-e8c06c9ced43");
 
-final Uuid wavPlayServiceUuid =
+final Uuid audioPlayerServiceUuid =
     Uuid.parse("5669146e-476d-11ee-be56-0242ac120002");
-final Uuid wavPlayCharacteristic =
+final Uuid audioPlayerCharacteristic =
     Uuid.parse("566916a8-476d-11ee-be56-0242ac120002");
 
 final Uuid batteryServiceUuid = Uuid.parse("180F");

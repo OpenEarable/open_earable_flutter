@@ -20,7 +20,9 @@ class SensorManager {
         serviceId: sensorServiceUuid,
         characteristicId: sensorConfigurationCharacteristicUuid,
         byteData: sensorConfig.byteList);
-    await _readSensorScheme();
+    if (_sensorSchemes == null) {
+      await _readSensorScheme();
+    }
   }
 
   /// Subscribes to sensor data for a specific sensor.

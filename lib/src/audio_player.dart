@@ -6,19 +6,19 @@ part of open_earable_flutter;
 /// This class provides functionality for controlling and interacting with an
 /// audio player via Bluetooth Low Energy (BLE) communication. It allows you
 /// to send commands to the audio player.
-class WavAudioPlayer {
+class AudioPlayer {
   /// The BleManager instance used for Bluetooth communication.
   final BleManager _bleManager;
 
-  /// Creates an [WavAudioPlayer] instance with the provided [bleManager].
+  /// Creates an [AudioPlayer] instance with the provided [bleManager].
   ///
   /// The [bleManager] is required for handling BLE communication.
-  WavAudioPlayer({required BleManager bleManager}) : _bleManager = bleManager;
+  AudioPlayer({required BleManager bleManager}) : _bleManager = bleManager;
 
   /// Writes the state and name of the WAV audio file to the OpenEarable.
   ///
   /// The [state] parameter represents the playback state and should be one of
-  /// the following values from the [WavAudioPlayerState] enum:
+  /// the following values from the [AudioPlayerState] enum:
   ///
   /// - [WavPlayerState.stop]: Stops audio playback.
   /// - [WavPlayerState.start]: Starts audio playback.
@@ -32,21 +32,120 @@ class WavAudioPlayer {
   ///
   /// - [state]: The playback state to be written.
   /// - [name]: The name of the audio file. This parameter is optional.
-  void writeWAVState(WavAudioPlayerState state, {String name = ""}) {
-    ByteData data = ByteData(2 + name.length);
-    data.setUint8(0, state.index);
-    data.setUint8(1, name.length);
+  void _writeAudioPlayerState(
+      SoundType soundType, AudioPlayerState state, String name,
+      {int waveForm = 0, double frequency = 0}) {
+    int byteDataLength = 3 + // 3 bytes fo soundtype, state, length
+        ((soundType == SoundType.frequency)
+            ? 4
+            : name.length); // 4 bytes for float32 if frequency is sent
+    ByteData data = ByteData(byteDataLength);
+    data.setUint8(0, soundType.index);
+    data.setUint8(1, state.index);
+    if (soundType == SoundType.jingle) {
+      data.setUint8(2, waveForm);
+    } else {
+      data.setUint8(2, name.length);
+    }
 
-    List<int> nameBytes = utf8.encode(name);
-    for (var i = 0; i < nameBytes.length; i++) {
-      data.setUint8(2 + i, nameBytes[i]);
+    if (soundType == SoundType.frequency) {
+      data.setFloat32(3, frequency);
+    } else {
+      List<int> nameBytes = utf8.encode(name);
+      for (var i = 0; i < nameBytes.length; i++) {
+        data.setUint8(3 + i, nameBytes[i]);
+      }
     }
 
     _bleManager.write(
-        serviceId: wavPlayServiceUuid,
-        characteristicId: wavPlayCharacteristic,
+        serviceId: audioPlayerServiceUuid,
+        characteristicId: audioPlayerCharacteristic,
         byteData: data.buffer.asUint8List());
+  }
+
+  /// Plays a WAV file with the specified [state] and optional [name].
+  ///
+  /// This method is used to play WAV audio files. It takes an [AudioPlayerState]
+  /// to set the player's state and an optional [name] parameter to specify
+  /// the name of the audio file.
+  ///
+  /// Example usage:
+  /// ```dart
+  /// playWav(AudioPlayerState.play, name: 'mySound.wav');
+  /// ```
+  void playWav(AudioPlayerState state, {String name = ""}) {
+    _writeAudioPlayerState(SoundType.wav, state, name);
+  }
+
+  /// Plays a sound with a specified frequency and waveform.
+  ///
+  /// This method is used to generate and play sounds with a specific [frequency]
+  /// and [waveForm]. It takes an [AudioPlayerState] to set the player's state.
+  /// Possible waveforms are:
+  ///
+  /// - 0: Sine.
+  /// - 1: Triangle.
+  /// - 2: Square.
+  /// - 3: Sawtooth.
+  ///
+  /// Example usage:
+  /// ```dart
+  /// playFreq(AudioPlayerState.play, 440.0, 0);
+  /// ```
+  void playFreq(AudioPlayerState state, double frequency, int waveForm) {
+    _writeAudioPlayerState(SoundType.frequency, state, "",
+        waveForm: waveForm, frequency: frequency);
+  }
+
+  /// Plays a jingle or short musical sound with the specified [state] and optional [name].
+  ///
+  /// This method is used to play jingles or short musical sounds. It takes an
+  /// [AudioPlayerState] to set the player's state and an optional [name]
+  /// parameter to specify the name of the jingle.
+  ///
+  /// Example usage:
+  /// ```dart
+  /// playJingle(AudioPlayerState.play, name: 'jingle.wav');
+  /// ```
+  void playJingle(AudioPlayerState state, {String name = ""}) {
+    _writeAudioPlayerState(SoundType.jingle, state, name);
+  }
+
+  /// Sets the audio player to the idle state.
+  ///
+  /// The audio player transitions to the idle state,
+  /// indicating that it is not currently playing any sound.
+  void setIdle() {
+    _writeAudioPlayerState(SoundType.idle, AudioPlayerState.idle, "");
   }
 }
 
-enum WavAudioPlayerState { stop, start, pause, unpause }
+/// An enumeration representing the possible states of the audio player.
+enum AudioPlayerState {
+  /// Idle state.
+  idle,
+
+  /// Play the audio file.
+  play,
+
+  /// Pause the audio file.
+  pause,
+
+  /// Stop the audio file.
+  stop,
+}
+
+/// An enumeration representing the different types of sounds that can be played.
+enum SoundType {
+  /// Represents the idle state.
+  idle,
+
+  /// Represents an audio file in WAV format.
+  wav,
+
+  /// Represents a sound generated with a specific frequency and waveform.
+  frequency,
+
+  /// Represents a jingle or short musical sound.
+  jingle,
+}
