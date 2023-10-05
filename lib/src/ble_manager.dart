@@ -17,6 +17,14 @@ class BleManager {
   DiscoveredDevice? get connectedDevice => _connectedDevice;
   DiscoveredDevice? _connectedDevice;
 
+  /// The currently connected device.
+  String? get deviceIdentifier => _deviceIdentifier;
+  String? _deviceIdentifier;
+
+  /// The currently connected device.
+  String? get deviceFirmwareVersion => _deviceFirmwareVersion;
+  String? _deviceFirmwareVersion;
+
   late Stream<ConnectionStateUpdate> _connectionEventStream;
 
   final StreamController<bool> _connectionStateController =
@@ -51,6 +59,10 @@ class BleManager {
       switch (event.connectionState) {
         case DeviceConnectionState.connected:
           {
+            if (deviceIdentifier == null || deviceFirmwareVersion == null) {
+              readDeviceIdentifier();
+              readDeviceFirmwareVersion();
+            }
             _connected = true;
             _connectionStateController.add(true);
           }
@@ -107,5 +119,27 @@ class BleManager {
     final response =
         await _flutterReactiveBle.readCharacteristic(characteristic);
     return response;
+  }
+
+  /// Reads the device identifier from the connected OpenEarable device.
+  ///
+  /// Returns a `Future` that completes with the device identifier as a `String`.
+  Future<String?> readDeviceIdentifier() async {
+    List<int> deviceIdentifierBytes = await read(
+        serviceId: deviceInfoServiceUuid,
+        characteristicId: deviceIdentifierCharacteristicUuid);
+    _deviceIdentifier = String.fromCharCodes(deviceIdentifierBytes);
+    return _deviceIdentifier;
+  }
+
+  /// Reads the device firmware version from the connected OpenEarable device.
+  ///
+  /// Returns a `Future` that completes with the device firmware version as a `String`.
+  Future<String?> readDeviceFirmwareVersion() async {
+    List<int> deviceGenerationBytes = await read(
+        serviceId: deviceInfoServiceUuid,
+        characteristicId: deviceFirmwareVersionCharacteristicUuid);
+    _deviceFirmwareVersion = String.fromCharCodes(deviceGenerationBytes);
+    return _deviceFirmwareVersion;
   }
 }

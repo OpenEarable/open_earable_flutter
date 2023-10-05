@@ -24,8 +24,10 @@ class OpenEarable {
   late final RgbLed rgbLed;
   late final SensorManager sensorManager;
   late final AudioPlayer audioPlayer;
-  String? _deviceIdentifier;
-  String? _deviceGeneration;
+
+  String? get deviceName => bleManager.connectedDevice?.name;
+  String? get deviceIdentifier => bleManager.deviceIdentifier;
+  String? get deviceFirmwareVersion => bleManager.deviceFirmwareVersion;
 
   /// Creates an instance of the `OpenEarable` class.
   ///
@@ -35,27 +37,5 @@ class OpenEarable {
     rgbLed = RgbLed(bleManager: bleManager);
     sensorManager = SensorManager(bleManager: bleManager);
     audioPlayer = AudioPlayer(bleManager: bleManager);
-  }
-
-  /// Reads the device identifier from the connected OpenEarable device.
-  ///
-  /// Returns a `Future` that completes with the device identifier as a `String`.
-  Future<String?> readDeviceIdentifier() async {
-    List<int> deviceIdentifierBytes = await bleManager.read(
-        serviceId: deviceInfoServiceUuid,
-        characteristicId: deviceIdentifierCharacteristicUuid);
-    _deviceIdentifier = String.fromCharCodes(deviceIdentifierBytes);
-    return _deviceIdentifier;
-  }
-
-  /// Reads the device firmware version from the connected OpenEarable device.
-  ///
-  /// Returns a `Future` that completes with the device firmware version as a `String`.
-  Future<String?> readDeviceFirmwareVersion() async {
-    List<int> deviceGenerationBytes = await bleManager.read(
-        serviceId: deviceInfoServiceUuid,
-        characteristicId: deviceFirmwareVersionCharacteristicUuid);
-    _deviceGeneration = String.fromCharCodes(deviceGenerationBytes);
-    return _deviceGeneration;
   }
 }
