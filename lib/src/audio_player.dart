@@ -34,7 +34,7 @@ class AudioPlayer {
   /// - [name]: The name of the audio file. This parameter is optional.
   void _writeAudioPlayerState(
       SoundType soundType, AudioPlayerState state, String name,
-      {int waveForm = 0, double frequency = 0, double amplitude = 0}) {
+      {int waveForm = 0, double frequency = 0, double amplitude = 1.0}) {
     int byteDataLength = 3 + // 3 bytes fo soundtype, state, length
         ((soundType == SoundType.frequency)
             ? 8
@@ -94,9 +94,9 @@ class AudioPlayer {
   /// setFrequencyState(AudioPlayerState.play, 440.0, 0);
   /// ```
   void setFrequencyState(AudioPlayerState state,
-      {double frequency = 0, int waveForm = 0}) {
+      {int waveForm = 0, double frequency = 0, double amplitude = 1.0}) {
     _writeAudioPlayerState(SoundType.frequency, state, "",
-        waveForm: waveForm, frequency: frequency);
+        waveForm: waveForm, frequency: frequency, amplitude: amplitude);
   }
 
   /// Plays a jingle or short musical sound with the specified [state] and optional [name].
