@@ -34,11 +34,11 @@ class AudioPlayer {
   /// - [name]: The name of the audio file. This parameter is optional.
   void _writeAudioPlayerState(
       SoundType soundType, AudioPlayerState state, String name,
-      {int waveForm = 0, double frequency = 0}) {
+      {int waveForm = 0, double frequency = 0, double amplitude = 0}) {
     int byteDataLength = 3 + // 3 bytes fo soundtype, state, length
         ((soundType == SoundType.frequency)
-            ? 4
-            : name.length); // 4 bytes for float32 if frequency is sent
+            ? 8
+            : name.length); // 8 bytes for 2x float32 (frequency, amplitude)
     ByteData data = ByteData(byteDataLength);
     data.setUint8(0, soundType.index);
     data.setUint8(1, state.index);
@@ -50,6 +50,7 @@ class AudioPlayer {
 
     if (soundType == SoundType.frequency) {
       data.setFloat32(3, frequency);
+      data.setFloat32(7, amplitude);
     } else {
       List<int> nameBytes = utf8.encode(name);
       for (var i = 0; i < nameBytes.length; i++) {
