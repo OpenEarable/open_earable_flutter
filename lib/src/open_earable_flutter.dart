@@ -48,9 +48,9 @@ class OpenEarable {
     return _deviceIdentifier;
   }
 
-  /// Reads the device generation from the connected OpenEarable device.
+  /// Reads the device firmware version from the connected OpenEarable device.
   ///
-  /// Returns a `Future` that completes with the device generation as a `String`.
+  /// Returns a `Future` that completes with the device firmware version as a `String`.
   Future<String?> readDeviceFirmwareVersion() async {
     List<int> deviceGenerationBytes = await bleManager.read(
         serviceId: deviceInfoServiceUuid,
