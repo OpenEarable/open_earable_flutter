@@ -11,7 +11,7 @@ final Uuid deviceInfoServiceUuid =
     Uuid.parse("45622510-6468-465a-b141-0b9b0f96b468");
 final Uuid deviceIdentifierCharacteristicUuid =
     Uuid.parse("45622511-6468-465a-b141-0b9b0f96b468");
-final Uuid deviceGenerationCharacteristicUuid =
+final Uuid deviceFirmwareVersionCharacteristicUuid =
     Uuid.parse("45622512-6468-465a-b141-0b9b0f96b468");
 
 final Uuid parseInfoServiceUuid =

@@ -51,10 +51,10 @@ class OpenEarable {
   /// Reads the device generation from the connected OpenEarable device.
   ///
   /// Returns a `Future` that completes with the device generation as a `String`.
-  Future<String?> readDeviceGeneration() async {
+  Future<String?> readDeviceFirmwareVersion() async {
     List<int> deviceGenerationBytes = await bleManager.read(
         serviceId: deviceInfoServiceUuid,
-        characteristicId: deviceGenerationCharacteristicUuid);
+        characteristicId: deviceFirmwareVersionCharacteristicUuid);
     _deviceGeneration = String.fromCharCodes(deviceGenerationBytes);
     return _deviceGeneration;
   }
