@@ -9,10 +9,6 @@ class BleManager {
   Stream<DiscoveredDevice> get scanStream => _scanStream;
   late Stream<DiscoveredDevice> _scanStream;
 
-  /// The device that is currently being connected to.
-  DiscoveredDevice? get connectingDevice => _connectingDevice;
-  DiscoveredDevice? _connectingDevice;
-
   /// The currently connected device.
   DiscoveredDevice? get connectedDevice => _connectedDevice;
   DiscoveredDevice? _connectedDevice;
@@ -60,24 +56,16 @@ class BleManager {
             prescanDuration: const Duration(seconds: 1),
             withServices: [sensorServiceUuid]).listen((event) async {
       switch (event.connectionState) {
-        case DeviceConnectionState.connecting:
-          _connectingDevice = device;
-          _connectionStateController.add(false);
         case DeviceConnectionState.connected:
-          {
-            _connectingDevice = null;
-            _connectedDevice = device;
-            if (deviceIdentifier == null || deviceFirmwareVersion == null) {
-              await readDeviceIdentifier();
-              await readDeviceFirmwareVersion();
-            }
-            _connectionStateController.add(true);
+          _connectedDevice = device;
+          if (deviceIdentifier == null || deviceFirmwareVersion == null) {
+            await readDeviceIdentifier();
+            await readDeviceFirmwareVersion();
           }
+          _connectionStateController.add(true);
         default:
-          {
-            _connectedDevice = null;
-            _connectionStateController.add(false);
-          }
+          _connectedDevice = null;
+          _connectionStateController.add(false);
       }
     });
   }
