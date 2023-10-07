@@ -20,14 +20,16 @@ class MyAppState extends State<MyApp> {
   bool _connectedToEarable = false;
   bool _waitingToConnect = false;
   String? _deviceIdentifier;
-  String? _deviceGeneration;
+  String? _deviceFirmwareVersion;
 
   void _readDeviceInfo() async {
-    String? deviceIdentifier = await _openEarable.readDeviceIdentifier();
-    String? deviceGeneration = await _openEarable.readDeviceGeneration();
+    String? deviceIdentifier =
+        await _openEarable.bleManager.readDeviceIdentifier();
+    String? deviceFirmwareVersion =
+        await _openEarable.bleManager.readDeviceFirmwareVersion();
     setState(() {
       _deviceIdentifier = deviceIdentifier;
-      _deviceGeneration = deviceGeneration;
+      _deviceFirmwareVersion = deviceFirmwareVersion;
     });
   }
 
@@ -126,7 +128,7 @@ class MyAppState extends State<MyApp> {
                 child: Padding(
                     padding: EdgeInsets.fromLTRB(33, 8, 0, 8),
                     child: Text(
-                      "Connected to $_deviceIdentifier $_deviceGeneration",
+                      "Connected to $_deviceIdentifier $_deviceFirmwareVersion",
                       style: const TextStyle(fontSize: 16),
                     ))),
             Center(
