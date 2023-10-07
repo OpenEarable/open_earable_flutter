@@ -70,10 +70,12 @@ class BleManager {
             await readDeviceFirmwareVersion();
           }
           _connectionStateController.add(true);
-        default:
+          _connectingDevice = null;
+        case DeviceConnectionState.disconnected:
           _connectedDevice = null;
           _connectingDevice = null;
           _connectionStateController.add(false);
+        default:
       }
     });
   }
