@@ -9,6 +9,10 @@ class BleManager {
   Stream<DiscoveredDevice> get scanStream => _scanStream;
   late Stream<DiscoveredDevice> _scanStream;
 
+  /// The device that is currently being connected to.
+  DiscoveredDevice? get connectingDevice => _connectingDevice;
+  DiscoveredDevice? _connectingDevice;
+
   /// The currently connected device.
   DiscoveredDevice? get connectedDevice => _connectedDevice;
   DiscoveredDevice? _connectedDevice;
@@ -49,6 +53,9 @@ class BleManager {
 
   /// Connects to the specified Earable device.
   connectToDevice(DiscoveredDevice device) {
+    _connectingDevice = device;
+    _connectionStateController.add(false);
+
     _connectionStateSubscription?.cancel();
     _connectionStateSubscription = _flutterReactiveBle
         .connectToAdvertisingDevice(
@@ -65,6 +72,7 @@ class BleManager {
           _connectionStateController.add(true);
         default:
           _connectedDevice = null;
+          _connectingDevice = null;
           _connectionStateController.add(false);
       }
     });
