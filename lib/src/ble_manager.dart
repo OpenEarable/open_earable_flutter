@@ -53,11 +53,8 @@ class BleManager {
 
   /// Connects to the specified Earable device.
   connectToDevice(DiscoveredDevice device) {
-    _connectionStateSubscription = _flutterReactiveBle
-        .connectToAdvertisingDevice(
-            id: device.id,
-            prescanDuration: const Duration(seconds: 1),
-            withServices: [sensorServiceUuid]).listen((event) async {
+    _connectionStateSubscription =
+        _flutterReactiveBle.connectedDeviceStream.listen((event) async {
       switch (event.connectionState) {
         case DeviceConnectionState.connecting:
           _connectingDevice = device;
@@ -78,6 +75,10 @@ class BleManager {
             _connectionStateController.add(false);
           }
       }
+      _flutterReactiveBle.connectToAdvertisingDevice(
+          id: device.id,
+          prescanDuration: const Duration(seconds: 1),
+          withServices: [sensorServiceUuid]);
     });
   }
 
