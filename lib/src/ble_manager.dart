@@ -28,7 +28,7 @@ class BleManager {
   String? get deviceFirmwareVersion => _deviceFirmwareVersion;
   String? _deviceFirmwareVersion;
 
-  late Stream<ConnectionStateUpdate> _connectionEventStream;
+  StreamSubscription? _connectionStateSubscription;
 
   final StreamController<bool> _connectionStateController =
       StreamController<bool>.broadcast();
@@ -53,11 +53,11 @@ class BleManager {
 
   /// Connects to the specified Earable device.
   connectToDevice(DiscoveredDevice device) {
-    _connectionEventStream = _flutterReactiveBle.connectToAdvertisingDevice(
-        id: device.id,
-        prescanDuration: const Duration(seconds: 1),
-        withServices: [sensorServiceUuid]);
-    _connectionEventStream.listen((event) async {
+    _connectionStateSubscription = _flutterReactiveBle
+        .connectToAdvertisingDevice(
+            id: device.id,
+            prescanDuration: const Duration(seconds: 1),
+            withServices: [sensorServiceUuid]).listen((event) async {
       switch (event.connectionState) {
         case DeviceConnectionState.connecting:
           _connectingDevice = device;
@@ -147,5 +147,10 @@ class BleManager {
         characteristicId: deviceFirmwareVersionCharacteristicUuid);
     _deviceFirmwareVersion = String.fromCharCodes(deviceGenerationBytes);
     return _deviceFirmwareVersion;
+  }
+
+  /// Cancel connection state subscription
+  dispose() {
+    _connectionStateSubscription?.cancel();
   }
 }
