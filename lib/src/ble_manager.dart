@@ -74,6 +74,8 @@ class BleManager {
         case DeviceConnectionState.disconnected:
           _connectedDevice = null;
           _connectingDevice = null;
+          _deviceFirmwareVersion = null;
+          _deviceIdentifier = null;
           _connectionStateController.add(false);
         default:
       }
