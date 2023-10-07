@@ -87,7 +87,7 @@ class BleManager {
       required Uuid characteristicId,
       required List<int> byteData}) async {
     if (_connectedDevice == null) {
-      Exception("Write failed because no Earable is connected");
+      throw Exception("Write failed because no Earable is connected");
     }
     final characteristic = QualifiedCharacteristic(
         serviceId: serviceId,
@@ -103,7 +103,7 @@ class BleManager {
   Stream<List<int>> subscribe(
       {required Uuid serviceId, required Uuid characteristicId}) {
     if (_connectedDevice == null) {
-      Exception("Subscribing failed because no Earable is connected");
+      throw Exception("Subscribing failed because no Earable is connected");
     }
     final characteristic = QualifiedCharacteristic(
         serviceId: serviceId,
@@ -116,7 +116,7 @@ class BleManager {
   Future<List<int>> read(
       {required Uuid serviceId, required Uuid characteristicId}) async {
     if (_connectedDevice == null) {
-      Exception("Read failed because no Earable is connected");
+      throw Exception("Read failed because no Earable is connected");
     }
     final characteristic = QualifiedCharacteristic(
         serviceId: serviceId,
