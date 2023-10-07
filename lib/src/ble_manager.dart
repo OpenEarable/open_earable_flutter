@@ -62,15 +62,16 @@ class BleManager {
       switch (event.connectionState) {
         case DeviceConnectionState.connecting:
           _connectingDevice = device;
+          _connectionStateController.add(false);
         case DeviceConnectionState.connected:
           {
             _connectingDevice = null;
             _connectedDevice = device;
-            _connectionStateController.add(true);
             if (deviceIdentifier == null || deviceFirmwareVersion == null) {
               readDeviceIdentifier();
               readDeviceFirmwareVersion();
             }
+            _connectionStateController.add(true);
           }
         default:
           {
