@@ -64,13 +64,13 @@ class BleManager {
           _connectingDevice = device;
         case DeviceConnectionState.connected:
           {
+            _connectingDevice = null;
+            _connectedDevice = device;
+            _connectionStateController.add(true);
             if (deviceIdentifier == null || deviceFirmwareVersion == null) {
               readDeviceIdentifier();
               readDeviceFirmwareVersion();
             }
-            _connectingDevice = null;
-            _connectedDevice = device;
-            _connectionStateController.add(true);
           }
         default:
           {
