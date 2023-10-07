@@ -5,17 +5,20 @@ part of open_earable_flutter;
 class BleManager {
   FlutterReactiveBle _flutterReactiveBle = FlutterReactiveBle();
 
-  /// Indicates whether the manager is currently connected to a device.
-  bool get connected => _connected;
-  bool _connected = false;
-
   /// A stream of discovered devices during scanning.
   Stream<DiscoveredDevice> get scanStream => _scanStream;
   late Stream<DiscoveredDevice> _scanStream;
 
+  /// The device that is currently being connected to.
+  DiscoveredDevice? get connectingDevice => _connectingDevice;
+  DiscoveredDevice? _connectingDevice;
+
   /// The currently connected device.
   DiscoveredDevice? get connectedDevice => _connectedDevice;
   DiscoveredDevice? _connectedDevice;
+
+  // Returns false if no device is connected
+  bool get connected => _connectedDevice != null;
 
   /// The currently connected device.
   String? get deviceIdentifier => _deviceIdentifier;
@@ -50,25 +53,28 @@ class BleManager {
 
   /// Connects to the specified Earable device.
   connectToDevice(DiscoveredDevice device) {
-    _connectedDevice = device;
+    _connectingDevice = device;
     _connectionEventStream = _flutterReactiveBle.connectToAdvertisingDevice(
         id: device.id,
         prescanDuration: const Duration(seconds: 1),
         withServices: [sensorServiceUuid]);
     _connectionEventStream.listen((event) {
       switch (event.connectionState) {
+        case DeviceConnectionState.connecting:
+          _connectingDevice = device;
         case DeviceConnectionState.connected:
           {
             if (deviceIdentifier == null || deviceFirmwareVersion == null) {
               readDeviceIdentifier();
               readDeviceFirmwareVersion();
             }
-            _connected = true;
+            _connectingDevice = null;
+            _connectedDevice = device;
             _connectionStateController.add(true);
           }
         default:
           {
-            _connected = false;
+            _connectedDevice = null;
             _connectionStateController.add(false);
           }
       }
@@ -80,7 +86,7 @@ class BleManager {
       {required Uuid serviceId,
       required Uuid characteristicId,
       required List<int> byteData}) async {
-    if (!_connected) {
+    if (_connectedDevice == null) {
       Exception("Write failed because no Earable is connected");
     }
     final characteristic = QualifiedCharacteristic(
@@ -96,7 +102,7 @@ class BleManager {
   /// Subscribes to a specific characteristic of the connected Earable device.
   Stream<List<int>> subscribe(
       {required Uuid serviceId, required Uuid characteristicId}) {
-    if (!_connected) {
+    if (_connectedDevice == null) {
       Exception("Subscribing failed because no Earable is connected");
     }
     final characteristic = QualifiedCharacteristic(
@@ -109,7 +115,7 @@ class BleManager {
   /// Reads data from a specific characteristic of the connected Earable device.
   Future<List<int>> read(
       {required Uuid serviceId, required Uuid characteristicId}) async {
-    if (!_connected) {
+    if (_connectedDevice == null) {
       Exception("Read failed because no Earable is connected");
     }
     final characteristic = QualifiedCharacteristic(
