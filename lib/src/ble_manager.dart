@@ -53,7 +53,7 @@ class BleManager {
 
   /// Connects to the specified Earable device.
   connectToDevice(DiscoveredDevice device) {
-    _connectionEventStream.listen((event) {
+    _connectionEventStream.listen((event) async {
       switch (event.connectionState) {
         case DeviceConnectionState.connecting:
           _connectingDevice = device;
@@ -63,8 +63,8 @@ class BleManager {
             _connectingDevice = null;
             _connectedDevice = device;
             if (deviceIdentifier == null || deviceFirmwareVersion == null) {
-              readDeviceIdentifier();
-              readDeviceFirmwareVersion();
+              await readDeviceIdentifier();
+              await readDeviceFirmwareVersion();
             }
             _connectionStateController.add(true);
           }
