@@ -146,16 +146,16 @@ To get started with the OpenEarable Flutter package, follow these steps:
 	```
 - Control audio player:
   - Play WAV files
-		```dart
-		openEarable.audioPlayer.setWavState(state, name: "audio.wav");
-		```
+    ```dart
+    openEarable.audioPlayer.setWavState(state, name: "audio.wav");
+    ```
   	- state: WavAudioPlayerState
   	- name: filename of audio file stored on earable
   - Play Frequency:
-		```dart
-		openEarable.audioPlayer.setFrequencyState(state, frequency: 440, waveForm: 0, amplitude: 0.5);
-		```
-		- state: WavAudioPlayerState
+    ```dart
+    openEarable.audioPlayer.setFrequencyState(state, frequency: 440, waveForm: 0, amplitude: 0.5);
+    ```
+	  - state: WavAudioPlayerState
 		- frequency: double
 		- waveForm: int
   		- 0: sine
@@ -170,6 +170,6 @@ To get started with the OpenEarable Flutter package, follow these steps:
 		- state: WavAudioPlayerState
     - name: filename of jingle stored on earable
   - Put audio player into idle state:
-		```dart
-		openEarable.audioPlayer.setIdle()
-		```
+    ```dart
+    openEarable.audioPlayer.setIdle()
+    ```
