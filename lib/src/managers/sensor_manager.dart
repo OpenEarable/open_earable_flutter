@@ -2,7 +2,9 @@ part of open_earable_flutter;
 
 /// Manages sensor-related functionality for the OpenEarable device.
 class SensorManager {
+  final imuID = 0;
   final BleManager _bleManager;
+  final MahonyAHRS _mahonyAHRS = MahonyAHRS();
   List<SensorScheme>? _sensorSchemes;
 
   /// Creates a [SensorManager] instance with the specified [bleManager].
@@ -37,6 +39,7 @@ class SensorManager {
     }
     StreamController<Map<String, dynamic>> streamController =
         StreamController();
+    int lastTimestamp = 0;
     _bleManager
         .subscribe(
             serviceId: sensorServiceUuid,
@@ -44,6 +47,34 @@ class SensorManager {
         .listen((data) async {
       if (data.isNotEmpty && data[0] == sensorId) {
         Map<String, dynamic> parsedData = await _parseData(data);
+        if (sensorId == imuID) {
+          int timestamp = parsedData["timestamp"];
+          double ax = parsedData["ACC"]["X"];
+          double ay = parsedData["ACC"]["Y"];
+          double az = parsedData["ACC"]["Z"];
+
+          double gx = parsedData["GYRO"]["X"];
+          double gy = parsedData["GYRO"]["Y"];
+          double gz = parsedData["GYRO"]["Z"];
+
+          double dt = (timestamp - lastTimestamp) / 1000.0;
+          _mahonyAHRS.update(ax, ay, az, gx, gy, gz, dt);
+          lastTimestamp = timestamp;
+          List<double> q = _mahonyAHRS.quaternion;
+          double yaw = atan2(2 * (q[0] * q[3] + q[1] * q[2]),
+              1 - 2 * (q[2] * q[2] + q[3] * q[3]));
+          // Pitch (around Y-axis)
+          double pitch = asin(2 * (q[0] * q[2] - q[1] * q[2]));
+          // Roll (around X-axis)
+          double roll = atan2(2 * (q[0] * q[1] + q[2] * q[3]),
+              1 - 2 * (q[1] * q[1] + q[2] * q[2]));
+          parsedData["EULER"] = {};
+          parsedData["EULER"]["YAW"] = yaw;
+          parsedData["EULER"]["PITCH"] = -pitch;
+          parsedData["EULER"]["ROLL"] = roll - pi / 2;
+          parsedData["EULER"]
+              ["units"] = {"YAW": "°", "PITCH": "°", "ROLL": "°"};
+        }
         streamController.add(parsedData);
       }
     }, onError: (error) {});
