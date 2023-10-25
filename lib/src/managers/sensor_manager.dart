@@ -71,9 +71,9 @@ class SensorManager {
           parsedData["EULER"] = {};
           parsedData["EULER"]["YAW"] = yaw;
           parsedData["EULER"]["PITCH"] = -pitch;
-          parsedData["EULER"]["ROLL"] = roll - pi / 2;
+          parsedData["EULER"]["ROLL"] = roll;
           parsedData["EULER"]
-              ["units"] = {"YAW": "°", "PITCH": "°", "ROLL": "°"};
+              ["units"] = {"YAW": "rad", "PITCH": "rad", "ROLL": "rad"};
         }
         streamController.add(parsedData);
       }
