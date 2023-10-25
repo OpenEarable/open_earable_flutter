@@ -20,9 +20,9 @@ You need to add the following permissions to your AndroidManifest.xml file:
 If you use `BLUETOOTH_SCAN` to determine location, modify your AndroidManfiest.xml file to include the following entry:
 
 ```xml
- <uses-permission android:name="android.permission.BLUETOOTH_SCAN" 
-                     tools:remove="android:usesPermissionFlags"
-                     tools:targetApi="s" />
+	<uses-permission android:name="android.permission.BLUETOOTH_SCAN" 
+                    tools:remove="android:usesPermissionFlags"
+                    tools:targetApi="s" />
 ```
 
 If you use location services in your app, remove `android:maxSdkVersion="30"` from the location permission tags
@@ -51,52 +51,53 @@ To get started with the OpenEarable Flutter package, follow these steps:
 
 1. **Installation**: Add the package to your `pubspec.yaml` file:
 
-   ```yaml
-   dependencies:
-     open_earable_flutter: ^1.0.0
-     ```
+  ```yaml
+  dependencies:
+    open_earable_flutter: ^1.0.0
+  ```
 2. **Import the package**: 
-   ```dart
-   import 'package:open_earable_flutter/open_earable_flutter.dart';
-   ```
+  ```dart
+  import 'package:open_earable_flutter/open_earable_flutter.dart';
+  ```
 3. **Initialize OpenEarable**
-   ```dart
-   final openEarable = OpenEarable();
-   ```
+  ```dart
+  final openEarable = OpenEarable();
+  ```
 4. **Connect to Earable Device**
-   ```dart
-   openEarable.bleManager.startScan();
+  ```dart
+  openEarable.bleManager.startScan();
 
-   // Listen for discovered devices
-   openEarable.bleManager.scanStream.listen((device) {
-     // Handle discovered device
-   });
+  // Listen for discovered devices
+  openEarable.bleManager.scanStream.listen((device) {
+    // Handle discovered device
+  });
 
-   // Connect to a device
-   openEarable.bleManager.connectToDevice(device);
+  // Connect to a device
+  openEarable.bleManager.connectToDevice(device);
 
-   ```
+  ```
 ## Usage
-- Read device information:
+- Read device information after connecting to a device:
 	```dart
-	final deviceIdentifier = await openEarable.readDeviceIdentifier();
-	final deviceGeneration = await openEarable.readDeviceGeneration();
+	String? deviceName = openEarable.deviceName;
+	String? deviceIdentifier = openEarable.deviceIdentifier;
+	String? deviceFirmwareVersion = openEarable.deviceFirmwareVersion;
 	```
 - Sensors:
 	- Configuration of Sensors:
-	  ```dart
-	  var config  = OpenEarableSensorConfig(sensorId: 0, samplingRate: 30, latency: 0);
-	  openEarable.sensorManager.writeSensorConfig(config);
-	  ```
-	  Please refer to [open-earable](https://github.com/OpenEarable/open-earable/tree/v4_experimental_mess#LED) for a documentation on all possible sensor configurations
+		```dart
+		var config  = OpenEarableSensorConfig(sensorId: 0, samplingRate: 30, latency: 0);
+		openEarable.sensorManager.writeSensorConfig(config);
+		```
+		Please refer to [open-earable](https://github.com/OpenEarable/open-earable/tree/v4_experimental_mess#LED) for a documentation on all possible sensor configurations
 	- Subscribing to sensor data with sensor id 0
-	  ```dart
-	  openEarable.sensorManager.subscribeToSensorData(0).listen((data) {
+		```dart
+		openEarable.sensorManager.subscribeToSensorData(0).listen((data) {
 		// Handle sensor data
 		});
-	  ```
-	  Sensor data is returned as a dictionary:
-	  ```json
+		```
+		Sensor data is returned as a dictionary:
+		```json
 		{
 			"sensorId": 0,
 			"timestamp": 163538,
@@ -119,40 +120,49 @@ To get started with the OpenEarable Flutter package, follow these steps:
 				"Y": -95.70000457763672,
 				"Z": -117.30000305175781
 			}
+			"EULER": {
+				"units": {"ROLL": "rad", "PITCH": "rad", "YAW": "rad"},
+				"ROLL": 0.8741,
+				"PITCH": -0.2417,
+				"YAW": 1.2913
+			}
 		}
-	  ```
+		```
 	- Battery Level percentage:
-	  ```dart
-	  Stream batteryLevelStream = openEarable.sensorManager.getBatteryLevelStream();
-	  ```
-	 - Button States:
-		- 0: Idle
-		- 1: Pressed
-		- 2: Held
-		 ```dart
-		 Stream buttonStateStream = openEarable.sensorManager.getButtonStateStream();
-		 ```
- - Control built-in LED:
-	 **This does not work at the moment**
-	 ```dart
-	 openEarable.rgbLed.writeLedColor(r: 0, g: 255, b: 0);
-	 ```
+		```dart
+		Stream batteryLevelStream = openEarable.sensorManager.getBatteryLevelStream();
+		```
+	- Button State:
+		```dart
+		Stream buttonStateStream = openEarable.sensorManager.getButtonStateStream();
+		```
+		- contains the following button states as integers:
+    	- 0: Idle
+    	- 1: Pressed
+    	- 2: Held
+- Control built-in LED:
+	```dart
+	openEarable.rgbLed.writeLedColor(r: 0, g: 255, b: 0);
+	```
 - Control audio player:
   - Play WAV files
-		**Has not been tested yet**
 		```dart
 		openEarable.audioPlayer.setWavState(state, name: "audio.wav");
 		```
-			- state: WavAudioPlayerState
-    	- name: filename of audio file stored on earable
-	- Play Frequency:
-	  ```dart
-		openEarable.audioPlayer.setFrequencyState(
-      state, frequency, waveForm);
+  	- state: WavAudioPlayerState
+  	- name: filename of audio file stored on earable
+  - Play Frequency:
+		```dart
+		openEarable.audioPlayer.setFrequencyState(state, frequency: 440, waveForm: 0, amplitude: 0.5);
 		```
 		- state: WavAudioPlayerState
 		- frequency: double
 		- waveForm: int
+  		- 0: sine
+  		- 1: triangle
+  		- 2: square
+  		- 3: sawtooth
+		- amplitude: double between 0.0 and 1.0
 	- Play Jingle:
 		```dart
 		openEarable.audioPlayer.setJingleState(state, name: "success.wav")

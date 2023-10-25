@@ -94,7 +94,7 @@ class AudioPlayer {
   /// setFrequencyState(AudioPlayerState.play, 440.0, 0);
   /// ```
   void setFrequencyState(AudioPlayerState state,
-      {int waveForm = 0, double frequency = 0, double amplitude = 1.0}) {
+      {double frequency = 0, int waveForm = 0, double amplitude = 1.0}) {
     _writeAudioPlayerState(SoundType.frequency, state, "",
         waveForm: waveForm, frequency: frequency, amplitude: amplitude);
   }
