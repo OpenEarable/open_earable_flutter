@@ -1,6 +1,8 @@
 # OpenEarable Flutter
 
-This Dart package provides functionality for interacting with OpenEarable devices. It enables you to communicate with OpenEarable devices, control LED colors, play audio files, and access raw sensor data.
+This Dart package provides functionality for interacting with OpenEarable devices. It enables you to communicate with OpenEarable devices, control LED colors, control audio, and access raw sensor data.
+
+<kbd> <br> [Get OpenEarable device now!](https://forms.gle/R3LMcqtyKwVH7PZB9) <br> </kbd>
 
 ## Permissions
 For your app to be able to use [Flutter reactive BLE](https://github.com/PhilipsHue/flutter_reactive_ble) in this package, you need to grant the following permissions:
@@ -161,4 +163,3 @@ To get started with the OpenEarable Flutter package, follow these steps:
 		```dart
 		openEarable.audioPlayer.setIdle()
 		```
-
