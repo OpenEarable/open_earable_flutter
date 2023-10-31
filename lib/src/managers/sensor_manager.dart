@@ -87,7 +87,7 @@ class SensorManager {
     ByteData byteData = ByteData.sublistView(Uint8List.fromList(data));
     var byteIndex = 0;
     final sensorId = byteData.getUint8(byteIndex);
-    byteIndex += 1;
+    byteIndex += 2; // skip one byte because of size byte that is not used
     final timestamp = byteData.getUint32(byteIndex, Endian.little);
     byteIndex += 4;
     Map<String, dynamic> parsedData = {};
