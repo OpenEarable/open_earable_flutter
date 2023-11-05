@@ -14,7 +14,7 @@ class SensorManager {
   ///
   /// The [sensorConfig] parameter contains the sensor id, sampling rate
   /// and latency of the sensor.
-  void writeSensorConfig(OpenEarableSensorConfig sensorConfig) async {
+  Future<void> writeSensorConfig(OpenEarableSensorConfig sensorConfig) async {
     if (!_bleManager.connected) {
       Exception("Can't write sensor config. Earable not connected");
     }
