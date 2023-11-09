@@ -147,13 +147,17 @@ To get started with the OpenEarable Flutter package, follow these steps:
 - Control audio player:
   - Play WAV files
     ```dart
-    openEarable.audioPlayer.setWavState(state, name: "audio.wav");
+	openEarable.audioPlayer.wavFile("audio.wav");
+	openEarable.audioPlayer.setState(AudioPlayerState.start);
     ```
-  	- state: WavAudioPlayerState
   	- name: filename of audio file stored on earable
   - Play Frequency:
     ```dart
-    openEarable.audioPlayer.setFrequencyState(state, frequency: 440, waveForm: 0, amplitude: 0.5);
+	int waveForm = 1;
+	double frequency = 500.0;
+	double loudness = 0.5;
+	openEarable.audioPlayer.frequency(waveForm, frequency, loudness);
+    openEarable.audioPlayer.setState(AudioPlayerState.start);
     ```
 	  - state: WavAudioPlayerState
 		- frequency: double
@@ -162,14 +166,20 @@ To get started with the OpenEarable Flutter package, follow these steps:
   		- 1: triangle
   		- 2: square
   		- 3: sawtooth
-		- amplitude: double between 0.0 and 1.0
+		- loudness: double between 0.0 and 1.0
 	- Play Jingle:
 		```dart
-		openEarable.audioPlayer.setJingleState(state, name: "success.wav")
+		int jingleId = 1;
+		openEarable.audioPlayer.jingle(jingleId);
+    	openEarable.audioPlayer.setState(AudioPlayerState.start);
 		```
-		- state: WavAudioPlayerState
-    - name: filename of jingle stored on earable
-  - Put audio player into idle state:
-    ```dart
-    openEarable.audioPlayer.setIdle()
-    ```
+    	- jingleId: id of jingle stored on earable
+		- 0: 'IDLE'
+  		- 1: 'NOTIFICATION'
+  		- 2: 'SUCCESS'
+  		- 3: 'ERROR'
+  		- 4: 'ALARM'
+  		- 5: 'PING'
+  		- 6: 'OPEN'
+  		- 7: 'CLOSE'
+  		- 8: 'CLICK'
