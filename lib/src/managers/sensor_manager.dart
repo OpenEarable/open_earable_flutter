@@ -46,6 +46,7 @@ class SensorManager {
             characteristicId: sensorDataCharacteristicUuid)
         .listen((data) async {
       if (data.isNotEmpty && data[0] == sensorId) {
+        print("helo");
         Map<String, dynamic> parsedData = await _parseData(data);
         if (sensorId == imuID) {
           int timestamp = parsedData["timestamp"];
@@ -58,7 +59,8 @@ class SensorManager {
           double gz = parsedData["GYRO"]["Z"];
 
           double dt = (timestamp - lastTimestamp) / 1000.0;
-          _mahonyAHRS.update(ax, ay, az, gx, gy, gz, dt);
+          _mahonyAHRS.update(-ax, az, ay, -gx, gz, gy,
+              dt); // x, y, z was changed in firmware to -x, z, y
           lastTimestamp = timestamp;
           List<double> q = _mahonyAHRS.quaternion;
           double yaw = atan2(2 * (q[0] * q[3] + q[1] * q[2]),
