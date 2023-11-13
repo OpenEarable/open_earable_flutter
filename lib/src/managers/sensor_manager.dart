@@ -63,12 +63,12 @@ class SensorManager {
               dt); // x, y, z was changed in firmware to -x, z, y
           lastTimestamp = timestamp;
           List<double> q = _mahonyAHRS.quaternion;
-          double yaw = atan2(2 * (q[0] * q[3] + q[1] * q[2]),
+          double yaw = -atan2(2 * (q[0] * q[3] + q[1] * q[2]),
               1 - 2 * (q[2] * q[2] + q[3] * q[3]));
           // Pitch (around Y-axis)
-          double pitch = asin(2 * (q[0] * q[2] - q[3] * q[1]));
+          double pitch = -asin(2 * (q[0] * q[2] - q[3] * q[1]));
           // Roll (around X-axis)
-          double roll = atan2(2 * (q[0] * q[1] + q[2] * q[3]),
+          double roll = -atan2(2 * (q[0] * q[1] + q[2] * q[3]),
               1 - 2 * (q[1] * q[1] + q[2] * q[2]));
           parsedData["EULER"] = {};
           parsedData["EULER"]["YAW"] = yaw;
