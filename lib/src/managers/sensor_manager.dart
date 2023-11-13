@@ -46,7 +46,6 @@ class SensorManager {
             characteristicId: sensorDataCharacteristicUuid)
         .listen((data) async {
       if (data.isNotEmpty && data[0] == sensorId) {
-        print("helo");
         Map<String, dynamic> parsedData = await _parseData(data);
         if (sensorId == imuID) {
           int timestamp = parsedData["timestamp"];
