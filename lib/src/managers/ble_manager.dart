@@ -3,6 +3,7 @@ part of open_earable_flutter;
 /// A class that establishes and manages Bluetooth Low Energy (BLE)
 /// communication with OpenEarable devices.
 class BleManager {
+  int MTU = 60; // Largest Byte package sent is 42 bytes for IMU
   FlutterReactiveBle _flutterReactiveBle = FlutterReactiveBle();
 
   /// A stream of discovered devices during scanning.
@@ -35,7 +36,7 @@ class BleManager {
   Stream<bool> get connectionStateStream => _connectionStateController.stream;
 
   /// Initiates the BLE device scan to discover nearby Bluetooth devices.
-  void startScan() async {
+  Future<void> startScan() async {
     _flutterReactiveBle = FlutterReactiveBle();
     bool permGranted = false;
     PermissionStatus permission;
@@ -65,6 +66,7 @@ class BleManager {
       switch (event.connectionState) {
         case DeviceConnectionState.connected:
           _connectedDevice = device;
+          _flutterReactiveBle.requestMtu(deviceId: device.id, mtu: MTU);
           if (deviceIdentifier == null || deviceFirmwareVersion == null) {
             await readDeviceIdentifier();
             await readDeviceFirmwareVersion();
