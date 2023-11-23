@@ -1,5 +1,5 @@
 name: open_earable_flutter
-description: A flutter package to control the OpenEarable device.
+description: This Dart package provides functionality for interacting with OpenEarable devices. It enables you to communicate with OpenEarable devices, control LED colors, control audio, and access raw sensor data.
 version: 0.0.1
 repository: https://github.com/OpenEarable/open_earable_flutter/tree/main
 
