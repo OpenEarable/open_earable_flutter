@@ -49,17 +49,14 @@ class AudioPlayer {
   /// ```
   void frequency(int waveType, double frequency, double loudness) {
     int type = 2; // 2 indicates it's a frequency
-    Uint8List data = Uint8List(10);
+    var data = Uint8List(10);
     data[0] = type;
     data[1] = waveType;
 
-    ByteData freqBytes = ByteData(4);
-    freqBytes.setFloat32(0, frequency);
-    data.setRange(2, 6, freqBytes.buffer.asUint8List());
-
-    ByteData loudnessBytes = ByteData(4);
-    loudnessBytes.setFloat32(0, loudness);
-    data.setRange(6, 10, loudnessBytes.buffer.asUint8List());
+    var freqBytes = Float32List.fromList([frequency]);
+    var loudnessBytes = Float32List.fromList([loudness]);
+    data.setAll(2, freqBytes.buffer.asUint8List());
+    data.setAll(6, loudnessBytes.buffer.asUint8List());
 
     _bleManager.write(
       serviceId: audioPlayerServiceUuid,
