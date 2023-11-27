@@ -1,8 +1,16 @@
 # OpenEarable Flutter
 
+![Pub Likes](https://img.shields.io/pub/likes/open_earable_flutter)
+![Pub Popularity](https://img.shields.io/pub/popularity/open_earable_flutter)
+![Pub Points](https://img.shields.io/pub/points/open_earable_flutter)
+![Pub Version (including pre-releases)](https://img.shields.io/pub/v/open_earable_flutter)
+
+
 This Dart package provides functionality for interacting with OpenEarable devices. It enables you to communicate with OpenEarable devices, control LED colors, control audio, and access raw sensor data.
 
 <kbd> <br> [Get OpenEarable device now!](https://forms.gle/R3LMcqtyKwVH7PZB9) <br> </kbd>
+
+<kbd> <br> [Show library on pub.dev](https://pub.dev/packages/open_earable_flutter) <br> </kbd>
 
 ## Permissions
 For your app to be able to use [Flutter reactive BLE](https://github.com/PhilipsHue/flutter_reactive_ble) in this package, you need to grant the following permissions:
@@ -40,21 +48,21 @@ This will prevent issues like [#131](https://github.com/PhilipsHue/flutter_react
 
 For iOS it is required you add the following entries to the `Info.plist` file of your app. It is not allowed to access Core BLuetooth without this. See [our example app](https://github.com/PhilipsHue/flutter_reactive_ble/blob/master/example/ios/Runner/Info.plist) on how to implement this. For more indepth details: [Blog post on iOS bluetooth permissions](https://medium.com/flawless-app-stories/handling-ios-13-bluetooth-permissions-26c6a8cbb816)
 
-iOS13 and higher
+iOS 13 and higher
 * NSBluetoothAlwaysUsageDescription
 
-iOS12 and lower
+iOS 12 and lower
 * NSBluetoothPeripheralUsageDescription
 
 ## Getting Started
 To get started with the OpenEarable Flutter package, follow these steps:
 
-1. **Installation**: Add the package to your `pubspec.yaml` file:
-
-  ```yaml
-  dependencies:
-    open_earable_flutter: ^1.0.0
+1. **Installation**: Add the package to your flutter project: \
+  ```bash
+  flutter pub add open_earable_flutter
   ```
+  Alternatively, you can follow the instructions on [pub.dev](https://pub.dev/packages/open_earable_flutter/install)
+
 2. **Import the package**: 
   ```dart
   import 'package:open_earable_flutter/open_earable_flutter.dart';
