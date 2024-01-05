@@ -4,7 +4,6 @@ import 'dart:math';
 
 class MahonyAHRS {
   //late double _defaultFrequency = 512.0; // (1.0 / 512.0) sample frequency in Hz
-  late double _sampleFrequency; // frequency;
   late double _qW; // data quaternion
   late double _qX; // data quaternion
   late double _qY; // data quaternion
@@ -16,7 +15,6 @@ class MahonyAHRS {
   late double _kp; // 2 * proportional gain (Kp), (2.0 * 0.5) = 1.0
 
   MahonyAHRS() {
-    _sampleFrequency = 1.0; // (1.0 / 512.0) maximum precision
     _qW = 1.0;
     _qX = 0.0;
     _qY = 0.0;

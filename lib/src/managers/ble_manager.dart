@@ -3,7 +3,7 @@ part of open_earable_flutter;
 /// A class that establishes and manages Bluetooth Low Energy (BLE)
 /// communication with OpenEarable devices.
 class BleManager {
-  int MTU = 60; // Largest Byte package sent is 42 bytes for IMU
+  int mtu = 60; // Largest Byte package sent is 42 bytes for IMU
   FlutterReactiveBle _flutterReactiveBle = FlutterReactiveBle();
 
   /// A stream of discovered devices during scanning.
@@ -58,7 +58,16 @@ class BleManager {
     _connectionStateController.add(false);
 
     _connectionStateSubscription?.cancel();
-    _connectionStateSubscription = _flutterReactiveBle
+
+    _connectionStateSubscription = _retryConnection(2, device);
+  }
+
+  StreamSubscription? _retryConnection(int retries, DiscoveredDevice device) {
+    if (retries <= 0) {
+      _connectingDevice = null;
+      return null;
+    }
+    return _flutterReactiveBle
         .connectToAdvertisingDevice(
             id: device.id,
             prescanDuration: const Duration(seconds: 1),
@@ -66,7 +75,7 @@ class BleManager {
       switch (event.connectionState) {
         case DeviceConnectionState.connected:
           _connectedDevice = device;
-          _flutterReactiveBle.requestMtu(deviceId: device.id, mtu: MTU);
+          _flutterReactiveBle.requestMtu(deviceId: device.id, mtu: mtu);
           if (deviceIdentifier == null || deviceFirmwareVersion == null) {
             await readDeviceIdentifier();
             await readDeviceFirmwareVersion();
@@ -74,6 +83,7 @@ class BleManager {
           }
           _connectionStateController.add(true);
           _connectingDevice = null;
+          return;
         case DeviceConnectionState.disconnected:
           _connectedDevice = null;
           _connectingDevice = null;
@@ -82,6 +92,7 @@ class BleManager {
           _connectionStateController.add(false);
         default:
       }
+      _connectionStateSubscription = _retryConnection(retries - 1, device);
     });
   }
 
