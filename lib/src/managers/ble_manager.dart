@@ -21,13 +21,13 @@ class BleManager {
   // Returns false if no device is connected
   bool get connected => _connectedDevice != null;
 
-  /// The currently connected device.
+  /// The info of the currently connected device.
   String? get deviceIdentifier => _deviceIdentifier;
   String? _deviceIdentifier;
-
-  /// The currently connected device.
   String? get deviceFirmwareVersion => _deviceFirmwareVersion;
   String? _deviceFirmwareVersion;
+  String? get deviceHardwareVersion => _deviceHardwareVersion;
+  String? _deviceHardwareVersion;
 
   StreamSubscription? _connectionStateSubscription;
 
@@ -70,6 +70,7 @@ class BleManager {
           if (deviceIdentifier == null || deviceFirmwareVersion == null) {
             await readDeviceIdentifier();
             await readDeviceFirmwareVersion();
+            await readDeviceHardwareVersion();
           }
           _connectionStateController.add(true);
           _connectingDevice = null;
@@ -150,6 +151,17 @@ class BleManager {
         characteristicId: deviceFirmwareVersionCharacteristicUuid);
     _deviceFirmwareVersion = String.fromCharCodes(deviceGenerationBytes);
     return _deviceFirmwareVersion;
+  }
+
+  /// Reads the device hardware version from the connected OpenEarable device.
+  ///
+  /// Returns a `Future` that completes with the device firmware version as a `String`.
+  Future<String?> readDeviceHardwareVersion() async {
+    List<int> hardwareGenerationBytes = await read(
+        serviceId: deviceInfoServiceUuid,
+        characteristicId: deviceHardwareVersionCharacteristicUuid);
+    _deviceHardwareVersion = String.fromCharCodes(hardwareGenerationBytes);
+    return _deviceHardwareVersion;
   }
 
   /// Cancel connection state subscription

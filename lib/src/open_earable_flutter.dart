@@ -30,6 +30,7 @@ class OpenEarable {
   String? get deviceName => bleManager.connectedDevice?.name;
   String? get deviceIdentifier => bleManager.deviceIdentifier;
   String? get deviceFirmwareVersion => bleManager.deviceFirmwareVersion;
+  String? get deviceHardwareVersion => bleManager.deviceHardwareVersion;
 
   /// Creates an instance of the `OpenEarable` class.
   ///

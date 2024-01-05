@@ -13,6 +13,8 @@ final Uuid deviceIdentifierCharacteristicUuid =
     Uuid.parse("45622511-6468-465a-b141-0b9b0f96b468");
 final Uuid deviceFirmwareVersionCharacteristicUuid =
     Uuid.parse("45622512-6468-465a-b141-0b9b0f96b468");
+final Uuid deviceHardwareVersionCharacteristicUuid =
+    Uuid.parse("45622513-6468-465a-b141-0b9b0f96b468");
 
 final Uuid parseInfoServiceUuid =
     Uuid.parse("caa25cb7-7e1b-44f2-adc9-e8c06c9ced43");
