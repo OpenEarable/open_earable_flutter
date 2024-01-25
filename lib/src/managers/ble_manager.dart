@@ -67,11 +67,10 @@ class BleManager {
       _connectingDevice = null;
       return null;
     }
-    return _flutterReactiveBle
-        .connectToAdvertisingDevice(
-            id: device.id,
-            prescanDuration: const Duration(seconds: 1),
-            withServices: [sensorServiceUuid]).listen((event) async {
+    return _flutterReactiveBle.connectToAdvertisingDevice(
+        id: device.id,
+        prescanDuration: const Duration(seconds: 1),
+        withServices: [sensorServiceUuid]).listen((event) async {
       switch (event.connectionState) {
         case DeviceConnectionState.connected:
           _connectedDevice = device;
@@ -90,9 +89,9 @@ class BleManager {
           _deviceFirmwareVersion = null;
           _deviceIdentifier = null;
           _connectionStateController.add(false);
+          _connectionStateSubscription = _retryConnection(retries - 1, device);
         default:
       }
-      _connectionStateSubscription = _retryConnection(retries - 1, device);
     });
   }
 
