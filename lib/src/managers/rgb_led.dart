@@ -21,6 +21,9 @@ class RgbLed {
   /// Use this method to easily set the color of the in-built RGB LED on the OpenEarable device.
   Future<void> writeLedColor(
       {required int r, required int g, required int b}) async {
+    if (!_bleManager.connected) {
+      Exception("Can't write sensor config. Earable not connected");
+    }
     if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255) {
       throw ArgumentError('The color values must be in range 0-255');
     }
