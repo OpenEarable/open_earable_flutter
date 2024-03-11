@@ -55,7 +55,6 @@ class BleManager {
   /// Connects to the specified Earable device.
   connectToDevice(DiscoveredDevice device) {
     _connectingDevice = device;
-    _connectionStateController.add(false);
 
     _connectionStateSubscription?.cancel();
 
