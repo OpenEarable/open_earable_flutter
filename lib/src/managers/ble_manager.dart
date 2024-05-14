@@ -85,8 +85,9 @@ class BleManager {
         case DeviceConnectionState.disconnected:
           _connectedDevice = null;
           _connectingDevice = null;
-          _deviceFirmwareVersion = null;
           _deviceIdentifier = null;
+          _deviceFirmwareVersion = null;
+          _deviceHardwareVersion = null;
           _connectionStateController.add(false);
           _connectionStateSubscription = _retryConnection(retries - 1, device);
         default:
