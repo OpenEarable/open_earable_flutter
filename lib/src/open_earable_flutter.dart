@@ -15,7 +15,6 @@ part 'managers/sensor_manager.dart';
 part 'managers/ble_manager.dart';
 part 'managers/rgb_led.dart';
 part 'managers/audio_player.dart';
-part 'managers/open_earable_manager.dart';
 
 /// The `OpenEarable` class provides a high-level interface for interacting with OpenEarable devices
 /// using Flutter and Reactive BLE.
