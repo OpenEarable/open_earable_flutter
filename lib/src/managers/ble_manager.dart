@@ -24,8 +24,10 @@ class BleManager {
   /// The info of the currently connected device.
   String? get deviceIdentifier => _deviceIdentifier;
   String? _deviceIdentifier;
+
   String? get deviceFirmwareVersion => _deviceFirmwareVersion;
   String? _deviceFirmwareVersion;
+
   String? get deviceHardwareVersion => _deviceHardwareVersion;
   String? _deviceHardwareVersion;
 
@@ -33,6 +35,7 @@ class BleManager {
 
   final StreamController<bool> _connectionStateController =
       StreamController<bool>.broadcast();
+
   Stream<bool> get connectionStateStream => _connectionStateController.stream;
 
   /// Initiates the BLE device scan to discover nearby Bluetooth devices.
@@ -48,7 +51,9 @@ class BleManager {
     }
 
     if (permGranted) {
-      _scanStream = _flutterReactiveBle.scanForDevices(withServices: []);
+      _scanStream = _flutterReactiveBle.scanForDevices(withServices: []).map(
+          (device) =>
+              DiscoveredDevice.fromReactiveBle(device));
     }
   }
 
@@ -61,7 +66,10 @@ class BleManager {
     _connectionStateSubscription = _retryConnection(2, device);
   }
 
-  StreamSubscription? _retryConnection(int retries, DiscoveredDevice device) {
+  StreamSubscription? _retryConnection(
+    int retries,
+    DiscoveredDevice device,
+  ) {
     if (retries <= 0) {
       _connectingDevice = null;
       return null;
@@ -69,7 +77,7 @@ class BleManager {
     return _flutterReactiveBle.connectToAdvertisingDevice(
         id: device.id,
         prescanDuration: const Duration(seconds: 1),
-        withServices: [sensorServiceUuid]).listen((event) async {
+        withServices: [Uuid.parse(sensorServiceUuid)]).listen((event) async {
       switch (event.connectionState) {
         case DeviceConnectionState.connected:
           _connectedDevice = device;
@@ -97,15 +105,15 @@ class BleManager {
 
   /// Writes byte data to a specific characteristic of the connected Earable device.
   Future<void> write(
-      {required Uuid serviceId,
-      required Uuid characteristicId,
+      {required String serviceId,
+      required String characteristicId,
       required List<int> byteData}) async {
     if (_connectedDevice == null) {
       throw Exception("Write failed because no Earable is connected");
     }
     final characteristic = QualifiedCharacteristic(
-        serviceId: serviceId,
-        characteristicId: characteristicId,
+        serviceId: Uuid.parse(serviceId),
+        characteristicId: Uuid.parse(characteristicId),
         deviceId: _connectedDevice!.id);
     await _flutterReactiveBle.writeCharacteristicWithResponse(
       characteristic,
@@ -115,26 +123,26 @@ class BleManager {
 
   /// Subscribes to a specific characteristic of the connected Earable device.
   Stream<List<int>> subscribe(
-      {required Uuid serviceId, required Uuid characteristicId}) {
+      {required String serviceId, required String characteristicId}) {
     if (_connectedDevice == null) {
       throw Exception("Subscribing failed because no Earable is connected");
     }
     final characteristic = QualifiedCharacteristic(
-        serviceId: serviceId,
-        characteristicId: characteristicId,
+        serviceId: Uuid.parse(serviceId),
+        characteristicId: Uuid.parse(characteristicId),
         deviceId: _connectedDevice!.id);
     return _flutterReactiveBle.subscribeToCharacteristic(characteristic);
   }
 
   /// Reads data from a specific characteristic of the connected Earable device.
   Future<List<int>> read(
-      {required Uuid serviceId, required Uuid characteristicId}) async {
+      {required String serviceId, required String characteristicId}) async {
     if (_connectedDevice == null) {
       throw Exception("Read failed because no Earable is connected");
     }
     final characteristic = QualifiedCharacteristic(
-        serviceId: serviceId,
-        characteristicId: characteristicId,
+        serviceId: Uuid.parse(serviceId),
+        characteristicId: Uuid.parse(characteristicId),
         deviceId: _connectedDevice!.id);
     final response =
         await _flutterReactiveBle.readCharacteristic(characteristic);

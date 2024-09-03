@@ -1,43 +1,34 @@
 part of open_earable_flutter;
 
-final Uuid sensorServiceUuid =
-    Uuid.parse("34c2e3bb-34aa-11eb-adc1-0242ac120002");
-final Uuid sensorConfigurationCharacteristicUuid =
-    Uuid.parse("34c2e3bd-34aa-11eb-adc1-0242ac120002");
-final Uuid sensorDataCharacteristicUuid =
-    Uuid.parse("34c2e3bc-34aa-11eb-adc1-0242ac120002");
+const String sensorServiceUuid = "34c2e3bb-34aa-11eb-adc1-0242ac120002";
+const String sensorConfigurationCharacteristicUuid =
+    "34c2e3bd-34aa-11eb-adc1-0242ac120002";
+const String sensorDataCharacteristicUuid =
+    "34c2e3bc-34aa-11eb-adc1-0242ac120002";
 
-final Uuid deviceInfoServiceUuid =
-    Uuid.parse("45622510-6468-465a-b141-0b9b0f96b468");
-final Uuid deviceIdentifierCharacteristicUuid =
-    Uuid.parse("45622511-6468-465a-b141-0b9b0f96b468");
-final Uuid deviceFirmwareVersionCharacteristicUuid =
-    Uuid.parse("45622512-6468-465a-b141-0b9b0f96b468");
-final Uuid deviceHardwareVersionCharacteristicUuid =
-    Uuid.parse("45622513-6468-465a-b141-0b9b0f96b468");
+const String deviceInfoServiceUuid = "45622510-6468-465a-b141-0b9b0f96b468";
+const String deviceIdentifierCharacteristicUuid =
+    "45622511-6468-465a-b141-0b9b0f96b468";
+const String deviceFirmwareVersionCharacteristicUuid =
+    "45622512-6468-465a-b141-0b9b0f96b468";
+const String deviceHardwareVersionCharacteristicUuid =
+    "45622513-6468-465a-b141-0b9b0f96b468";
 
-final Uuid parseInfoServiceUuid =
-    Uuid.parse("caa25cb7-7e1b-44f2-adc9-e8c06c9ced43");
-final Uuid schemeCharacteristicUuid =
-    Uuid.parse("caa25cb8-7e1b-44f2-adc9-e8c06c9ced43");
-final Uuid sensorNamesCharacteristicUuid =
-    Uuid.parse("caa25cb9-7e1b-44f2-adc9-e8c06c9ced43");
+const String parseInfoServiceUuid = "caa25cb7-7e1b-44f2-adc9-e8c06c9ced43";
+const String schemeCharacteristicUuid = "caa25cb8-7e1b-44f2-adc9-e8c06c9ced43";
+const String sensorNamesCharacteristicUuid =
+    "caa25cb9-7e1b-44f2-adc9-e8c06c9ced43";
 
-final Uuid audioPlayerServiceUuid =
-    Uuid.parse("5669146e-476d-11ee-be56-0242ac120002");
-final Uuid audioSourceCharacteristic =
-    Uuid.parse("566916a8-476d-11ee-be56-0242ac120002");
-final Uuid audioStateCharacteristic =
-    Uuid.parse("566916a9-476d-11ee-be56-0242ac120002");
+const String audioPlayerServiceUuid = "5669146e-476d-11ee-be56-0242ac120002";
+const String audioSourceCharacteristic = "566916a8-476d-11ee-be56-0242ac120002";
+const String audioStateCharacteristic = "566916a9-476d-11ee-be56-0242ac120002";
 
-final Uuid batteryServiceUuid = Uuid.parse("180F");
-final Uuid batteryLevelCharacteristicUuid = Uuid.parse("2A19");
+const String batteryServiceUuid = "180F";
+const String batteryLevelCharacteristicUuid = "2A19";
 
-final Uuid buttonServiceUuid =
-    Uuid.parse("29c10bdc-4773-11ee-be56-0242ac120002");
-final Uuid buttonStateCharacteristicUuid =
-    Uuid.parse("29c10f38-4773-11ee-be56-0242ac120002");
+const String buttonServiceUuid = "29c10bdc-4773-11ee-be56-0242ac120002";
+const String buttonStateCharacteristicUuid =
+    "29c10f38-4773-11ee-be56-0242ac120002";
 
-final Uuid ledServiceUuid = Uuid.parse("81040a2e-4819-11ee-be56-0242ac120002");
-final Uuid ledSetStateCharacteristic =
-    Uuid.parse("81040e7a-4819-11ee-be56-0242ac120002");
+const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
+const String ledSetStateCharacteristic = "81040e7a-4819-11ee-be56-0242ac120002";

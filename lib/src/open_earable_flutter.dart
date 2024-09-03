@@ -6,9 +6,12 @@ import 'dart:typed_data';
 import 'dart:convert';
 import 'dart:math';
 
+import 'models/discovered_device.dart';
+
 import 'package:open_earable_flutter/src/utils/mahony_ahrs.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:flutter_reactive_ble/flutter_reactive_ble.dart'
+    show FlutterReactiveBle, QualifiedCharacteristic, Uuid, DeviceConnectionState;
 
 part 'constants.dart';
 part 'managers/sensor_manager.dart';
