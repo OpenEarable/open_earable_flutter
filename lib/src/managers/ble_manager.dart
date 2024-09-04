@@ -77,10 +77,16 @@ class BleManager {
     }
 
     bool permGranted = false;
-    PermissionStatus permission;
     if (Platform.isAndroid) {
-      permission = await Permission.location.request();
-      if (permission == PermissionStatus.granted) permGranted = true;
+      Map<Permission, PermissionStatus> statuses = await [
+        Permission.bluetoothScan,
+        Permission.bluetoothConnect,
+        Permission.location,
+      ].request();
+
+      permGranted = (statuses[Permission.bluetoothScan]!.isGranted &&
+          statuses[Permission.bluetoothConnect]!.isGranted &&
+          statuses[Permission.location]!.isGranted);
     } else if (Platform.isIOS) {
       permGranted = true;
     }
