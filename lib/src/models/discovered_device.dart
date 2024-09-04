@@ -6,7 +6,7 @@ class DiscoveredDevice {
   /// The unique identifier of the device.
   final String id;
   final String name;
-  final Map<String, Uint8List> serviceData;
+  // final Map<String, Uint8List> serviceData;
 
   /// Advertised services
   final List<String> serviceUuids;
@@ -19,7 +19,7 @@ class DiscoveredDevice {
   const DiscoveredDevice({
     required this.id,
     required this.name,
-    required this.serviceData,
+    // required this.serviceData,
     required this.manufacturerData,
     required this.rssi,
     required this.serviceUuids,
@@ -27,16 +27,13 @@ class DiscoveredDevice {
 
   factory DiscoveredDevice.fromReactiveBle(
       flutter_reactive_ble.DiscoveredDevice flutterBleDevice) {
-    Map<String, Uint8List> serviceData = flutterBleDevice.serviceData
-        .map((key, value) => MapEntry(key.toString(), value));
-
     List<String> serviceUuids =
         flutterBleDevice.serviceUuids.map((e) => e.toString()).toList();
 
     return DiscoveredDevice(
       id: flutterBleDevice.id,
       name: flutterBleDevice.name,
-      serviceData: serviceData,
+      // serviceData: serviceData,
       manufacturerData: flutterBleDevice.manufacturerData,
       rssi: flutterBleDevice.rssi,
       serviceUuids: serviceUuids,

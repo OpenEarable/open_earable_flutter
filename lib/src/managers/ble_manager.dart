@@ -4,11 +4,13 @@ part of open_earable_flutter;
 /// communication with OpenEarable devices.
 class BleManager {
   int mtu = 60; // Largest Byte package sent is 42 bytes for IMU
-  FlutterReactiveBle _flutterReactiveBle = FlutterReactiveBle();
+
+  final Map<String, List<StreamController<List<int>>>> _streamControllers = {};
 
   /// A stream of discovered devices during scanning.
   Stream<DiscoveredDevice> get scanStream => _scanStream;
   late Stream<DiscoveredDevice> _scanStream;
+  StreamController<DiscoveredDevice>? _scanStreamController;
 
   /// The device that is currently being connected to.
   DiscoveredDevice? get connectingDevice => _connectingDevice;
@@ -31,16 +33,49 @@ class BleManager {
   String? get deviceHardwareVersion => _deviceHardwareVersion;
   String? _deviceHardwareVersion;
 
-  StreamSubscription? _connectionStateSubscription;
-
   final StreamController<bool> _connectionStateController =
-      StreamController<bool>.broadcast();
+  StreamController<bool>.broadcast();
 
   Stream<bool> get connectionStateStream => _connectionStateController.stream;
 
+  String _getCharacteristicKey(String deviceId, String characteristicId) =>
+      "$deviceId||$characteristicId";
+
+  bool _inited = false;
+
+  void _init() {
+    if (_inited) {
+      return;
+    }
+    _inited = true;
+
+    UniversalBle.onValueChange =
+        (String deviceId, String characteristicId, Uint8List value) {
+      String streamIdentifier = _getCharacteristicKey(
+          deviceId, characteristicId);
+      if (!_streamControllers.containsKey(streamIdentifier)) {
+        return;
+      }
+      for (var e in _streamControllers[streamIdentifier]!) {
+        e.add(value);
+      }
+    };
+  }
+
   /// Initiates the BLE device scan to discover nearby Bluetooth devices.
   Future<void> startScan() async {
-    _flutterReactiveBle = FlutterReactiveBle();
+    _init();
+
+    // The example code does not await this function before getting `scanStream`.
+    // Because of this, we need to set the stream early for keeping the behavior
+    // before switching the bluetooth lib
+    StreamController<DiscoveredDevice>? oldController = _scanStreamController;
+    _scanStreamController = StreamController<DiscoveredDevice>();
+    _scanStream = _scanStreamController!.stream;
+    if (oldController != null) {
+      await oldController.close();
+    }
+
     bool permGranted = false;
     PermissionStatus permission;
     if (Platform.isAndroid) {
@@ -51,87 +86,119 @@ class BleManager {
     }
 
     if (permGranted) {
-      _scanStream = _flutterReactiveBle.scanForDevices(withServices: []).map(
-          (device) =>
-              DiscoveredDevice.fromReactiveBle(device));
+      await UniversalBle.stopScan();
+
+      UniversalBle.onScanResult = (bleDevice) {
+        _scanStreamController?.add(DiscoveredDevice(
+          id: bleDevice.deviceId,
+          name: bleDevice.name ?? "",
+          manufacturerData: bleDevice.manufacturerData ??
+              Uint8List.fromList([]),
+          rssi: bleDevice.rssi ?? -1,
+          serviceUuids: bleDevice.services,
+        ));
+      };
+
+      await UniversalBle.startScan(
+          scanFilter: ScanFilter(
+            withServices: [],
+          )
+      );
     }
   }
 
   /// Connects to the specified Earable device.
   connectToDevice(DiscoveredDevice device) {
+    for (var list in _streamControllers.values) {
+      for (var e in list) {
+        e.close();
+      }
+    }
     _connectingDevice = device;
 
-    _connectionStateSubscription?.cancel();
+    UniversalBle.onConnectionChange = (String deviceId, bool isConnected) {};
 
-    _connectionStateSubscription = _retryConnection(2, device);
+    _retryConnection(2, device);
   }
 
-  StreamSubscription? _retryConnection(
-    int retries,
-    DiscoveredDevice device,
-  ) {
+  void _retryConnection(int retries,
+      DiscoveredDevice device,) {
     if (retries <= 0) {
       _connectingDevice = null;
-      return null;
+      return;
     }
-    return _flutterReactiveBle.connectToAdvertisingDevice(
-        id: device.id,
-        prescanDuration: const Duration(seconds: 1),
-        withServices: [Uuid.parse(sensorServiceUuid)]).listen((event) async {
-      switch (event.connectionState) {
-        case DeviceConnectionState.connected:
-          _connectedDevice = device;
-          _flutterReactiveBle.requestMtu(deviceId: device.id, mtu: mtu);
-          if (deviceIdentifier == null || deviceFirmwareVersion == null) {
-            await readDeviceIdentifier();
-            await readDeviceFirmwareVersion();
-            await readDeviceHardwareVersion();
-          }
-          _connectionStateController.add(true);
-          _connectingDevice = null;
-          return;
-        case DeviceConnectionState.disconnected:
-          _connectedDevice = null;
-          _connectingDevice = null;
-          _deviceIdentifier = null;
-          _deviceFirmwareVersion = null;
-          _deviceHardwareVersion = null;
-          _connectionStateController.add(false);
-          _connectionStateSubscription = _retryConnection(retries - 1, device);
-        default:
+    UniversalBle.onConnectionChange =
+        (String deviceId, bool isConnected) async {
+      if (device.id != deviceId) {
+        return;
       }
-    });
+
+      if (isConnected) {
+        _connectedDevice = device;
+        if (!kIsWeb) {
+          UniversalBle.requestMtu(device.id, mtu);
+        }
+        UniversalBle.discoverServices(device.id);
+        if (deviceIdentifier == null || deviceFirmwareVersion == null) {
+          await readDeviceIdentifier();
+          await readDeviceFirmwareVersion();
+          await readDeviceHardwareVersion();
+        }
+        _connectionStateController.add(true);
+        _connectingDevice = null;
+      } else {
+        _connectedDevice = null;
+        _connectingDevice = null;
+        _deviceIdentifier = null;
+        _deviceFirmwareVersion = null;
+        _deviceHardwareVersion = null;
+        _connectionStateController.add(false);
+        _retryConnection(retries - 1, device);
+      }
+    };
+    UniversalBle.connect(device.id);
   }
 
   /// Writes byte data to a specific characteristic of the connected Earable device.
-  Future<void> write(
-      {required String serviceId,
-      required String characteristicId,
-      required List<int> byteData}) async {
+  Future<void> write({required String serviceId,
+    required String characteristicId,
+    required List<int> byteData}) async {
     if (_connectedDevice == null) {
       throw Exception("Write failed because no Earable is connected");
     }
-    final characteristic = QualifiedCharacteristic(
-        serviceId: Uuid.parse(serviceId),
-        characteristicId: Uuid.parse(characteristicId),
-        deviceId: _connectedDevice!.id);
-    await _flutterReactiveBle.writeCharacteristicWithResponse(
-      characteristic,
-      value: byteData,
+    await UniversalBle.writeValue(
+      _connectedDevice!.id,
+      serviceId,
+      characteristicId,
+      Uint8List.fromList(byteData),
+      BleOutputProperty.withResponse,
     );
   }
 
   /// Subscribes to a specific characteristic of the connected Earable device.
   Stream<List<int>> subscribe(
       {required String serviceId, required String characteristicId}) {
+    _init();
     if (_connectedDevice == null) {
       throw Exception("Subscribing failed because no Earable is connected");
     }
-    final characteristic = QualifiedCharacteristic(
-        serviceId: Uuid.parse(serviceId),
-        characteristicId: Uuid.parse(characteristicId),
-        deviceId: _connectedDevice!.id);
-    return _flutterReactiveBle.subscribeToCharacteristic(characteristic);
+
+    final streamController = StreamController<List<int>>();
+    String streamIdentifier = _getCharacteristicKey(
+        _connectedDevice!.id, characteristicId);
+    if (!_streamControllers.containsKey(streamIdentifier)) {
+      _streamControllers[streamIdentifier] = [streamController];
+    } else {
+      _streamControllers[streamIdentifier]!.add(streamController);
+    }
+
+    streamController.onCancel = () {
+      if (_streamControllers.containsKey(streamIdentifier)) {
+        _streamControllers[streamIdentifier]!.remove(streamController);
+      }
+    };
+
+    return streamController.stream;
   }
 
   /// Reads data from a specific characteristic of the connected Earable device.
@@ -140,13 +207,13 @@ class BleManager {
     if (_connectedDevice == null) {
       throw Exception("Read failed because no Earable is connected");
     }
-    final characteristic = QualifiedCharacteristic(
-        serviceId: Uuid.parse(serviceId),
-        characteristicId: Uuid.parse(characteristicId),
-        deviceId: _connectedDevice!.id);
-    final response =
-        await _flutterReactiveBle.readCharacteristic(characteristic);
-    return response;
+
+    final response = await UniversalBle.readValue(
+      _connectedDevice!.id,
+      serviceId,
+      characteristicId,
+    );
+    return response.toList();
   }
 
   /// Reads the device identifier from the connected OpenEarable device.
@@ -184,6 +251,15 @@ class BleManager {
 
   /// Cancel connection state subscription
   dispose() {
-    _connectionStateSubscription?.cancel();
+    UniversalBle.onConnectionChange = (String deviceId, bool isConnected) {};
+    UniversalBle.stopScan();
+    UniversalBle.onScanResult = (_) {};
+    _scanStreamController?.close();
+
+    for (var list in _streamControllers.values) {
+      for (var e in list) {
+        e.close();
+      }
+    }
   }
 }
