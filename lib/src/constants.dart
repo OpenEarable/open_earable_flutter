@@ -32,3 +32,26 @@ const String buttonStateCharacteristicUuid =
 
 const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
 const String ledSetStateCharacteristic = "81040e7a-4819-11ee-be56-0242ac120002";
+
+// All UUIDs in a list for filters
+List<String> allUuids = [
+  sensorServiceUuid,
+  sensorConfigurationCharacteristicUuid,
+  sensorDataCharacteristicUuid,
+  deviceInfoServiceUuid,
+  deviceIdentifierCharacteristicUuid,
+  deviceFirmwareVersionCharacteristicUuid,
+  deviceHardwareVersionCharacteristicUuid,
+  parseInfoServiceUuid,
+  schemeCharacteristicUuid,
+  sensorNamesCharacteristicUuid,
+  audioPlayerServiceUuid,
+  audioSourceCharacteristic,
+  audioStateCharacteristic,
+  batteryServiceUuid,
+  batteryLevelCharacteristicUuid,
+  buttonServiceUuid,
+  buttonStateCharacteristicUuid,
+  ledServiceUuid,
+  ledSetStateCharacteristic,
+];

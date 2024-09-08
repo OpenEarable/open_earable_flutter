@@ -34,7 +34,7 @@ class BleManager {
   String? _deviceHardwareVersion;
 
   final StreamController<bool> _connectionStateController =
-  StreamController<bool>.broadcast();
+      StreamController<bool>.broadcast();
 
   Stream<bool> get connectionStateStream => _connectionStateController.stream;
 
@@ -49,10 +49,13 @@ class BleManager {
     }
     _inited = true;
 
-    UniversalBle.onValueChange =
-        (String deviceId, String characteristicId, Uint8List value) {
-      String streamIdentifier = _getCharacteristicKey(
-          deviceId, characteristicId);
+    UniversalBle.onValueChange = (
+      String deviceId,
+      String characteristicId,
+      Uint8List value,
+    ) {
+      String streamIdentifier =
+          _getCharacteristicKey(deviceId, characteristicId);
       if (!_streamControllers.containsKey(streamIdentifier)) {
         return;
       }
@@ -77,7 +80,8 @@ class BleManager {
     }
 
     bool permGranted = false;
-    if (Platform.isAndroid) {
+    // Don't run `Platform.is*` on web
+    if (!kIsWeb && Platform.isAndroid) {
       Map<Permission, PermissionStatus> statuses = await [
         Permission.bluetoothScan,
         Permission.bluetoothConnect,
@@ -87,7 +91,7 @@ class BleManager {
       permGranted = (statuses[Permission.bluetoothScan]!.isGranted &&
           statuses[Permission.bluetoothConnect]!.isGranted &&
           statuses[Permission.location]!.isGranted);
-    } else if (Platform.isIOS) {
+    } else {
       permGranted = true;
     }
 
@@ -98,17 +102,18 @@ class BleManager {
         _scanStreamController?.add(DiscoveredDevice(
           id: bleDevice.deviceId,
           name: bleDevice.name ?? "",
-          manufacturerData: bleDevice.manufacturerData ??
-              Uint8List.fromList([]),
+          manufacturerData:
+              bleDevice.manufacturerData ?? Uint8List.fromList([]),
           rssi: bleDevice.rssi ?? -1,
           serviceUuids: bleDevice.services,
         ));
       };
 
       await UniversalBle.startScan(
-          scanFilter: ScanFilter(
-            withServices: [],
-          )
+        scanFilter: ScanFilter(
+          // Needs to be passed for web, can be empty for the rest
+          withServices: kIsWeb ? allUuids : [],
+        ),
       );
     }
   }
@@ -127,8 +132,10 @@ class BleManager {
     _retryConnection(2, device);
   }
 
-  void _retryConnection(int retries,
-      DiscoveredDevice device,) {
+  void _retryConnection(
+    int retries,
+    DiscoveredDevice device,
+  ) {
     if (retries <= 0) {
       _connectingDevice = null;
       return;
@@ -166,9 +173,11 @@ class BleManager {
   }
 
   /// Writes byte data to a specific characteristic of the connected Earable device.
-  Future<void> write({required String serviceId,
+  Future<void> write({
+    required String serviceId,
     required String characteristicId,
-    required List<int> byteData}) async {
+    required List<int> byteData,
+  }) async {
     if (_connectedDevice == null) {
       throw Exception("Write failed because no Earable is connected");
     }
@@ -182,16 +191,18 @@ class BleManager {
   }
 
   /// Subscribes to a specific characteristic of the connected Earable device.
-  Stream<List<int>> subscribe(
-      {required String serviceId, required String characteristicId}) {
+  Stream<List<int>> subscribe({
+    required String serviceId,
+    required String characteristicId,
+  }) {
     _init();
     if (_connectedDevice == null) {
       throw Exception("Subscribing failed because no Earable is connected");
     }
 
     final streamController = StreamController<List<int>>();
-    String streamIdentifier = _getCharacteristicKey(
-        _connectedDevice!.id, characteristicId);
+    String streamIdentifier =
+        _getCharacteristicKey(_connectedDevice!.id, characteristicId);
     if (!_streamControllers.containsKey(streamIdentifier)) {
       _streamControllers[streamIdentifier] = [streamController];
     } else {
@@ -208,8 +219,10 @@ class BleManager {
   }
 
   /// Reads data from a specific characteristic of the connected Earable device.
-  Future<List<int>> read(
-      {required String serviceId, required String characteristicId}) async {
+  Future<List<int>> read({
+    required String serviceId,
+    required String characteristicId,
+  }) async {
     if (_connectedDevice == null) {
       throw Exception("Read failed because no Earable is connected");
     }
