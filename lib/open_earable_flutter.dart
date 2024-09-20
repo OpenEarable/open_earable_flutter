@@ -7,17 +7,19 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
-import 'models/discovered_device.dart';
+import 'src/models/discovered_device.dart';
 
 import 'package:open_earable_flutter/src/utils/mahony_ahrs.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:universal_ble/universal_ble.dart';
 
-part 'constants.dart';
-part 'managers/sensor_manager.dart';
-part 'managers/ble_manager.dart';
-part 'managers/rgb_led.dart';
-part 'managers/audio_player.dart';
+export 'src/models/discovered_device.dart';
+
+part 'src/constants.dart';
+part 'src/managers/sensor_manager.dart';
+part 'src/managers/ble_manager.dart';
+part 'src/managers/rgb_led.dart';
+part 'src/managers/audio_player.dart';
 
 /// The `OpenEarable` class provides a high-level interface for interacting with OpenEarable devices
 /// using Flutter and Reactive BLE.

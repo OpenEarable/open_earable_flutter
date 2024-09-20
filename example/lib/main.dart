@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:open_earable_flutter/src/open_earable_flutter.dart';
+import 'package:open_earable_flutter/open_earable_flutter.dart';
 
 void main() {
   runApp(MyApp());
