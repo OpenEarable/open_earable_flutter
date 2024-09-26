@@ -215,6 +215,12 @@ class BleManager {
     String streamIdentifier =
         _getCharacteristicKey(_connectedDevice!.id, characteristicId);
     if (!_streamControllers.containsKey(streamIdentifier)) {
+      UniversalBle.setNotifiable(
+        _connectedDevice!.id,
+        serviceId,
+        characteristicId,
+        BleInputProperty.notification,
+      );
       _streamControllers[streamIdentifier] = [streamController];
     } else {
       _streamControllers[streamIdentifier]!.add(streamController);
@@ -223,6 +229,15 @@ class BleManager {
     streamController.onCancel = () {
       if (_streamControllers.containsKey(streamIdentifier)) {
         _streamControllers[streamIdentifier]!.remove(streamController);
+        if (_streamControllers[streamIdentifier]!.isEmpty) {
+          UniversalBle.setNotifiable(
+            _connectedDevice!.id,
+            serviceId,
+            characteristicId,
+            BleInputProperty.disabled,
+          );
+          _streamControllers.remove(streamIdentifier);
+        }
       }
     };
 
