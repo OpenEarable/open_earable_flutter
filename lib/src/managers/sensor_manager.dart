@@ -155,7 +155,7 @@ class SensorManager {
   Stream getBatteryLevelStream() {
     return _bleManager.subscribe(
         serviceId: batteryServiceUuid,
-        characteristicId: batteryLevelCharacteristicUuid);
+        characteristicId: batteryLevelCharacteristicUuid.toString());
   }
 
   /// Returns a [Stream] of button state updates.
@@ -165,7 +165,7 @@ class SensorManager {
   Stream getButtonStateStream() {
     return _bleManager.subscribe(
         serviceId: buttonServiceUuid,
-        characteristicId: buttonStateCharacteristicUuid);
+        characteristicId: buttonStateCharacteristicUuid.toString());
   }
 
   /// Reads the sensor scheme that is needed to parse the raw sensor
