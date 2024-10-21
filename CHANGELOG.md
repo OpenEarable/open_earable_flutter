@@ -9,3 +9,7 @@ Connecting to earable now retries after first failure.
 ## 0.0.3
 
 Added compatibility with flutter web.
+
+## 0.0.4
+
+Extend pipeline to use Flutter.
