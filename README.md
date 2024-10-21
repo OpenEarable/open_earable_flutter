@@ -13,7 +13,7 @@ This Dart package provides functionality for interacting with OpenEarable device
 <kbd> <br> [Show library on pub.dev](https://pub.dev/packages/open_earable_flutter) <br> </kbd>
 
 ## Permissions
-For your app to be able to use [Flutter reactive BLE](https://github.com/PhilipsHue/flutter_reactive_ble) in this package, you need to grant the following permissions:
+For your app to be able to use [UniversalBLE](https://pub.dev/packages/universal_ble) in this package, you need to grant the following permissions:
 ### Android
 
 You need to add the following permissions to your AndroidManifest.xml file:
