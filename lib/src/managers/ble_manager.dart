@@ -130,7 +130,7 @@ class BleManager {
   }
 
   /// Connects to the specified Earable device.
-  connectToDevice(DiscoveredDevice device) {
+  Future<bool> connectToDevice(DiscoveredDevice device) {
     for (var list in _streamControllers.values) {
       for (var e in list) {
         e.close();
@@ -140,16 +140,18 @@ class BleManager {
 
     UniversalBle.onConnectionChange = (String deviceId, bool isConnected) {};
 
-    _retryConnection(2, device);
+    return _retryConnection(2, device);
   }
 
-  void _retryConnection(
+  Future<bool> _retryConnection(
     int retries,
     DiscoveredDevice device,
-  ) {
+  ) async {
+    Completer<bool> completer = Completer<bool>();
+
     if (retries <= 0) {
       _connectingDevice = null;
-      return;
+      return false;
     }
     UniversalBle.onConnectionChange =
         (String deviceId, bool isConnected) async {
@@ -157,30 +159,38 @@ class BleManager {
         return;
       }
 
-      if (isConnected) {
-        _connectedDevice = device;
-        if (!kIsWeb) {
-          UniversalBle.requestMtu(device.id, mtu);
+      bool result = false;
+      try {
+        if (isConnected) {
+          _connectedDevice = device;
+          if (!kIsWeb) {
+            UniversalBle.requestMtu(device.id, mtu);
+          }
+          UniversalBle.discoverServices(device.id);
+          if (deviceIdentifier == null || deviceFirmwareVersion == null) {
+            await readDeviceIdentifier();
+            await readDeviceFirmwareVersion();
+            await readDeviceHardwareVersion();
+          }
+          _connectionStateController.add(true);
+          _connectingDevice = null;
+          result = true;
+        } else {
+          _connectedDevice = null;
+          _connectingDevice = null;
+          _deviceIdentifier = null;
+          _deviceFirmwareVersion = null;
+          _deviceHardwareVersion = null;
+          _connectionStateController.add(false);
+          result = await _retryConnection(retries - 1, device);
         }
-        UniversalBle.discoverServices(device.id);
-        if (deviceIdentifier == null || deviceFirmwareVersion == null) {
-          await readDeviceIdentifier();
-          await readDeviceFirmwareVersion();
-          await readDeviceHardwareVersion();
-        }
-        _connectionStateController.add(true);
-        _connectingDevice = null;
-      } else {
-        _connectedDevice = null;
-        _connectingDevice = null;
-        _deviceIdentifier = null;
-        _deviceFirmwareVersion = null;
-        _deviceHardwareVersion = null;
-        _connectionStateController.add(false);
-        _retryConnection(retries - 1, device);
+      } finally {
+        completer.complete(result);
       }
     };
     UniversalBle.connect(device.id);
+
+    return completer.future;
   }
 
   /// Writes byte data to a specific characteristic of the connected Earable device.
