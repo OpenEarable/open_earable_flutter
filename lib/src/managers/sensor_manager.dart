@@ -19,9 +19,10 @@ class SensorManager {
       Exception("Can't write sensor config. Earable not connected");
     }
     await _bleManager.write(
-        serviceId: sensorServiceUuid,
-        characteristicId: sensorConfigurationCharacteristicUuid,
-        byteData: sensorConfig.byteList);
+      serviceId: sensorServiceUuid,
+      characteristicId: sensorConfigurationCharacteristicUuid,
+      byteData: sensorConfig.byteList,
+    );
     if (_sensorSchemes == null) {
       await _readSensorScheme();
     }
@@ -42,43 +43,64 @@ class SensorManager {
     int lastTimestamp = 0;
     _bleManager
         .subscribe(
-            serviceId: sensorServiceUuid,
-            characteristicId: sensorDataCharacteristicUuid)
-        .listen((data) async {
-      if (data.isNotEmpty && data[0] == sensorId) {
-        Map<String, dynamic> parsedData = await _parseData(data);
-        if (sensorId == imuID) {
-          int timestamp = parsedData["timestamp"];
-          double ax = parsedData["ACC"]["X"];
-          double ay = parsedData["ACC"]["Y"];
-          double az = parsedData["ACC"]["Z"];
+      serviceId: sensorServiceUuid,
+      characteristicId: sensorDataCharacteristicUuid,
+    )
+        .listen(
+      (data) async {
+        if (data.isNotEmpty && data[0] == sensorId) {
+          Map<String, dynamic> parsedData = await _parseData(data);
+          if (sensorId == imuID) {
+            int timestamp = parsedData["timestamp"];
+            double ax = parsedData["ACC"]["X"];
+            double ay = parsedData["ACC"]["Y"];
+            double az = parsedData["ACC"]["Z"];
 
-          double gx = parsedData["GYRO"]["X"];
-          double gy = parsedData["GYRO"]["Y"];
-          double gz = parsedData["GYRO"]["Z"];
+            double gx = parsedData["GYRO"]["X"];
+            double gy = parsedData["GYRO"]["Y"];
+            double gz = parsedData["GYRO"]["Z"];
 
-          double dt = (timestamp - lastTimestamp) / 1000.0;
-          _mahonyAHRS.update(ax, ay, az, gx, gy, gz,
-              dt); // x, y, z was changed in firmware to -x, z, y
-          lastTimestamp = timestamp;
-          List<double> q = _mahonyAHRS.quaternion;
-          double yaw = -atan2(2 * (q[0] * q[3] + q[1] * q[2]),
-              1 - 2 * (q[2] * q[2] + q[3] * q[3]));
-          // Pitch (around Y-axis)
-          double pitch = -asin(2 * (q[0] * q[2] - q[3] * q[1]));
-          // Roll (around X-axis)
-          double roll = -atan2(2 * (q[0] * q[1] + q[2] * q[3]),
-              1 - 2 * (q[1] * q[1] + q[2] * q[2]));
-          parsedData["EULER"] = {};
-          parsedData["EULER"]["YAW"] = yaw;
-          parsedData["EULER"]["PITCH"] = pitch;
-          parsedData["EULER"]["ROLL"] = roll;
-          parsedData["EULER"]
-              ["units"] = {"YAW": "rad", "PITCH": "rad", "ROLL": "rad"};
+            double dt = (timestamp - lastTimestamp) / 1000.0;
+
+            // x, y, z was changed in firmware to -x, z, y
+            _mahonyAHRS.update(
+              ax,
+              ay,
+              az,
+              gx,
+              gy,
+              gz,
+              dt,
+            );
+
+            lastTimestamp = timestamp;
+            List<double> q = _mahonyAHRS.quaternion;
+            double yaw = -atan2(
+              2 * (q[0] * q[3] + q[1] * q[2]),
+              1 - 2 * (q[2] * q[2] + q[3] * q[3]),
+            );
+
+            // Pitch (around Y-axis)
+            double pitch = -asin(2 * (q[0] * q[2] - q[3] * q[1]));
+
+            // Roll (around X-axis)
+            double roll = -atan2(
+              2 * (q[0] * q[1] + q[2] * q[3]),
+              1 - 2 * (q[1] * q[1] + q[2] * q[2]),
+            );
+
+            parsedData["EULER"] = {};
+            parsedData["EULER"]["YAW"] = yaw;
+            parsedData["EULER"]["PITCH"] = pitch;
+            parsedData["EULER"]["ROLL"] = roll;
+            parsedData["EULER"]
+                ["units"] = {"YAW": "rad", "PITCH": "rad", "ROLL": "rad"};
+          }
+          streamController.add(parsedData);
         }
-        streamController.add(parsedData);
-      }
-    }, onError: (error) {});
+      },
+      onError: (error) {},
+    );
 
     return streamController.stream;
   }
@@ -154,8 +176,9 @@ class SensorManager {
   /// Battery level is provided as percent values (0-100).
   Stream getBatteryLevelStream() {
     return _bleManager.subscribe(
-        serviceId: batteryServiceUuid,
-        characteristicId: batteryLevelCharacteristicUuid.toString());
+      serviceId: batteryServiceUuid,
+      characteristicId: batteryLevelCharacteristicUuid.toString(),
+    );
   }
 
   /// Returns a [Stream] of button state updates.
@@ -164,16 +187,18 @@ class SensorManager {
   /// - 2: Held
   Stream getButtonStateStream() {
     return _bleManager.subscribe(
-        serviceId: buttonServiceUuid,
-        characteristicId: buttonStateCharacteristicUuid.toString());
+      serviceId: buttonServiceUuid,
+      characteristicId: buttonStateCharacteristicUuid.toString(),
+    );
   }
 
   /// Reads the sensor scheme that is needed to parse the raw sensor
   /// data bytes
   Future<void> _readSensorScheme() async {
     List<int> byteStream = await _bleManager.read(
-        serviceId: parseInfoServiceUuid,
-        characteristicId: schemeCharacteristicUuid);
+      serviceId: parseInfoServiceUuid,
+      characteristicId: schemeCharacteristicUuid,
+    );
 
     int currentIndex = 0;
 
@@ -207,7 +232,9 @@ class SensorManager {
         int componentNameLength = byteStream[currentIndex++];
 
         List<int> componentNameBytes = byteStream.sublist(
-            currentIndex, currentIndex + componentNameLength);
+          currentIndex,
+          currentIndex + componentNameLength,
+        );
         String componentName = String.fromCharCodes(componentNameBytes);
         currentIndex += componentNameLength;
 
@@ -288,16 +315,4 @@ class OpenEarableSensorConfig {
   }
 }
 
-enum ParseType {
-  int8,
-  uint8,
-
-  int16,
-  uint16,
-
-  int32,
-  uint32,
-
-  float,
-  double
-}
+enum ParseType { int8, uint8, int16, uint16, int32, uint32, float, double }

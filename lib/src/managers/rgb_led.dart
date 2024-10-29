@@ -19,8 +19,11 @@ class RgbLed {
   /// - `b`: The blue color component value (0-255) for the LED.
   ///
   /// Use this method to easily set the color of the in-built RGB LED on the OpenEarable device.
-  Future<void> writeLedColor(
-      {required int r, required int g, required int b}) async {
+  Future<void> writeLedColor({
+    required int r,
+    required int g,
+    required int b,
+  }) async {
     if (!_bleManager.connected) {
       Exception("Can't write sensor config. Earable not connected");
     }
@@ -32,9 +35,10 @@ class RgbLed {
     data.setUint8(1, g);
     data.setUint8(2, b);
     await _bleManager.write(
-        serviceId: ledServiceUuid,
-        characteristicId: ledSetStateCharacteristic,
-        byteData: data.buffer.asUint8List());
+      serviceId: ledServiceUuid,
+      characteristicId: ledSetStateCharacteristic,
+      byteData: data.buffer.asUint8List(),
+    );
   }
 }
 

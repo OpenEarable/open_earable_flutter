@@ -40,8 +40,15 @@ class MahonyAHRS {
     _ki = 0.0;
   }
 
-  void update(double ax, double ay, double az, double gx, double gy, double gz,
-      double td) {
+  void update(
+    double ax,
+    double ay,
+    double az,
+    double gx,
+    double gy,
+    double gz,
+    double td,
+  ) {
     double q1 = _qW;
     double q2 = _qX;
     double q3 = _qY;
