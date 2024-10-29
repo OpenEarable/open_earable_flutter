@@ -109,14 +109,16 @@ class BleManager {
         await UniversalBle.stopScan();
 
         UniversalBle.onScanResult = (bleDevice) {
-          _scanStreamController?.add(DiscoveredDevice(
-            id: bleDevice.deviceId,
-            name: bleDevice.name ?? "",
-            manufacturerData:
-                bleDevice.manufacturerData ?? Uint8List.fromList([]),
-            rssi: bleDevice.rssi ?? -1,
-            serviceUuids: bleDevice.services,
-          ));
+          _scanStreamController?.add(
+            DiscoveredDevice(
+              id: bleDevice.deviceId,
+              name: bleDevice.name ?? "",
+              manufacturerData:
+                  bleDevice.manufacturerData ?? Uint8List.fromList([]),
+              rssi: bleDevice.rssi ?? -1,
+              serviceUuids: bleDevice.services,
+            ),
+          );
         };
 
         await UniversalBle.startScan(
@@ -276,8 +278,9 @@ class BleManager {
   /// Returns a `Future` that completes with the device identifier as a `String`.
   Future<String?> readDeviceIdentifier() async {
     List<int> deviceIdentifierBytes = await read(
-        serviceId: deviceInfoServiceUuid,
-        characteristicId: deviceIdentifierCharacteristicUuid);
+      serviceId: deviceInfoServiceUuid,
+      characteristicId: deviceIdentifierCharacteristicUuid,
+    );
     _deviceIdentifier = String.fromCharCodes(deviceIdentifierBytes);
     return _deviceIdentifier;
   }
@@ -287,8 +290,9 @@ class BleManager {
   /// Returns a `Future` that completes with the device firmware version as a `String`.
   Future<String?> readDeviceFirmwareVersion() async {
     List<int> deviceGenerationBytes = await read(
-        serviceId: deviceInfoServiceUuid,
-        characteristicId: deviceFirmwareVersionCharacteristicUuid);
+      serviceId: deviceInfoServiceUuid,
+      characteristicId: deviceFirmwareVersionCharacteristicUuid,
+    );
     _deviceFirmwareVersion = String.fromCharCodes(deviceGenerationBytes);
     return _deviceFirmwareVersion;
   }
@@ -298,14 +302,15 @@ class BleManager {
   /// Returns a `Future` that completes with the device firmware version as a `String`.
   Future<String?> readDeviceHardwareVersion() async {
     List<int> hardwareGenerationBytes = await read(
-        serviceId: deviceInfoServiceUuid,
-        characteristicId: deviceHardwareVersionCharacteristicUuid);
+      serviceId: deviceInfoServiceUuid,
+      characteristicId: deviceHardwareVersionCharacteristicUuid,
+    );
     _deviceHardwareVersion = String.fromCharCodes(hardwareGenerationBytes);
     return _deviceHardwareVersion;
   }
 
   /// Cancel connection state subscription
-  dispose() {
+  void dispose() {
     UniversalBle.onConnectionChange = (String deviceId, bool isConnected) {};
     UniversalBle.stopScan();
     UniversalBle.onScanResult = (_) {};

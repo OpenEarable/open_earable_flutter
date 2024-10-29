@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:open_earable_flutter/open_earable_flutter.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
@@ -125,7 +125,7 @@ class MyAppState extends State<MyApp> {
             Visibility(
                 visible: _deviceIdentifier != null && _connectedToEarable,
                 child: Padding(
-                    padding: EdgeInsets.fromLTRB(33, 8, 0, 8),
+                    padding: const EdgeInsets.fromLTRB(33, 8, 0, 8),
                     child: Text(
                       "Connected to $_deviceIdentifier $_deviceFirmwareVersion",
                       style: const TextStyle(fontSize: 16),

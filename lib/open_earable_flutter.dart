@@ -16,9 +16,13 @@ import 'package:universal_ble/universal_ble.dart';
 export 'src/models/discovered_device.dart';
 
 part 'src/constants.dart';
+
 part 'src/managers/sensor_manager.dart';
+
 part 'src/managers/ble_manager.dart';
+
 part 'src/managers/rgb_led.dart';
+
 part 'src/managers/audio_player.dart';
 
 /// The `OpenEarable` class provides a high-level interface for interacting with OpenEarable devices
@@ -33,8 +37,11 @@ class OpenEarable {
   late final AudioPlayer audioPlayer;
 
   String? get deviceName => bleManager.connectedDevice?.name;
+
   String? get deviceIdentifier => bleManager.deviceIdentifier;
+
   String? get deviceFirmwareVersion => bleManager.deviceFirmwareVersion;
+
   String? get deviceHardwareVersion => bleManager.deviceHardwareVersion;
 
   /// Creates an instance of the `OpenEarable` class.

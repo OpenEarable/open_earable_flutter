@@ -42,7 +42,7 @@ class AudioPlayer {
   /// - 3: Sawtooth.
   ///
   /// loudness must be between 0.0 - 1.0
-  /// 
+  ///
   /// Example usage:
   /// ```dart
   /// setFrequencyState(1, 440.0, 1.0);
@@ -109,7 +109,7 @@ class AudioPlayer {
   /// - [WavPlayerState.start]: Starts audio playback.
   /// - [WavPlayerState.pause]: Pauses audio playback.
   /// - [WavPlayerState.unpause]: unpauses audio playback.
-  /// 
+  ///
   void setState(AudioPlayerState state) async {
     Uint8List data = Uint8List(1);
     data[0] = getAudioPlayerStateValue(state);
@@ -130,11 +130,15 @@ class AudioPlayer {
 }
 
 int getAudioPlayerStateValue(AudioPlayerState state) {
-  switch(state) {
-    case AudioPlayerState.idle: return 0;
-    case AudioPlayerState.start: return 1;
-    case AudioPlayerState.pause: return 2;
-    case AudioPlayerState.stop: return 3;
+  switch (state) {
+    case AudioPlayerState.idle:
+      return 0;
+    case AudioPlayerState.start:
+      return 1;
+    case AudioPlayerState.pause:
+      return 2;
+    case AudioPlayerState.stop:
+      return 3;
   }
 }
 
