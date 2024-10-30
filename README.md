@@ -6,11 +6,15 @@
 ![Pub Version (including pre-releases)](https://img.shields.io/pub/v/open_earable_flutter)
 
 
-This Dart package provides functionality for interacting with OpenEarable devices. It enables you to communicate with OpenEarable devices, control LED colors, control audio, and access raw sensor data.
+This Dart package provides functionality for interacting with OpenEarable devices. It enables you to communicate with OpenEarable devices, control LED colors, control audio, and access raw sensor data.  
+  
+[Try it online](https://open-earable-lib-web-example.web.app/), provided your browser supports [Web Bluetooth](https://caniuse.com/web-bluetooth).  
+  
+<br>  
 
 <kbd> <br> [Get OpenEarable device now!](https://forms.gle/R3LMcqtyKwVH7PZB9) <br> </kbd>
 
-<kbd> <br> [Show library on pub.dev](https://pub.dev/packages/open_earable_flutter) <br> </kbd>
+<kbd> <br> [Show library on pub.dev](https://pub.dev/packages/open_earable_flutter) <br> </kbd>
 
 ## Permissions
 For your app to be able to use [UniversalBLE](https://pub.dev/packages/universal_ble) in this package, you need to grant the following permissions:
