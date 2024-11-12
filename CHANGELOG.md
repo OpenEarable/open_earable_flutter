@@ -13,3 +13,7 @@ Added compatibility with flutter web.
 ## 0.0.4
 
 Extend pipeline to use Flutter.
+
+## 0.0.5
+
+README updates (example web app) and add supported platforms. 
