@@ -1,4 +1,11 @@
-part of open_earable_flutter;
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:universal_ble/universal_ble.dart';
+
+import '../../open_earable_flutter.dart';
 
 /// A class that establishes and manages Bluetooth Low Energy (BLE)
 /// communication with OpenEarable devices.
@@ -132,7 +139,10 @@ class BleManager {
   }
 
   /// Connects to the specified Earable device.
-  Future<bool> connectToDevice(DiscoveredDevice device) {
+  Future<(bool, List<BleService>)> connectToDevice(
+    DiscoveredDevice device,
+    VoidCallback onDisconnect,
+  ) {
     for (var list in _streamControllers.values) {
       for (var e in list) {
         e.close();
@@ -142,18 +152,20 @@ class BleManager {
 
     UniversalBle.onConnectionChange = (String deviceId, bool isConnected) {};
 
-    return _retryConnection(2, device);
+    return _retryConnection(2, device, onDisconnect);
   }
 
-  Future<bool> _retryConnection(
+  Future<(bool, List<BleService>)> _retryConnection(
     int retries,
     DiscoveredDevice device,
+    VoidCallback onDisconnect,
   ) async {
-    Completer<bool> completer = Completer<bool>();
+    Completer<(bool, List<BleService>)> completer =
+        Completer<(bool, List<BleService>)>();
 
     if (retries <= 0) {
       _connectingDevice = null;
-      return false;
+      return (false, <BleService>[]);
     }
     UniversalBle.onConnectionChange =
         (String deviceId, bool isConnected) async {
@@ -161,33 +173,21 @@ class BleManager {
         return;
       }
 
-      bool result = false;
+      bool connectionResult = false;
+      List<BleService> services = [];
       try {
         if (isConnected) {
           _connectedDevice = device;
           if (!kIsWeb) {
             UniversalBle.requestMtu(device.id, mtu);
           }
-          UniversalBle.discoverServices(device.id);
-          if (deviceIdentifier == null || deviceFirmwareVersion == null) {
-            await readDeviceIdentifier();
-            await readDeviceFirmwareVersion();
-            await readDeviceHardwareVersion();
-          }
-          _connectionStateController.add(true);
-          _connectingDevice = null;
-          result = true;
+          services = await UniversalBle.discoverServices(device.id);
+          connectionResult = true;
         } else {
-          _connectedDevice = null;
-          _connectingDevice = null;
-          _deviceIdentifier = null;
-          _deviceFirmwareVersion = null;
-          _deviceHardwareVersion = null;
-          _connectionStateController.add(false);
-          result = await _retryConnection(retries - 1, device);
+          onDisconnect.call();
         }
       } finally {
-        completer.complete(result);
+        completer.complete((connectionResult, services));
       }
     };
     UniversalBle.connect(device.id);
@@ -197,6 +197,7 @@ class BleManager {
 
   /// Writes byte data to a specific characteristic of the connected Earable device.
   Future<void> write({
+    String? deviceId,
     required String serviceId,
     required String characteristicId,
     required List<int> byteData,
@@ -205,7 +206,7 @@ class BleManager {
       throw Exception("Write failed because no Earable is connected");
     }
     await UniversalBle.writeValue(
-      _connectedDevice!.id,
+      deviceId ?? _connectedDevice!.id,
       serviceId,
       characteristicId,
       Uint8List.fromList(byteData),
@@ -215,20 +216,21 @@ class BleManager {
 
   /// Subscribes to a specific characteristic of the connected Earable device.
   Stream<List<int>> subscribe({
+    String? deviceId,
     required String serviceId,
     required String characteristicId,
   }) {
     _init();
-    if (_connectedDevice == null) {
-      throw Exception("Subscribing failed because no Earable is connected");
-    }
+    // if (_connectedDevice == null) {
+    //   throw Exception("Subscribing failed because no Earable is connected");
+    // }
 
     final streamController = StreamController<List<int>>();
     String streamIdentifier =
         _getCharacteristicKey(_connectedDevice!.id, characteristicId);
     if (!_streamControllers.containsKey(streamIdentifier)) {
       UniversalBle.setNotifiable(
-        _connectedDevice!.id,
+        deviceId ?? _connectedDevice!.id,
         serviceId,
         characteristicId,
         BleInputProperty.notification,
@@ -258,6 +260,7 @@ class BleManager {
 
   /// Reads data from a specific characteristic of the connected Earable device.
   Future<List<int>> read({
+    String? deviceId,
     required String serviceId,
     required String characteristicId,
   }) async {
@@ -266,47 +269,15 @@ class BleManager {
     }
 
     final response = await UniversalBle.readValue(
-      _connectedDevice!.id,
+      deviceId ?? _connectedDevice!.id,
       serviceId,
       characteristicId,
     );
     return response.toList();
   }
 
-  /// Reads the device identifier from the connected OpenEarable device.
-  ///
-  /// Returns a `Future` that completes with the device identifier as a `String`.
-  Future<String?> readDeviceIdentifier() async {
-    List<int> deviceIdentifierBytes = await read(
-      serviceId: deviceInfoServiceUuid,
-      characteristicId: deviceIdentifierCharacteristicUuid,
-    );
-    _deviceIdentifier = String.fromCharCodes(deviceIdentifierBytes);
-    return _deviceIdentifier;
-  }
-
-  /// Reads the device firmware version from the connected OpenEarable device.
-  ///
-  /// Returns a `Future` that completes with the device firmware version as a `String`.
-  Future<String?> readDeviceFirmwareVersion() async {
-    List<int> deviceGenerationBytes = await read(
-      serviceId: deviceInfoServiceUuid,
-      characteristicId: deviceFirmwareVersionCharacteristicUuid,
-    );
-    _deviceFirmwareVersion = String.fromCharCodes(deviceGenerationBytes);
-    return _deviceFirmwareVersion;
-  }
-
-  /// Reads the device hardware version from the connected OpenEarable device.
-  ///
-  /// Returns a `Future` that completes with the device firmware version as a `String`.
-  Future<String?> readDeviceHardwareVersion() async {
-    List<int> hardwareGenerationBytes = await read(
-      serviceId: deviceInfoServiceUuid,
-      characteristicId: deviceHardwareVersionCharacteristicUuid,
-    );
-    _deviceHardwareVersion = String.fromCharCodes(hardwareGenerationBytes);
-    return _deviceHardwareVersion;
+  Future<void> disconnect(String deviceId) {
+    return UniversalBle.disconnect(deviceId);
   }
 
   /// Cancel connection state subscription
