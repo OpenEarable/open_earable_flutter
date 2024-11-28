@@ -1,56 +1,72 @@
 library open_earable_flutter;
 
 import 'dart:async';
-import 'dart:io' show Platform;
-import 'dart:convert';
-import 'dart:math';
 
-import 'package:flutter/foundation.dart';
-
-import 'src/models/discovered_device.dart';
-
-import 'package:open_earable_flutter/src/utils/mahony_ahrs.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:universal_ble/universal_ble.dart';
 
-export 'src/models/discovered_device.dart';
+import 'src/managers/ble_manager.dart';
+import 'src/managers/notifier.dart';
+import 'src/models/devices/discovered_device.dart';
+import 'src/models/devices/wearable.dart';
+
+import 'src/models/devices/open_earable_v1.dart';
+export 'src/models/devices/discovered_device.dart';
+export 'src/models/devices/wearable.dart';
+export 'src/models/capabilities/device_firmware_version.dart';
+export 'src/models/capabilities/device_hardware_version.dart';
+export 'src/models/capabilities/device_identifier.dart';
+export 'src/models/capabilities/rgb_led.dart';
+export 'src/models/capabilities/sensor.dart';
+export 'src/models/capabilities/sensor_configuration.dart';
+export 'src/models/capabilities/sensor_manager.dart';
+export 'src/models/capabilities/sensor_configuration_manager.dart';
+export 'src/models/capabilities/frequency_player.dart';
+export 'src/models/capabilities/jingle_player.dart';
+export 'src/models/capabilities/audio_player_controls.dart';
+export 'src/models/capabilities/storage_path_audio_player.dart';
 
 part 'src/constants.dart';
 
-part 'src/managers/sensor_manager.dart';
+class WearableManager {
+  static final WearableManager _instance = WearableManager._internal();
 
-part 'src/managers/ble_manager.dart';
+  late final BleManager _bleManager;
 
-part 'src/managers/rgb_led.dart';
+  factory WearableManager() {
+    return _instance;
+  }
 
-part 'src/managers/audio_player.dart';
+  WearableManager._internal() {
+    _bleManager = BleManager();
+    _init();
+  }
 
-/// The `OpenEarable` class provides a high-level interface for interacting with OpenEarable devices
-/// using Flutter and Reactive BLE.
-///
-/// You can use this class to manage Bluetooth connections, control RGB LEDs, read sensor data,
-/// and play WAV audio files on OpenEarable devices.
-class OpenEarable {
-  late final BleManager bleManager;
-  late final RgbLed rgbLed;
-  late final SensorManager sensorManager;
-  late final AudioPlayer audioPlayer;
+  void _init() {
+    print('WearableManager initialized');
+  }
 
-  String? get deviceName => bleManager.connectedDevice?.name;
+  Future<void> startScan() {
+    return _bleManager.startScan();
+  }
 
-  String? get deviceIdentifier => bleManager.deviceIdentifier;
+  Stream<DiscoveredDevice> get scanStream => _bleManager.scanStream;
 
-  String? get deviceFirmwareVersion => bleManager.deviceFirmwareVersion;
-
-  String? get deviceHardwareVersion => bleManager.deviceHardwareVersion;
-
-  /// Creates an instance of the `OpenEarable` class.
-  ///
-  /// Initializes the Bluetooth manager, RGB LED controller, sensor manager, and audio player.
-  OpenEarable() {
-    bleManager = BleManager();
-    rgbLed = RgbLed(bleManager: bleManager);
-    sensorManager = SensorManager(bleManager: bleManager);
-    audioPlayer = AudioPlayer(bleManager: bleManager);
+  Future<Wearable> connectToDevice(DiscoveredDevice device) async {
+    Notifier disconnectNotifier = Notifier();
+    (bool, List<BleService>) connectionResult =
+        await _bleManager.connectToDevice(
+      device,
+      disconnectNotifier.notifyListeners,
+    );
+    if (connectionResult.$1) {
+      return OpenEarableV1(
+        name: device.name,
+        disconnectNotifier: disconnectNotifier,
+        bleManager: _bleManager,
+        discoveredDevice: device,
+      );
+    } else {
+      throw Exception('Failed to connect to device');
+    }
   }
 }

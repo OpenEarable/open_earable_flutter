@@ -1,14 +1,26 @@
-part of open_earable_flutter;
+import 'dart:async';
+import 'dart:math';
+
+import 'package:flutter/foundation.dart';
+
+import '../../open_earable_flutter.dart';
+import '../utils/mahony_ahrs.dart';
+import 'ble_manager.dart';
 
 /// Manages sensor-related functionality for the OpenEarable device.
-class SensorManager {
+class OpenEarableSensorManager {
+  final String deviceId;
+
   final imuID = 0;
   final BleManager _bleManager;
   final MahonyAHRS _mahonyAHRS = MahonyAHRS();
   List<SensorScheme>? _sensorSchemes;
 
-  /// Creates a [SensorManager] instance with the specified [bleManager].
-  SensorManager({required BleManager bleManager}) : _bleManager = bleManager;
+  /// Creates a [OpenEarableSensorManager] instance with the specified [bleManager].
+  OpenEarableSensorManager({
+    required BleManager bleManager,
+    required this.deviceId,
+  }) : _bleManager = bleManager;
 
   /// Writes the sensor configuration to the OpenEarable device.
   ///
@@ -43,6 +55,7 @@ class SensorManager {
     int lastTimestamp = 0;
     _bleManager
         .subscribe(
+      deviceId: deviceId,
       serviceId: sensorServiceUuid,
       characteristicId: sensorDataCharacteristicUuid,
     )
@@ -176,6 +189,7 @@ class SensorManager {
   /// Battery level is provided as percent values (0-100).
   Stream getBatteryLevelStream() {
     return _bleManager.subscribe(
+      deviceId: deviceId,
       serviceId: batteryServiceUuid,
       characteristicId: batteryLevelCharacteristicUuid.toString(),
     );
@@ -187,6 +201,7 @@ class SensorManager {
   /// - 2: Held
   Stream getButtonStateStream() {
     return _bleManager.subscribe(
+      deviceId: deviceId,
       serviceId: buttonServiceUuid,
       characteristicId: buttonStateCharacteristicUuid.toString(),
     );
@@ -196,6 +211,7 @@ class SensorManager {
   /// data bytes
   Future<void> _readSensorScheme() async {
     List<int> byteStream = await _bleManager.read(
+      deviceId: deviceId,
       serviceId: parseInfoServiceUuid,
       characteristicId: schemeCharacteristicUuid,
     );
