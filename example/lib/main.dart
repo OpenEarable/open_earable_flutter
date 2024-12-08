@@ -3,114 +3,100 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:open_earable_flutter/open_earable_flutter.dart';
 
+import 'widgets/frequency_player_widget.dart';
+import 'widgets/jingle_player_widget.dart';
+import 'widgets/rgb_led_control_widget.dart';
+import 'widgets/sensor_configuration_view.dart';
+import 'widgets/audio_player_control_widget.dart';
+import 'widgets/sensor_view.dart';
+import 'widgets/storage_path_audio_player_widget.dart';
+import 'widgets/grouped_box.dart';
+
 void main() {
   runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
   @override
   MyAppState createState() => MyAppState();
 }
 
 class MyAppState extends State<MyApp> {
-  final OpenEarable _openEarable = OpenEarable();
+  final WearableManager _wearableManager = WearableManager();
   StreamSubscription? _scanSubscription;
   List discoveredDevices = [];
-  bool _connectedToEarable = false;
-  bool _waitingToConnect = false;
-  String? _deviceIdentifier;
-  String? _deviceFirmwareVersion;
 
-  void _readDeviceInfo() async {
-    String? deviceIdentifier =
-        await _openEarable.bleManager.readDeviceIdentifier();
-    String? deviceFirmwareVersion =
-        await _openEarable.bleManager.readDeviceFirmwareVersion();
-    setState(() {
-      _deviceIdentifier = deviceIdentifier;
-      _deviceFirmwareVersion = deviceFirmwareVersion;
-    });
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _setupListeners();
-  }
-
-  void _setupListeners() async {
-    _openEarable.bleManager.connectionStateStream.listen((connectionState) {
-      if (connectionState) {
-        _readDeviceInfo();
-        _writeSensorConfig();
-        setState(() {
-          _waitingToConnect = false;
-        });
-      }
-      setState(() {
-        _connectedToEarable = connectionState;
-      });
-    });
-  }
+  DiscoveredDevice? _connectingDevice;
+  Wearable? _connectedDevice;
 
   @override
   Widget build(BuildContext context) {
+    List<SensorView>? sensorViews;
+    List<SensorConfigurationView>? sensorConfigurationViews;
+    if (_connectedDevice != null) {
+      sensorViews = SensorView.createSensorViews(_connectedDevice!);
+      sensorConfigurationViews =
+          SensorConfigurationView.createSensorConfigurationViews(
+        _connectedDevice!,
+      );
+    }
+
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
           title: const Text('Bluetooth Devices'),
         ),
         body: SingleChildScrollView(
-            child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(33, 16, 0, 0),
-              child: Text(
-                "SCANNED DEVICES",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12.0,
+            child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(33, 16, 0, 0),
+                child: Text(
+                  "SCANNED DEVICES",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12.0,
+                  ),
                 ),
               ),
-            ),
-            Visibility(
+              Visibility(
                 visible: discoveredDevices.isNotEmpty,
                 child: Container(
-                    margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(
-                        color: Colors.grey,
-                        width: 1.0,
-                      ),
-                      borderRadius: BorderRadius.circular(8.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(
+                      color: Colors.grey,
+                      width: 1.0,
                     ),
-                    child: ListView.builder(
-                      padding: EdgeInsets.zero,
-                      physics:
-                          const NeverScrollableScrollPhysics(), // Disable scrolling,
-                      shrinkWrap: true,
-                      itemCount: discoveredDevices.length,
-                      itemBuilder: (BuildContext context, int index) {
-                        final device = discoveredDevices[index];
-                        return Column(children: [
-                          Material(
-                              type: MaterialType.transparency,
-                              child: ListTile(
-                                textColor: Colors.black,
-                                selectedTileColor: Colors.grey,
-                                title: Text(device.name),
-                                titleTextStyle: const TextStyle(fontSize: 16),
-                                visualDensity: const VisualDensity(
-                                    horizontal: -4, vertical: -4),
-                                trailing: _buildTrailingWidget(device.id),
-                                onTap: () {
-                                  setState(() => _waitingToConnect = true);
-                                  _connectToDevice(device);
-                                },
-                              )),
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  child: ListView.builder(
+                    padding: EdgeInsets.zero,
+                    physics: const NeverScrollableScrollPhysics(),
+                    // Disable scrolling,
+                    shrinkWrap: true,
+                    itemCount: discoveredDevices.length,
+                    itemBuilder: (BuildContext context, int index) {
+                      final device = discoveredDevices[index];
+                      return Column(
+                        children: [
+                          ListTile(
+                            textColor: Colors.black,
+                            selectedTileColor: Colors.grey,
+                            title: Text(device.name),
+                            titleTextStyle: const TextStyle(fontSize: 16),
+                            visualDensity: const VisualDensity(
+                                horizontal: -4, vertical: -4),
+                            trailing: _buildTrailingWidget(device.id),
+                            onTap: () {
+                              _connectToDevice(device);
+                            },
+                          ),
                           if (index != discoveredDevices.length - 1)
                             const Divider(
                               height: 1.0,
@@ -119,50 +105,149 @@ class MyAppState extends State<MyApp> {
                               indent: 16.0,
                               endIndent: 0.0,
                             ),
-                        ]);
-                      },
-                    ))),
-            Visibility(
-                visible: _deviceIdentifier != null && _connectedToEarable,
-                child: Padding(
-                    padding: const EdgeInsets.fromLTRB(33, 8, 0, 8),
-                    child: Text(
-                      "Connected to $_deviceIdentifier $_deviceFirmwareVersion",
-                      style: const TextStyle(fontSize: 16),
-                    ))),
-            Center(
-              child: ElevatedButton(
-                onPressed: _startScanning,
-                child: const Text('Restart Scan'),
+                        ],
+                      );
+                    },
+                  ),
+                ),
               ),
-            )
-          ],
+              Center(
+                child: ElevatedButton(
+                  onPressed: _startScanning,
+                  child: const Text('Restart Scan'),
+                ),
+              ),
+              if (_connectedDevice != null)
+                GroupedBox(
+                  title: "Device Info",
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Name:                    ${_connectedDevice?.name}",
+                      ),
+                      if (_connectedDevice is DeviceIdentifier)
+                        FutureBuilder<String?>(
+                          future: (_connectedDevice as DeviceIdentifier)
+                              .readDeviceIdentifier(),
+                          builder: (context, snapshot) {
+                            return Text(
+                              "Device Identifier:   ${snapshot.data}",
+                            );
+                          },
+                        ),
+                      if (_connectedDevice is DeviceFirmwareVersion)
+                        FutureBuilder<String?>(
+                          future: (_connectedDevice as DeviceFirmwareVersion)
+                              .readDeviceFirmwareVersion(),
+                          builder: (context, snapshot) {
+                            return Text(
+                              "Firmware Version:  ${snapshot.data}",
+                            );
+                          },
+                        ),
+                      if (_connectedDevice is DeviceHardwareVersion)
+                        FutureBuilder<String?>(
+                          future: (_connectedDevice as DeviceHardwareVersion)
+                              .readDeviceHardwareVersion(),
+                          builder: (context, snapshot) {
+                            return Text(
+                              "Hardware Version: ${snapshot.data}",
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+              if (_connectedDevice is RgbLed)
+                GroupedBox(
+                  title: "RGB LED",
+                  child:
+                      RgbLedControlWidget(rgbLed: _connectedDevice as RgbLed),
+                ),
+              if (_connectedDevice is FrequencyPlayer)
+                GroupedBox(
+                  title: "Frequency Player",
+                  child: FrequencyPlayerWidget(
+                    frequencyPlayer: _connectedDevice as FrequencyPlayer,
+                  ),
+                ),
+              if (_connectedDevice is JinglePlayer)
+                GroupedBox(
+                  title: "Jingle Player",
+                  child: JinglePlayerWidget(
+                    jinglePlayer: _connectedDevice as JinglePlayer,
+                  ),
+                ),
+              if (_connectedDevice is StoragePathAudioPlayer)
+                GroupedBox(
+                  title: "Storage Path Audio Player",
+                  child: StoragePathAudioPlayerWidget(
+                    audioPlayer: _connectedDevice as StoragePathAudioPlayer,
+                  ),
+                ),
+              if (_connectedDevice is AudioPlayerControls)
+                GroupedBox(
+                  title: "Audio Player Controls",
+                  child: AudioPlayerControlWidget(
+                    audioPlayerControls:
+                        _connectedDevice as AudioPlayerControls,
+                  ),
+                ),
+              if (sensorConfigurationViews != null)
+                GroupedBox(
+                  title: "Sensor Configurations",
+                  child: Column(
+                    children: sensorConfigurationViews,
+                  ),
+                ),
+              if (sensorViews != null)
+                GroupedBox(
+                  title: "Sensors",
+                  child: Column(
+                    children: sensorViews
+                        .map((e) => Padding(
+                              padding: const EdgeInsets.only(
+                                bottom: 6.0,
+                                top: 6.0,
+                              ),
+                              child: e,
+                            ))
+                        .toList(),
+                  ),
+                ),
+            ]
+                .map((e) => Padding(
+                      padding: const EdgeInsets.only(
+                        bottom: 8.0,
+                        top: 8.0,
+                      ),
+                      child: e,
+                    ))
+                .toList(),
+          ),
         )),
       ),
     );
   }
 
   Widget _buildTrailingWidget(String id) {
-    if (_openEarable.bleManager.connectedDevice?.id != id) {
-      return const SizedBox.shrink();
-    } else if (_connectedToEarable) {
+    if (_connectedDevice?.deviceId == id) {
       return const Icon(size: 24, Icons.check, color: Colors.green);
-    } else if (_waitingToConnect) {
+    } else if (_connectingDevice?.id == id) {
       return const SizedBox(
-          height: 24,
-          width: 24,
-          child: CircularProgressIndicator(strokeWidth: 2));
+        height: 24,
+        width: 24,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
     }
     return const SizedBox.shrink();
   }
 
   void _startScanning() async {
-    discoveredDevices.removeWhere(
-        (device) => device.id != _openEarable.bleManager.connectedDevice?.id);
-    _openEarable.bleManager.startScan();
+    _wearableManager.startScan();
     _scanSubscription?.cancel();
-    _scanSubscription =
-        _openEarable.bleManager.scanStream.listen((incomingDevice) {
+    _scanSubscription = _wearableManager.scanStream.listen((incomingDevice) {
       if (incomingDevice.name.isNotEmpty &&
           !discoveredDevices.any((device) => device.id == incomingDevice.id)) {
         setState(() {
@@ -173,14 +258,23 @@ class MyAppState extends State<MyApp> {
   }
 
   Future<void> _connectToDevice(device) async {
-    _scanSubscription?.cancel();
-    await _openEarable.bleManager.connectToDevice(device);
-  }
+    setState(() {
+      _connectingDevice = device;
+    });
 
-  Future<void> _writeSensorConfig() async {
-    OpenEarableSensorConfig config =
-        OpenEarableSensorConfig(sensorId: 3, samplingRate: 0, latency: 0);
-    _openEarable.sensorManager.writeSensorConfig(config);
-    //_openEarable.sensorManager.subscribeToSensorData(3);
+    _scanSubscription?.cancel();
+    Wearable wearable = await _wearableManager.connectToDevice(device);
+    wearable.addDisconnectListener(() {
+      if (_connectedDevice?.deviceId == wearable.deviceId) {
+        setState(() {
+          _connectedDevice = null;
+        });
+      }
+    });
+
+    setState(() {
+      _connectingDevice = null;
+      _connectedDevice = wearable;
+    });
   }
 }
