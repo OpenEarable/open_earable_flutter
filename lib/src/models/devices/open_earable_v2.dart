@@ -60,18 +60,19 @@ Map<String, Object> _parseSensorScheme(List<int> data) {
     Map<String, Object> comp = _parseComponentScheme(data);
     for (var group in comp.keys) {
       if (!componentsMap.containsKey(group)) {
-        componentsMap[group] = {};
+        componentsMap[group] = <String, Object>{};
       }
-      (componentsMap[group] as Map).addAll(comp[group] as Map);
+      Map<String, Object> groupMap = comp[group] as Map<String, Object>;
+      (componentsMap[group] as Map<String, Object>).addAll(groupMap);
     }
   }
 
   Map<String, Object> parsedSensorScheme = {
     sensorName : {
       'SensorID' : sensorID,
+      'Components' : componentsMap,
     },
   };
-  parsedSensorScheme.addAll(componentsMap);
 
   return parsedSensorScheme;
 }
@@ -127,7 +128,11 @@ class OpenEarableV2 extends Wearable
   }
 
   void _initSensors() async {
-    List<int> sensorParseSchemeData = await _bleManager.read(deviceId: _discoveredDevice.id, serviceId: _deviceParseInfoServiceUuid, characteristicId: _deviceParseInfoCharacteristicUuid);
+    List<int> sensorParseSchemeData = await _bleManager.read(
+      deviceId: _discoveredDevice.id,
+      serviceId: _deviceParseInfoServiceUuid,
+      characteristicId: _deviceParseInfoCharacteristicUuid,
+    );
     _logger.d("Read raw parse info: $sensorParseSchemeData");
     Map<String, Object> parseInfo = _parseSchemeCharacteristic(sensorParseSchemeData);
     _logger.i("Found the following info about parsing: $parseInfo");
@@ -137,72 +142,44 @@ class OpenEarableV2 extends Wearable
       deviceId: _discoveredDevice.id,
     );
 
-    _sensors.add(
-      _OpenEarableSensor(
-        sensorManager: sensorManager,
-        sensorName: 'ACC',
-        chartTitle: 'Accelerometer',
-        shortChartTitle: 'Acc.',
-        axisNames: ['X', 'Y', 'Z'],
-        axisUnits: ["m/s\u00B2", "m/s\u00B2", "m/s\u00B2"],
-      ),
-    );
-    _sensors.add(
-      _OpenEarableSensor(
-        sensorManager: sensorManager,
-        sensorName: 'GYRO',
-        chartTitle: 'Gyroscope',
-        shortChartTitle: 'Gyro.',
-        axisNames: ['X', 'Y', 'Z'],
-        axisUnits: ["°/s", "°/s", "°/s"],
-      ),
-    );
-    _sensors.add(
-      _OpenEarableSensor(
-        sensorManager: sensorManager,
-        sensorName: 'MAG',
-        chartTitle: 'Magnetometer',
-        shortChartTitle: 'Magn.',
-        axisNames: ['X', 'Y', 'Z'],
-        axisUnits: ["µT", "µT", "µT"],
-      ),
-    );
-    _sensors.add(
-      _OpenEarableSensor(
-        sensorManager: sensorManager,
-        sensorName: 'BARO',
-        chartTitle: 'Pressure',
-        shortChartTitle: 'Press.',
-        axisNames: ['Pressure'],
-        axisUnits: ["Pa"],
-      ),
-    );
-    _sensors.add(
-      _OpenEarableSensor(
-        sensorManager: sensorManager,
-        sensorName: 'TEMP',
-        chartTitle: 'Temperature (Ambient)',
-        shortChartTitle: 'Temp. (A.)',
-        axisNames: ['Temperature'],
-        axisUnits: ["°C"],
-      ),
-    );
+    for (String sensorName in parseInfo.keys) {
+      Map<String, Object> sensorDetail = parseInfo[sensorName] as Map<String, Object>;
+      _logger.t("sensor detail: $sensorDetail");
 
-    _sensorConfigurations.add(
-      _ImuSensorConfiguration(
-        sensorManager: sensorManager,
-      ),
-    );
-    _sensorConfigurations.add(
-      _BarometerSensorConfiguration(
-        sensorManager: sensorManager,
-      ),
-    );
-    _sensorConfigurations.add(
-      _MicrophoneSensorConfiguration(
-        sensorManager: sensorManager,
-      ),
-    );
+      Map<String, Object> componentsMap = sensorDetail['Components'] as Map<String, Object>;
+      _logger.t("components: $componentsMap");
+
+      for (String groupName in componentsMap.keys) {
+        _sensorConfigurations.add(
+          _OpenEarableSensorConfiguration(
+            sensorId: sensorDetail['SensorID'] as int,
+            name: sensorName,
+            sensorManager: sensorManager,
+          ),
+        );
+
+        Map<String, Object> groupDetail = componentsMap[groupName] as Map<String, Object>;
+        _logger.t("group detail: $groupDetail");
+        List<(String, String)> axisDetails = groupDetail.entries.map((axis) {
+          Map<String, Object> v = axis.value as Map<String, Object>;
+          return (axis.key, v['unit'] as String);
+        }).toList();
+
+        _sensors.add(
+          _OpenEarableSensor(
+            sensorName: sensorName,
+            chartTitle: groupName,
+            shortChartTitle: groupName,
+            axisNames: axisDetails.map((e) => e.$1).toList(),
+            axisUnits: axisDetails.map((e) => e.$2).toList(),
+            sensorManager: sensorManager,
+          ),
+        );
+      }
+    }
+
+    _logger.d("Created sensors: $_sensors");
+    _logger.d("Created sensor configurations: $_sensorConfigurations");
   }
 
   @override
@@ -487,6 +464,36 @@ class _MicrophoneSensorConfiguration extends SensorConfiguration {
     double? microphoneSamplingRate = double.parse(configuration.key);
     OpenEarableSensorConfig microphoneConfig = OpenEarableSensorConfig(
       sensorId: 2,
+      samplingRate: microphoneSamplingRate,
+      latency: 0,
+    );
+
+    _sensorManager.writeSensorConfig(microphoneConfig);
+  }
+}
+
+class _OpenEarableSensorConfiguration extends SensorConfiguration {
+  final OpenEarableSensorManager _sensorManager;
+  final int _sensorId;
+
+  _OpenEarableSensorConfiguration({required int sensorId, required String name, required OpenEarableSensorManager sensorManager}):
+    _sensorManager = sensorManager,
+    _sensorId = sensorId,
+    super(
+      name: name,
+      unit: "Hz",
+      values: [], //TODO: fill with values
+    );
+
+  @override
+  void setConfiguration(SensorConfigurationValue configuration) {
+    if (!super.values.contains(configuration)) {
+      throw UnimplementedError();
+    }
+
+    double? microphoneSamplingRate = double.parse(configuration.key);
+    OpenEarableSensorConfig microphoneConfig = OpenEarableSensorConfig(
+      sensorId: _sensorId,
       samplingRate: microphoneSamplingRate,
       latency: 0,
     );
