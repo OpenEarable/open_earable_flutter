@@ -39,8 +39,8 @@ class MyAppState extends State<MyApp> {
       sensorViews = SensorView.createSensorViews(_connectedDevice!);
       sensorConfigurationViews =
           SensorConfigurationView.createSensorConfigurationViews(
-        _connectedDevice!,
-      );
+            _connectedDevice!,
+          );
     }
 
     return MaterialApp(

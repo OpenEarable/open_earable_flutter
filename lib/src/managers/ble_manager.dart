@@ -128,6 +128,21 @@ class BleManager {
           );
         };
 
+        UniversalBle.getSystemDevices().then((devices) {
+          for (var bleDevice in devices) {
+            _scanStreamController?.add(
+              DiscoveredDevice(
+                id: bleDevice.deviceId,
+                name: bleDevice.name ?? "",
+                manufacturerData:
+                    bleDevice.manufacturerData ?? Uint8List.fromList([]),
+                rssi: bleDevice.rssi ?? -1,
+                serviceUuids: bleDevice.services,
+              ),
+            );
+          }
+        });
+
         await UniversalBle.startScan(
           scanFilter: ScanFilter(
             // Needs to be passed for web, can be empty for the rest

@@ -75,8 +75,13 @@ class WearableManager {
           serviceId: _deviceInfoServiceUuid,
           characteristicId: _deviceFirmwareVersionCharacteristicUuid,
         );
+        _logger.d("Raw Firmware Version: $softwareGenerationBytes");
+        int firstZeroIndex = softwareGenerationBytes.indexOf(0);
+        if (firstZeroIndex != -1) {
+          softwareGenerationBytes = softwareGenerationBytes.sublist(0, firstZeroIndex);
+        }
         String softwareVersion = String.fromCharCodes(softwareGenerationBytes);
-        _logger.i("Softare version: $softwareVersion");
+        _logger.i("Softare version: '$softwareVersion'");
 
         final versionRegex = RegExp(r'^\d+\.\d+\.\d+$');
         if (!versionRegex.hasMatch(softwareVersion)) {
