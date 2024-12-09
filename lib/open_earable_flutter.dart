@@ -3,7 +3,9 @@ library open_earable_flutter;
 import 'dart:async';
 
 import 'package:logger/logger.dart';
+import 'package:open_earable_flutter/src/models/devices/open_earable_factory.dart';
 import 'package:open_earable_flutter/src/models/devices/open_earable_v2.dart';
+import 'package:open_earable_flutter/src/models/wearable_factory.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 import 'src/managers/ble_manager.dart';
@@ -31,14 +33,12 @@ part 'src/constants.dart';
 
 Logger _logger = Logger();
 
-const String _deviceInfoServiceUuid = "45622510-6468-465a-b141-0b9b0f96b468";
-const String _deviceFirmwareVersionCharacteristicUuid =
-    "45622512-6468-465a-b141-0b9b0f96b468";
-
 class WearableManager {
   static final WearableManager _instance = WearableManager._internal();
 
   late final BleManager _bleManager;
+
+  final List<WearableFactory> _wearableFactories = [OpenEarableFactory()];
 
   factory WearableManager() {
     return _instance;
@@ -67,51 +67,18 @@ class WearableManager {
       disconnectNotifier.notifyListeners,
     );
     if (connectionResult.$1) {
-      _logger.d("found following BLEServices: ${connectionResult.$2}");
-
-      if (connectionResult.$2.any((service) => service.uuid == _deviceInfoServiceUuid)) {
-        List<int> softwareGenerationBytes = await _bleManager.read(
-          deviceId: device.id,
-          serviceId: _deviceInfoServiceUuid,
-          characteristicId: _deviceFirmwareVersionCharacteristicUuid,
-        );
-        _logger.d("Raw Firmware Version: $softwareGenerationBytes");
-        int firstZeroIndex = softwareGenerationBytes.indexOf(0);
-        if (firstZeroIndex != -1) {
-          softwareGenerationBytes = softwareGenerationBytes.sublist(0, firstZeroIndex);
+      for (WearableFactory wearableFactory in _wearableFactories) {
+        wearableFactory.bleManager = _bleManager;
+        wearableFactory.disconnectNotifier = disconnectNotifier;
+        _logger.t("checking factory: $wearableFactory");
+        if (await wearableFactory.matches(device, connectionResult.$2)) {
+          Wearable wearable = await wearableFactory.createFromDevice(device);
+          return wearable;
+        } else {
+          _logger.d("'$wearableFactory' does not support '$device'");
         }
-        String softwareVersion = String.fromCharCodes(softwareGenerationBytes);
-        _logger.i("Softare version: '$softwareVersion'");
-
-        final versionRegex = RegExp(r'^\d+\.\d+\.\d+$');
-        if (!versionRegex.hasMatch(softwareVersion)) {
-          throw Exception('Invalid software version format');
-        }
-
-        final version1Regex = RegExp(r'^1\.\d+\.\d+$');
-        if (version1Regex.hasMatch(softwareVersion)) {
-          return OpenEarableV1(
-            name: device.name,
-            disconnectNotifier: disconnectNotifier,
-            bleManager: _bleManager,
-            discoveredDevice: device,
-          );
-        }
-
-        final v2Regex = RegExp(r'^\d+\.\d+.\d+$');
-        if (v2Regex.hasMatch(softwareVersion)) {
-          return OpenEarableV2(
-            name: device.name,
-            disconnectNotifier: disconnectNotifier,
-            bleManager: _bleManager,
-            discoveredDevice: device,
-          );
-        }
-
-        throw Exception('Unsupported Firmware Version');
-      } else {
-        throw Exception('Unsupported Device');
       }
+      throw Exception('Device is currently not supported');
     } else {
       throw Exception('Failed to connect to device');
     }
