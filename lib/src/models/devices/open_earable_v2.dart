@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:ffi';
 import 'dart:typed_data';
 
 import 'package:logger/logger.dart';
@@ -31,76 +29,7 @@ const String _deviceFirmwareVersionCharacteristicUuid =
 const String _deviceHardwareVersionCharacteristicUuid =
     "45622513-6468-465a-b141-0b9b0f96b468";
 
-const String _deviceParseInfoServiceUuid =
-    "caa25cb7-7e1b-44f2-adc9-e8c06c9ced43";
-const String _deviceParseInfoCharacteristicUuid =
-    "caa25cb8-7e1b-44f2-adc9-e8c06c9ced43";
-
 Logger _logger = Logger();
-
-Map<String, Object> _parseSchemeCharacteristic(List<int> data) {
-  Map<String, Object> parsedData = {};
-  
-  int sensorCount = data.removeAt(0);
-  for (int i = 0; i < sensorCount; i++) {
-    Map<String, Object> sensorMap = _parseSensorScheme(data);
-    parsedData.addAll(sensorMap);
-  }
-
-  return parsedData;
-}
-
-Map<String, Object> _parseSensorScheme(List<int> data) {
-  int sensorID = data.removeAt(0);
-  String sensorName = _parseString(data);
-  int componentsCount = data.removeAt(0);
-
-  Map<String, Object> componentsMap = {};
-  for (int i = 0; i < componentsCount; i++) {
-    Map<String, Object> comp = _parseComponentScheme(data);
-    for (var group in comp.keys) {
-      if (!componentsMap.containsKey(group)) {
-        componentsMap[group] = <String, Object>{};
-      }
-      Map<String, Object> groupMap = comp[group] as Map<String, Object>;
-      (componentsMap[group] as Map<String, Object>).addAll(groupMap);
-    }
-  }
-
-  Map<String, Object> parsedSensorScheme = {
-    sensorName : {
-      'SensorID' : sensorID,
-      'Components' : componentsMap,
-    },
-  };
-
-  return parsedSensorScheme;
-}
-
-Map<String, Object> _parseComponentScheme(List<int> data) {
-  int type = data.removeAt(0);
-  String groupName = _parseString(data);
-  String componentName = _parseString(data);
-  String unitName = _parseString(data);
-  
-  Map<String, Object> parsedComponentScheme = {
-    groupName : {
-      componentName : {
-        'type' : type,
-        'unit' : unitName,
-      },
-    },
-  };
-
-  return parsedComponentScheme;
-}
-
-String _parseString(List<int> data) {
-  int stringLength = data.removeAt(0);
-  List<int> stringBytes = data.sublist(0, stringLength);
-  data.removeRange(0, stringLength);
-  return String.fromCharCodes(stringBytes);
-}
 
 class OpenEarableV2 extends Wearable
     implements
@@ -118,69 +47,14 @@ class OpenEarableV2 extends Wearable
   OpenEarableV2({
     required super.name,
     required super.disconnectNotifier,
+    required List<Sensor> sensors,
+    required List<SensorConfiguration> sensorConfigurations,
     required BleManager bleManager,
     required DiscoveredDevice discoveredDevice,
-  })  : _sensors = [],
-        _sensorConfigurations = [],
+  })  : _sensors = sensors,
+        _sensorConfigurations = sensorConfigurations,
         _bleManager = bleManager,
-        _discoveredDevice = discoveredDevice {
-    _initSensors();
-  }
-
-  void _initSensors() async {
-    List<int> sensorParseSchemeData = await _bleManager.read(
-      deviceId: _discoveredDevice.id,
-      serviceId: _deviceParseInfoServiceUuid,
-      characteristicId: _deviceParseInfoCharacteristicUuid,
-    );
-    _logger.d("Read raw parse info: $sensorParseSchemeData");
-    Map<String, Object> parseInfo = _parseSchemeCharacteristic(sensorParseSchemeData);
-    _logger.i("Found the following info about parsing: $parseInfo");
-
-    OpenEarableSensorManager sensorManager = OpenEarableSensorManager(
-      bleManager: _bleManager,
-      deviceId: _discoveredDevice.id,
-    );
-
-    for (String sensorName in parseInfo.keys) {
-      Map<String, Object> sensorDetail = parseInfo[sensorName] as Map<String, Object>;
-      _logger.t("sensor detail: $sensorDetail");
-
-      Map<String, Object> componentsMap = sensorDetail['Components'] as Map<String, Object>;
-      _logger.t("components: $componentsMap");
-
-      for (String groupName in componentsMap.keys) {
-        _sensorConfigurations.add(
-          _OpenEarableSensorConfiguration(
-            sensorId: sensorDetail['SensorID'] as int,
-            name: sensorName,
-            sensorManager: sensorManager,
-          ),
-        );
-
-        Map<String, Object> groupDetail = componentsMap[groupName] as Map<String, Object>;
-        _logger.t("group detail: $groupDetail");
-        List<(String, String)> axisDetails = groupDetail.entries.map((axis) {
-          Map<String, Object> v = axis.value as Map<String, Object>;
-          return (axis.key, v['unit'] as String);
-        }).toList();
-
-        _sensors.add(
-          _OpenEarableSensor(
-            sensorName: sensorName,
-            chartTitle: groupName,
-            shortChartTitle: groupName,
-            axisNames: axisDetails.map((e) => e.$1).toList(),
-            axisUnits: axisDetails.map((e) => e.$2).toList(),
-            sensorManager: sensorManager,
-          ),
-        );
-      }
-    }
-
-    _logger.d("Created sensors: $_sensors");
-    _logger.d("Created sensor configurations: $_sensorConfigurations");
-  }
+        _discoveredDevice = discoveredDevice;
 
   @override
   String get deviceId => _discoveredDevice.id;
@@ -259,109 +133,6 @@ class OpenEarableV2 extends Wearable
 
   @override
   List<Sensor> get sensors => List.unmodifiable(_sensors);
-}
-
-class _OpenEarableSensor extends Sensor {
-  final List<String> _axisNames;
-  final List<String> _axisUnits;
-  final OpenEarableSensorManager _sensorManager;
-
-  StreamSubscription? _dataSubscription;
-
-  _OpenEarableSensor({
-    required String sensorName,
-    required String chartTitle,
-    required String shortChartTitle,
-    required List<String> axisNames,
-    required List<String> axisUnits,
-    required OpenEarableSensorManager sensorManager,
-  })  : _axisNames = axisNames,
-        _axisUnits = axisUnits,
-        _sensorManager = sensorManager,
-        super(
-          sensorName: sensorName,
-          chartTitle: chartTitle,
-          shortChartTitle: shortChartTitle,
-        );
-
-  @override
-  List<String> get axisNames => _axisNames;
-
-  @override
-  List<String> get axisUnits => _axisUnits;
-
-  Stream<SensorValue> _getAccGyroMagStream() {
-    StreamController<SensorValue> streamController = StreamController();
-
-    final errorMeasure = {"ACC": 5.0, "GYRO": 10.0, "MAG": 25.0};
-
-    SimpleKalman kalmanX = SimpleKalman(
-      errorMeasure: errorMeasure[sensorName]!,
-      errorEstimate: errorMeasure[sensorName]!,
-      q: 0.9,
-    );
-    SimpleKalman kalmanY = SimpleKalman(
-      errorMeasure: errorMeasure[sensorName]!,
-      errorEstimate: errorMeasure[sensorName]!,
-      q: 0.9,
-    );
-    SimpleKalman kalmanZ = SimpleKalman(
-      errorMeasure: errorMeasure[sensorName]!,
-      errorEstimate: errorMeasure[sensorName]!,
-      q: 0.9,
-    );
-    _dataSubscription?.cancel();
-    _dataSubscription = _sensorManager.subscribeToSensorData(0).listen((data) {
-      int timestamp = data["timestamp"];
-
-      SensorValue sensorValue = SensorValue(
-        values: [
-          kalmanX.filtered(data[sensorName]["X"]),
-          kalmanY.filtered(data[sensorName]["Y"]),
-          kalmanZ.filtered(data[sensorName]["Z"]),
-        ],
-        timestamp: timestamp,
-      );
-
-      streamController.add(sensorValue);
-    });
-
-    return streamController.stream;
-  }
-
-  Stream<SensorValue> _createSingleDataSubscription(String componentName) {
-    StreamController<SensorValue> streamController = StreamController();
-
-    _dataSubscription?.cancel();
-    _dataSubscription = _sensorManager.subscribeToSensorData(1).listen((data) {
-      int timestamp = data["timestamp"];
-
-      SensorValue sensorValue = SensorValue(
-        values: [data[sensorName][componentName]],
-        timestamp: timestamp,
-      );
-
-      streamController.add(sensorValue);
-    });
-
-    return streamController.stream;
-  }
-
-  @override
-  Stream<SensorValue> get sensorStream {
-    switch (sensorName) {
-      case "ACC":
-      case "GYRO":
-      case "MAG":
-        return _getAccGyroMagStream();
-      case "BARO":
-        return _createSingleDataSubscription("Pressure");
-      case "TEMP":
-        return _createSingleDataSubscription("Temperature");
-      default:
-        throw UnimplementedError();
-    }
-  }
 }
 
 class _ImuSensorConfiguration extends SensorConfiguration {
@@ -464,36 +235,6 @@ class _MicrophoneSensorConfiguration extends SensorConfiguration {
     double? microphoneSamplingRate = double.parse(configuration.key);
     OpenEarableSensorConfig microphoneConfig = OpenEarableSensorConfig(
       sensorId: 2,
-      samplingRate: microphoneSamplingRate,
-      latency: 0,
-    );
-
-    _sensorManager.writeSensorConfig(microphoneConfig);
-  }
-}
-
-class _OpenEarableSensorConfiguration extends SensorConfiguration {
-  final OpenEarableSensorManager _sensorManager;
-  final int _sensorId;
-
-  _OpenEarableSensorConfiguration({required int sensorId, required String name, required OpenEarableSensorManager sensorManager}):
-    _sensorManager = sensorManager,
-    _sensorId = sensorId,
-    super(
-      name: name,
-      unit: "Hz",
-      values: [], //TODO: fill with values
-    );
-
-  @override
-  void setConfiguration(SensorConfigurationValue configuration) {
-    if (!super.values.contains(configuration)) {
-      throw UnimplementedError();
-    }
-
-    double? microphoneSamplingRate = double.parse(configuration.key);
-    OpenEarableSensorConfig microphoneConfig = OpenEarableSensorConfig(
-      sensorId: _sensorId,
       samplingRate: microphoneSamplingRate,
       latency: 0,
     );

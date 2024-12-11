@@ -4,7 +4,6 @@ import 'dart:async';
 
 import 'package:logger/logger.dart';
 import 'package:open_earable_flutter/src/models/devices/open_earable_factory.dart';
-import 'package:open_earable_flutter/src/models/devices/open_earable_v2.dart';
 import 'package:open_earable_flutter/src/models/wearable_factory.dart';
 import 'package:universal_ble/universal_ble.dart';
 
@@ -13,7 +12,6 @@ import 'src/managers/notifier.dart';
 import 'src/models/devices/discovered_device.dart';
 import 'src/models/devices/wearable.dart';
 
-import 'src/models/devices/open_earable_v1.dart';
 export 'src/models/devices/discovered_device.dart';
 export 'src/models/devices/wearable.dart';
 export 'src/models/capabilities/device_firmware_version.dart';
