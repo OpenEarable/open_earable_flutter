@@ -300,7 +300,7 @@ class _OpenEarableSensor extends Sensor {
           continue;
         }
 
-        values.add(entry.value);
+        values.add(entry.value.toDouble());
       }
 
       SensorValue sensorValue = SensorValue(
