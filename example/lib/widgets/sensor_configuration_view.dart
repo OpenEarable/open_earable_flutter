@@ -9,7 +9,7 @@ class SensorConfigurationView extends StatefulWidget {
 
   static List<SensorConfigurationView>? createSensorConfigurationViews(
       Wearable wearable) {
-    if (wearable is SensorManager) {
+    if (wearable is SensorConfigurationManager) {
       final sensorManager = wearable as SensorConfigurationManager;
       return sensorManager.sensorConfigurations
           .map(
