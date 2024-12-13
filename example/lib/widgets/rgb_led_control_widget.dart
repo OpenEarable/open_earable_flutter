@@ -65,9 +65,9 @@ class _RgbLedControlWidgetState extends State<RgbLedControlWidget> {
         ElevatedButton(
           onPressed: () {
             widget.rgbLed.writeLedColor(
-              r: _currentColor.red,
-              g: _currentColor.green,
-              b: _currentColor.blue,
+              r: (255 * _currentColor.r).round(),
+              g: (255 * _currentColor.g).round(),
+              b: (255 * _currentColor.b).round(),
             );
           },
           child: const Text('Set'),
