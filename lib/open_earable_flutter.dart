@@ -6,6 +6,7 @@ import 'package:universal_ble/universal_ble.dart';
 
 import 'src/managers/ble_manager.dart';
 import 'src/managers/notifier.dart';
+import 'src/models/devices/cosinuss_one.dart';
 import 'src/models/devices/discovered_device.dart';
 import 'src/models/devices/wearable.dart';
 
@@ -59,6 +60,15 @@ class WearableManager {
       disconnectNotifier.notifyListeners,
     );
     if (connectionResult.$1) {
+      if (device.name == "earconnect") {
+        return CosinussOne(
+          name: device.name,
+          disconnectNotifier: disconnectNotifier,
+          bleManager: _bleManager,
+          discoveredDevice: device,
+        );
+      }
+
       return OpenEarableV1(
         name: device.name,
         disconnectNotifier: disconnectNotifier,
