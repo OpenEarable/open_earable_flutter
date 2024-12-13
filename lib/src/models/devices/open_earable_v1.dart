@@ -20,11 +20,9 @@ import '../capabilities/storage_path_audio_player.dart';
 import 'discovered_device.dart';
 import 'wearable.dart';
 
-const String _ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
 const String _ledSetStateCharacteristic =
     "81040e7a-4819-11ee-be56-0242ac120002";
 
-const String _deviceInfoServiceUuid = "45622510-6468-465a-b141-0b9b0f96b468";
 const String _deviceIdentifierCharacteristicUuid =
     "45622511-6468-465a-b141-0b9b0f96b468";
 const String _deviceFirmwareVersionCharacteristicUuid =
@@ -32,7 +30,6 @@ const String _deviceFirmwareVersionCharacteristicUuid =
 const String _deviceHardwareVersionCharacteristicUuid =
     "45622513-6468-465a-b141-0b9b0f96b468";
 
-const String _audioPlayerServiceUuid = "5669146e-476d-11ee-be56-0242ac120002";
 const String _audioSourceCharacteristic =
     "566916a8-476d-11ee-be56-0242ac120002";
 const String _audioStateCharacteristic = "566916a9-476d-11ee-be56-0242ac120002";
@@ -49,6 +46,16 @@ class OpenEarableV1 extends Wearable
         JinglePlayer,
         AudioPlayerControls,
         StoragePathAudioPlayer {
+  static const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
+  static const String deviceInfoServiceUuid =
+      "45622510-6468-465a-b141-0b9b0f96b468";
+  static const String audioPlayerServiceUuid =
+      "5669146e-476d-11ee-be56-0242ac120002";
+  static const String sensorServiceUuid = "34c2e3bb-34aa-11eb-adc1-0242ac120002";
+  static const String parseInfoServiceUuid = "caa25cb7-7e1b-44f2-adc9-e8c06c9ced43";
+  static const String buttonServiceUuid = "29c10bdc-4773-11ee-be56-0242ac120002";
+  static const String batteryServiceUuid = "180F";
+
   final List<Sensor> _sensors;
   final List<SensorConfiguration> _sensorConfigurations;
   final BleManager _bleManager;
@@ -180,7 +187,7 @@ class OpenEarableV1 extends Wearable
     data.setUint8(2, b);
     await _bleManager.write(
       deviceId: _discoveredDevice.id,
-      serviceId: _ledServiceUuid,
+      serviceId: ledServiceUuid,
       characteristicId: _ledSetStateCharacteristic,
       byteData: data.buffer.asUint8List(),
     );
@@ -193,7 +200,7 @@ class OpenEarableV1 extends Wearable
   Future<String?> readDeviceIdentifier() async {
     List<int> deviceIdentifierBytes = await _bleManager.read(
       deviceId: _discoveredDevice.id,
-      serviceId: _deviceInfoServiceUuid,
+      serviceId: deviceInfoServiceUuid,
       characteristicId: _deviceIdentifierCharacteristicUuid,
     );
     return String.fromCharCodes(deviceIdentifierBytes);
@@ -206,7 +213,7 @@ class OpenEarableV1 extends Wearable
   Future<String?> readDeviceFirmwareVersion() async {
     List<int> deviceGenerationBytes = await _bleManager.read(
       deviceId: _discoveredDevice.id,
-      serviceId: _deviceInfoServiceUuid,
+      serviceId: deviceInfoServiceUuid,
       characteristicId: _deviceFirmwareVersionCharacteristicUuid,
     );
     return String.fromCharCodes(deviceGenerationBytes);
@@ -219,7 +226,7 @@ class OpenEarableV1 extends Wearable
   Future<String?> readDeviceHardwareVersion() async {
     List<int> hardwareGenerationBytes = await _bleManager.read(
       deviceId: _discoveredDevice.id,
-      serviceId: _deviceInfoServiceUuid,
+      serviceId: deviceInfoServiceUuid,
       characteristicId: _deviceHardwareVersionCharacteristicUuid,
     );
     return String.fromCharCodes(hardwareGenerationBytes);
@@ -269,7 +276,7 @@ class OpenEarableV1 extends Wearable
     data.setAll(6, loudnessBytes.buffer.asUint8List());
 
     await _bleManager.write(
-      serviceId: _audioPlayerServiceUuid,
+      serviceId: audioPlayerServiceUuid,
       characteristicId: _audioSourceCharacteristic,
       byteData: data,
     );
@@ -294,7 +301,7 @@ class OpenEarableV1 extends Wearable
     data[0] = type;
     data[1] = jingleMap[jingle.key]!;
     await _bleManager.write(
-      serviceId: _audioPlayerServiceUuid,
+      serviceId: audioPlayerServiceUuid,
       characteristicId: _audioSourceCharacteristic,
       byteData: data,
     );
@@ -308,7 +315,7 @@ class OpenEarableV1 extends Wearable
     Uint8List data = Uint8List(1);
     data[0] = 1;
     await _bleManager.write(
-      serviceId: _audioPlayerServiceUuid,
+      serviceId: audioPlayerServiceUuid,
       characteristicId: _audioStateCharacteristic,
       byteData: data,
     );
@@ -319,18 +326,18 @@ class OpenEarableV1 extends Wearable
     Uint8List data = Uint8List(1);
     data[0] = 2;
     await _bleManager.write(
-      serviceId: _audioPlayerServiceUuid,
+      serviceId: audioPlayerServiceUuid,
       characteristicId: _audioStateCharacteristic,
       byteData: data,
     );
   }
 
   @override
-  Future<void> stopAudio()async {
+  Future<void> stopAudio() async {
     Uint8List data = Uint8List(1);
     data[0] = 3;
     await _bleManager.write(
-      serviceId: _audioPlayerServiceUuid,
+      serviceId: audioPlayerServiceUuid,
       characteristicId: _audioStateCharacteristic,
       byteData: data,
     );
@@ -347,7 +354,7 @@ class OpenEarableV1 extends Wearable
     data.setRange(2, 2 + nameBytes.length, nameBytes);
 
     await _bleManager.write(
-      serviceId: _audioPlayerServiceUuid,
+      serviceId: audioPlayerServiceUuid,
       characteristicId: _audioSourceCharacteristic,
       byteData: data,
     );

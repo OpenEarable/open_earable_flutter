@@ -24,10 +24,14 @@ final List<int> _sensorBluetoothCharacteristics = [
   0x30,
   0x32,
   0x34,
-  0x35
+  0x35,
 ];
 
 class CosinussOne extends Wearable implements SensorManager {
+  static const ppgAndAccServiceUuid = "0000a000-1212-efde-1523-785feabcd123";
+  static const temperatureServiceUuid = "00001809-0000-1000-8000-00805f9b34fb";
+  static const heartRateServiceUuid = "0000180d-0000-1000-8000-00805f9b34fb";
+
   final List<Sensor> _sensors;
   final BleManager _bleManager;
   final DiscoveredDevice _discoveredDevice;
@@ -150,7 +154,7 @@ class _CosinussOneSensor extends Sensor {
 
     _bleManager.write(
       deviceId: _discoveredDevice.id,
-      serviceId: "0000a000-1212-efde-1523-785feabcd123",
+      serviceId: CosinussOne.ppgAndAccServiceUuid,
       characteristicId: "0000a001-1212-efde-1523-785feabcd123",
       byteData: _sensorBluetoothCharacteristics,
     );
@@ -159,7 +163,7 @@ class _CosinussOneSensor extends Sensor {
     _dataSubscription = _bleManager
         .subscribe(
       deviceId: _discoveredDevice.id,
-      serviceId: "0000a000-1212-efde-1523-785feabcd123",
+      serviceId: CosinussOne.ppgAndAccServiceUuid,
       characteristicId: "0000a001-1212-efde-1523-785feabcd123",
     )
         .listen((data) {
@@ -181,14 +185,14 @@ class _CosinussOneSensor extends Sensor {
     return streamController.stream;
   }
 
-  Stream<SensorValue> _createPpqStream() {
+  Stream<SensorValue> _createPpgStream() {
     StreamController<SensorValue> streamController = StreamController();
 
     int startTime = DateTime.now().millisecondsSinceEpoch;
 
     _bleManager.write(
       deviceId: _discoveredDevice.id,
-      serviceId: "0000a000-1212-efde-1523-785feabcd123",
+      serviceId: CosinussOne.ppgAndAccServiceUuid,
       characteristicId: "0000a001-1212-efde-1523-785feabcd123",
       byteData: _sensorBluetoothCharacteristics,
     );
@@ -197,7 +201,7 @@ class _CosinussOneSensor extends Sensor {
     _dataSubscription = _bleManager
         .subscribe(
       deviceId: _discoveredDevice.id,
-      serviceId: "0000a000-1212-efde-1523-785feabcd123",
+      serviceId: CosinussOne.ppgAndAccServiceUuid,
       characteristicId: "0000a001-1212-efde-1523-785feabcd123",
     )
         .listen((data) {
@@ -228,7 +232,7 @@ class _CosinussOneSensor extends Sensor {
           values: [
             ppgRed.toDouble(),
             ppgGreen.toDouble(),
-            ppgGreenAmbient.toDouble()
+            ppgGreenAmbient.toDouble(),
           ],
           timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
         ),
@@ -247,7 +251,7 @@ class _CosinussOneSensor extends Sensor {
     _dataSubscription = _bleManager
         .subscribe(
       deviceId: _discoveredDevice.id,
-      serviceId: "00001809-0000-1000-8000-00805f9b34fb",
+      serviceId: CosinussOne.temperatureServiceUuid,
       characteristicId: "00002a1c-0000-1000-8000-00805f9b34fb",
     )
         .listen((data) {
@@ -255,7 +259,8 @@ class _CosinussOneSensor extends Sensor {
 
       // based on GATT standard
       double temperature = _twosComplimentOfNegativeMantissa(
-              ((data[3] << 16) | (data[2] << 8) | data[1]) & 16777215) /
+            ((data[3] << 16) | (data[2] << 8) | data[1]) & 16777215,
+          ) /
           100.0;
       if ((flag & 1) != 0) {
         temperature = ((98.6 * temperature) - 32.0) *
@@ -282,7 +287,7 @@ class _CosinussOneSensor extends Sensor {
     _dataSubscription = _bleManager
         .subscribe(
       deviceId: _discoveredDevice.id,
-      serviceId: "0000180d-0000-1000-8000-00805f9b34fb",
+      serviceId: CosinussOne.heartRateServiceUuid,
       characteristicId: "00002a37-0000-1000-8000-00805f9b34fb",
     )
         .listen((data) {
@@ -311,7 +316,7 @@ class _CosinussOneSensor extends Sensor {
       case "ACC":
         return _createAccStream();
       case "PPG":
-        return _createPpqStream();
+        return _createPpgStream();
       case "TEMP":
         return _createTempStream();
       case "HR":
