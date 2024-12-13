@@ -1,4 +1,5 @@
-part of open_earable_flutter;
+import 'models/devices/cosinuss_one.dart';
+import 'models/devices/open_earable_v1.dart';
 
 const String sensorServiceUuid = "34c2e3bb-34aa-11eb-adc1-0242ac120002";
 const String sensorConfigurationCharacteristicUuid =
@@ -34,24 +35,15 @@ const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
 const String ledSetStateCharacteristic = "81040e7a-4819-11ee-be56-0242ac120002";
 
 // All UUIDs in a list for filters
-List<String> allUuids = [
-  sensorServiceUuid,
-  sensorConfigurationCharacteristicUuid,
-  sensorDataCharacteristicUuid,
-  deviceInfoServiceUuid,
-  deviceIdentifierCharacteristicUuid,
-  deviceFirmwareVersionCharacteristicUuid,
-  deviceHardwareVersionCharacteristicUuid,
-  parseInfoServiceUuid,
-  schemeCharacteristicUuid,
-  sensorNamesCharacteristicUuid,
-  audioPlayerServiceUuid,
-  audioSourceCharacteristic,
-  audioStateCharacteristic,
-  batteryServiceUuid,
-  batteryLevelCharacteristicUuid,
-  buttonServiceUuid,
-  buttonStateCharacteristicUuid,
-  ledServiceUuid,
-  ledSetStateCharacteristic,
+List<String> allServiceUuids = [
+  OpenEarableV1.ledServiceUuid,
+  OpenEarableV1.deviceInfoServiceUuid,
+  OpenEarableV1.audioPlayerServiceUuid,
+  OpenEarableV1.sensorServiceUuid,
+  OpenEarableV1.parseInfoServiceUuid,
+  OpenEarableV1.buttonServiceUuid,
+  OpenEarableV1.batteryServiceUuid,
+  CosinussOne.ppgAndAccServiceUuid,
+  CosinussOne.temperatureServiceUuid,
+  CosinussOne.heartRateServiceUuid,
 ];

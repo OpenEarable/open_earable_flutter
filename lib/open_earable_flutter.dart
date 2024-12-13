@@ -26,8 +26,6 @@ export 'src/models/capabilities/jingle_player.dart';
 export 'src/models/capabilities/audio_player_controls.dart';
 export 'src/models/capabilities/storage_path_audio_player.dart';
 
-part 'src/constants.dart';
-
 class WearableManager {
   static final WearableManager _instance = WearableManager._internal();
 

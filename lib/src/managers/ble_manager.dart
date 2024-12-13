@@ -6,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 import '../../open_earable_flutter.dart';
+import '../constants.dart';
 
 /// A class that establishes and manages Bluetooth Low Energy (BLE)
 /// communication with OpenEarable devices.
@@ -131,7 +132,7 @@ class BleManager {
         await UniversalBle.startScan(
           scanFilter: ScanFilter(
             // Needs to be passed for web, can be empty for the rest
-            withServices: kIsWeb ? allUuids : [],
+            withServices: kIsWeb ? allServiceUuids : [],
           ),
         );
       }
