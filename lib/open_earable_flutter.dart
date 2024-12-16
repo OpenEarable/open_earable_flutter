@@ -18,6 +18,7 @@ export 'src/models/capabilities/device_firmware_version.dart';
 export 'src/models/capabilities/device_hardware_version.dart';
 export 'src/models/capabilities/device_identifier.dart';
 export 'src/models/capabilities/rgb_led.dart';
+export 'src/models/capabilities/status_led.dart';
 export 'src/models/capabilities/sensor.dart';
 export 'src/models/capabilities/sensor_configuration.dart';
 export 'src/models/capabilities/sensor_manager.dart';

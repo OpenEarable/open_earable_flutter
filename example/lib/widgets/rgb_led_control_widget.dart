@@ -4,8 +4,9 @@ import 'package:open_earable_flutter/open_earable_flutter.dart';
 
 class RgbLedControlWidget extends StatefulWidget {
   final RgbLed rgbLed;
+  final StatusLed? statusLed;
 
-  const RgbLedControlWidget({Key? key, required this.rgbLed}) : super(key: key);
+  const RgbLedControlWidget({Key? key, required this.rgbLed, this.statusLed}) : super(key: key);
 
   @override
   State<RgbLedControlWidget> createState() => _RgbLedControlWidgetState();
@@ -69,13 +70,17 @@ class _RgbLedControlWidgetState extends State<RgbLedControlWidget> {
               g: _currentColor.green,
               b: _currentColor.blue,
             );
+            widget.statusLed?.showStatus(false);
           },
           child: const Text('Set'),
         ),
         const SizedBox(width: 20),
         ElevatedButton(
           onPressed: () {
-            widget.rgbLed.writeLedColor(r: 0, g: 0, b: 0);
+            widget.statusLed?.showStatus(true);
+            if (widget.statusLed == null) {
+              widget.rgbLed.writeLedColor(r: 0, g: 0, b: 0);
+            }
           },
           child: const Text('Off'),
         ),
