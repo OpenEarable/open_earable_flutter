@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:logger/logger.dart';
+import 'package:open_earable_flutter/src/models/capabilities/status_led.dart';
 
 import '../../managers/open_earable_sensor_manager.dart';
-import '../../utils/simple_kalman.dart';
 import '../capabilities/device_firmware_version.dart';
 import '../capabilities/device_hardware_version.dart';
 import '../capabilities/device_identifier.dart';
@@ -18,8 +18,10 @@ import 'discovered_device.dart';
 import 'wearable.dart';
 
 const String _ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
-const String _ledSetStateCharacteristic =
+const String _ledSetColorCharacteristic =
     "81040e7a-4819-11ee-be56-0242ac120002";
+const String _ledSetStateCharacteristic =
+    "81040e7b-4819-11ee-be56-0242ac120002";
 
 const String _deviceInfoServiceUuid = "45622510-6468-465a-b141-0b9b0f96b468";
 const String _deviceIdentifierCharacteristicUuid =
@@ -36,6 +38,7 @@ class OpenEarableV2 extends Wearable
         SensorManager,
         SensorConfigurationManager,
         RgbLed,
+        StatusLed,
         DeviceIdentifier,
         DeviceFirmwareVersion,
         DeviceHardwareVersion {
@@ -65,9 +68,6 @@ class OpenEarableV2 extends Wearable
     required int g,
     required int b,
   }) async {
-    // if (!_bleManager.connected) {
-    //   Exception("Can't write sensor config. Earable not connected");
-    // }
     if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255) {
       throw ArgumentError('The color values must be in range 0-255');
     }
@@ -78,8 +78,20 @@ class OpenEarableV2 extends Wearable
     await _bleManager.write(
       deviceId: _discoveredDevice.id,
       serviceId: _ledServiceUuid,
-      characteristicId: _ledSetStateCharacteristic,
+      characteristicId: _ledSetColorCharacteristic,
       byteData: data.buffer.asUint8List(),
+    );
+  }
+
+  @override
+  Future<void> showStatus(bool status) async {
+    ByteData statusData = ByteData(1);
+    statusData.setUint8(0, status ? 0 : 1);
+    await _bleManager.write(
+      deviceId: _discoveredDevice.id,
+      serviceId: _ledServiceUuid,
+      characteristicId: _ledSetStateCharacteristic,
+      byteData: statusData.buffer.asUint8List(),
     );
   }
 
