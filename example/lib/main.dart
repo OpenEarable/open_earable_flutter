@@ -172,7 +172,10 @@ class MyAppState extends State<MyApp> {
                 GroupedBox(
                   title: "RGB LED",
                   child:
-                      RgbLedControlWidget(rgbLed: _connectedDevice as RgbLed),
+                    RgbLedControlWidget(
+                      rgbLed: _connectedDevice as RgbLed,
+                      statusLed: _connectedDevice as StatusLed?,
+                    ),
                 ),
               if (_connectedDevice is FrequencyPlayer)
                 GroupedBox(
