@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ffi';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -7,7 +6,6 @@ import 'package:logger/logger.dart';
 import 'package:open_earable_flutter/src/models/capabilities/battery_service.dart';
 import 'package:open_earable_flutter/src/models/capabilities/status_led.dart';
 
-import '../../managers/open_earable_sensor_manager.dart';
 import '../capabilities/device_firmware_version.dart';
 import '../capabilities/device_hardware_version.dart';
 import '../capabilities/device_identifier.dart';
@@ -350,110 +348,3 @@ class OpenEarableV2 extends Wearable
   }
 }
 
-class _ImuSensorConfiguration extends SensorConfiguration {
-  final OpenEarableSensorManager _sensorManager;
-
-  _ImuSensorConfiguration({
-    required OpenEarableSensorManager sensorManager,
-  })  : _sensorManager = sensorManager,
-        super(
-          name: 'IMU',
-          unit: 'Hz',
-          values: const [
-            SensorConfigurationValue(key: '0'),
-            SensorConfigurationValue(key: '10'),
-            SensorConfigurationValue(key: '20'),
-            SensorConfigurationValue(key: '30'),
-          ],
-        );
-
-  @override
-  void setConfiguration(SensorConfigurationValue configuration) {
-    if (!super.values.contains(configuration)) {
-      throw UnimplementedError();
-    }
-
-    double imuSamplingRate = double.parse(configuration.key);
-    OpenEarableSensorConfig imuConfig = OpenEarableSensorConfig(
-      sensorId: 0,
-      samplingRate: imuSamplingRate,
-      latency: 0,
-    );
-
-    _sensorManager.writeSensorConfig(imuConfig);
-  }
-}
-
-class _BarometerSensorConfiguration extends SensorConfiguration {
-  final OpenEarableSensorManager _sensorManager;
-
-  _BarometerSensorConfiguration({
-    required OpenEarableSensorManager sensorManager,
-  })  : _sensorManager = sensorManager,
-        super(
-          name: 'Barometer',
-          unit: 'Hz',
-          values: const [
-            SensorConfigurationValue(key: '0'),
-            SensorConfigurationValue(key: '10'),
-            SensorConfigurationValue(key: '20'),
-            SensorConfigurationValue(key: '30'),
-          ],
-        );
-
-  @override
-  void setConfiguration(SensorConfigurationValue configuration) {
-    if (!super.values.contains(configuration)) {
-      throw UnimplementedError();
-    }
-
-    double? barometerSamplingRate = double.parse(configuration.key);
-    OpenEarableSensorConfig barometerConfig = OpenEarableSensorConfig(
-      sensorId: 1,
-      samplingRate: barometerSamplingRate,
-      latency: 0,
-    );
-
-    _sensorManager.writeSensorConfig(barometerConfig);
-  }
-}
-
-class _MicrophoneSensorConfiguration extends SensorConfiguration {
-  final OpenEarableSensorManager _sensorManager;
-
-  _MicrophoneSensorConfiguration({
-    required OpenEarableSensorManager sensorManager,
-  })  : _sensorManager = sensorManager,
-        super(
-          name: 'Microphone',
-          unit: 'Hz',
-          values: const [
-            SensorConfigurationValue(key: "0"),
-            SensorConfigurationValue(key: "16000"),
-            SensorConfigurationValue(key: "20000"),
-            SensorConfigurationValue(key: "25000"),
-            SensorConfigurationValue(key: "31250"),
-            SensorConfigurationValue(key: "33333"),
-            SensorConfigurationValue(key: "40000"),
-            SensorConfigurationValue(key: "41667"),
-            SensorConfigurationValue(key: "50000"),
-            SensorConfigurationValue(key: "62500"),
-          ],
-        );
-
-  @override
-  void setConfiguration(SensorConfigurationValue configuration) {
-    if (!super.values.contains(configuration)) {
-      throw UnimplementedError();
-    }
-
-    double? microphoneSamplingRate = double.parse(configuration.key);
-    OpenEarableSensorConfig microphoneConfig = OpenEarableSensorConfig(
-      sensorId: 2,
-      samplingRate: microphoneSamplingRate,
-      latency: 0,
-    );
-
-    _sensorManager.writeSensorConfig(microphoneConfig);
-  }
-}
