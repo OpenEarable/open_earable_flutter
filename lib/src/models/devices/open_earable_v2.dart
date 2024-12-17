@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:ffi';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:logger/logger.dart';
+import 'package:open_earable_flutter/src/models/capabilities/battery_service.dart';
 import 'package:open_earable_flutter/src/models/capabilities/status_led.dart';
 
 import '../../managers/open_earable_sensor_manager.dart';
@@ -16,6 +19,12 @@ import '../capabilities/sensor_manager.dart';
 import '../../managers/ble_manager.dart';
 import 'discovered_device.dart';
 import 'wearable.dart';
+
+const String _batteryServiceUuid = "180F";
+const String _batteryLevelCharacteristicUuid = "2A19";
+const String _batteryLevelStatusCharacteristicUuid = "2BED";
+const String _batteryHealthStatusCharacteristicUuid = "2BEA";
+const String _batteryEnergyStatusCharacteristicUuid = "2BF0";
 
 const String _ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
 const String _ledSetColorCharacteristic =
@@ -39,6 +48,7 @@ class OpenEarableV2 extends Wearable
         SensorConfigurationManager,
         RgbLed,
         StatusLed,
+        ExtendedBatteryService,
         DeviceIdentifier,
         DeviceFirmwareVersion,
         DeviceHardwareVersion {
@@ -145,6 +155,199 @@ class OpenEarableV2 extends Wearable
 
   @override
   List<Sensor> get sensors => List.unmodifiable(_sensors);
+
+  @override
+  Future<int> readBatteryPercentage() async {
+    List<int> batteryLevelList = await _bleManager.read(
+      deviceId: _discoveredDevice.id,
+      serviceId: _batteryServiceUuid,
+      characteristicId: _batteryLevelCharacteristicUuid,
+    );
+
+    _logger.t("Battery level bytes: $batteryLevelList");
+
+    if (batteryLevelList.length != 1) {
+      throw StateError('Battery level characteristic expected 1 value, but got ${batteryLevelList.length}');
+    }
+
+    return batteryLevelList[0];
+  }
+
+  @override
+  Future<BatteryEnergyStatus> readEnergyStatus() async {
+    List<int> energyStatusList = await _bleManager.read(
+      deviceId: _discoveredDevice.id,
+      serviceId: _batteryServiceUuid,
+      characteristicId: _batteryEnergyStatusCharacteristicUuid,
+    );
+
+    _logger.t("Battery energy status bytes: $energyStatusList");
+
+    if (energyStatusList.length != 7) {
+      throw StateError('Battery energy status characteristic expected 7 values, but got ${energyStatusList.length}');
+    }
+
+    int rawVoltage = (energyStatusList[2] << 8) | energyStatusList[1];
+    double voltage = _convertSFloat(rawVoltage);
+
+    int rawAvailableCapacity = (energyStatusList[4] << 8) | energyStatusList[3];
+    double availableCapacity = _convertSFloat(rawAvailableCapacity);
+
+    int rawChargeRate = (energyStatusList[6] << 8) | energyStatusList[5];
+    double chargeRate = _convertSFloat(rawChargeRate);
+
+    BatteryEnergyStatus batteryEnergyStatus = BatteryEnergyStatus(
+      voltage: voltage,
+      availableCapacity: availableCapacity,
+      chargeRate: chargeRate,
+    );
+
+    _logger.d('Battery energy status: $batteryEnergyStatus');
+
+    return batteryEnergyStatus;
+  }
+
+  double _convertSFloat(int rawBits) {
+    int exponent = ((rawBits & 0xF000) >> 12) - 16;
+    int mantissa = rawBits & 0x0FFF;
+
+    if (mantissa >= 0x800) {
+      mantissa = -((0x1000) - mantissa);
+    }
+    _logger.t("Exponent: $exponent, Mantissa: $mantissa");
+    double result = mantissa.toDouble() * pow(10.0, exponent.toDouble());
+    return result;
+  }
+
+  @override
+  Future<BatteryHealthStatus> readHealthStatus() async {
+    List<int> healthStatusList = await _bleManager.read(
+      deviceId: _discoveredDevice.id,
+      serviceId: _batteryServiceUuid,
+      characteristicId: _batteryHealthStatusCharacteristicUuid,
+    );
+
+    _logger.t("Battery health status bytes: $healthStatusList");
+
+    if (healthStatusList.length != 5) {
+      throw StateError('Battery health status characteristic expected 5 values, but got ${healthStatusList.length}');
+    }
+
+    int healthSummary = healthStatusList[1];
+    int cycleCount = (healthStatusList[2] << 8) | healthStatusList[3];
+    int currentTemperature = healthStatusList[4];
+
+    BatteryHealthStatus batteryHealthStatus = BatteryHealthStatus(
+      healthSummary: healthSummary,
+      cycleCount: cycleCount,
+      currentTemperature: currentTemperature,
+    );
+
+    _logger.d('Battery health status: $batteryHealthStatus');
+
+    return batteryHealthStatus;
+  }
+
+  @override
+  Future<BatteryPowerStatus> readPowerStatus() async {
+    List<int> powerStateList = await _bleManager.read(
+      deviceId: _discoveredDevice.id,
+      serviceId: _batteryServiceUuid,
+      characteristicId: _batteryLevelStatusCharacteristicUuid,
+    );
+
+    int powerState = (powerStateList[1] << 8) | powerStateList[2];
+    _logger.d("Battery power status bits: ${powerState.toRadixString(2)}");
+
+    bool batteryPresent = powerState >> 15 & 0x1 != 0;
+
+    int wiredExternalPowerSourceConnectedRaw = (powerState >> 13) & 0x3;
+    ExternalPowerSourceConnected wiredExternalPowerSourceConnected
+      = ExternalPowerSourceConnected.values[wiredExternalPowerSourceConnectedRaw];
+
+    int wirelessExternalPowerSourceConnectedRaw = (powerState >> 11) & 0x3;
+    ExternalPowerSourceConnected wirelessExternalPowerSourceConnected
+      = ExternalPowerSourceConnected.values[wirelessExternalPowerSourceConnectedRaw];
+
+    int chargeStateRaw = (powerState >> 9) & 0x3;
+    ChargeState chargeState = ChargeState.values[chargeStateRaw];
+
+    int chargeLevelRaw = (powerState >> 7) & 0x3;
+    BatteryChargeLevel chargeLevel = BatteryChargeLevel.values[chargeLevelRaw];
+
+    int chargingTypeRaw = (powerState >> 5) & 0x7;
+    BatteryChargingType chargingType = BatteryChargingType.values[chargingTypeRaw];
+
+    int chargingFaultReasonRaw = (powerState >> 2) & 0x5;
+    List<ChargingFaultReason> chargingFaultReason = [];
+    if ((chargingFaultReasonRaw & 0x1) != 0) {
+      chargingFaultReason.add(ChargingFaultReason.other);
+    }
+    if ((chargingFaultReasonRaw & 0x2) != 0) {
+      chargingFaultReason.add(ChargingFaultReason.externalPowerSource);
+    }
+    if ((chargingFaultReasonRaw & 0x4) != 0) {
+      chargingFaultReason.add(ChargingFaultReason.battery);
+    }
+
+    BatteryPowerStatus batteryPowerStatus = BatteryPowerStatus(
+      batteryPresent: batteryPresent,
+      wiredExternalPowerSourceConnected: wiredExternalPowerSourceConnected,
+      wirelessExternalPowerSourceConnected: wirelessExternalPowerSourceConnected,
+      chargeState: chargeState,
+      chargeLevel: chargeLevel,
+      chargingType: chargingType,
+      chargingFaultReason: chargingFaultReason,
+    );
+
+    _logger.d('Battery power status: $batteryPowerStatus');
+
+    return batteryPowerStatus;
+  }
+
+  @override
+  Stream<int> get batteryPercentageStream async* {
+    while (true) {
+      yield await readBatteryPercentage();
+      await Future.delayed(const Duration(seconds: 5));
+    }
+  }
+
+  @override
+  Stream<BatteryPowerStatus> get powerStatusStream async* {
+    while (true) {
+      try {
+        yield await readPowerStatus();
+      } catch (e) {
+        _logger.e('Error reading power status: $e');
+      }
+      await Future.delayed(const Duration(seconds: 5));
+    }
+  }
+
+  @override
+  Stream<BatteryEnergyStatus> get energyStatusStream async* {
+    while (true) {
+      try {
+        yield await readEnergyStatus();
+      } catch (e) {
+        _logger.e('Error reading energy status: $e');
+      }
+      await Future.delayed(const Duration(seconds: 5));
+    }
+  }
+
+  @override
+  Stream<BatteryHealthStatus> get healthStatusStream async* {
+    while (true) {
+      try {
+        yield await readHealthStatus();
+      } catch (e) {
+        _logger.e('Error reading health status: $e');
+      }
+      await Future.delayed(const Duration(seconds: 5));
+    }
+  }
 }
 
 class _ImuSensorConfiguration extends SensorConfiguration {
