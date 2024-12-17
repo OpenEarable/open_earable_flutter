@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:example/widgets/battery_info_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:open_earable_flutter/open_earable_flutter.dart';
@@ -168,6 +169,8 @@ class MyAppState extends State<MyApp> {
                     ],
                   ),
                 ),
+              if (_connectedDevice is ExtendedBatteryService)
+                BatteryInfoWidget(connectedDevice: _connectedDevice as ExtendedBatteryService),
               if (_connectedDevice is RgbLed)
                 GroupedBox(
                   title: "RGB LED",
