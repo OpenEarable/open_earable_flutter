@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:example/widgets/all_sensor_charts_widget.dart';
 import 'package:example/widgets/battery_info_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:open_earable_flutter/open_earable_flutter.dart';
@@ -221,6 +222,11 @@ class MyAppState extends State<MyApp> {
                             ))
                         .toList(),
                   ),
+                ),
+              if (_connectedDevice is SensorManager)
+                GroupedBox(
+                  title: "Sensor Charts",
+                  child: AllSensorChartsWidget(sensorManager: _connectedDevice as SensorManager)
                 ),
             ]
                 .map((e) => Padding(
