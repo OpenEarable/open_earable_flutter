@@ -15,9 +15,13 @@ class _SensorChartState extends State<SensorChart> {
   List<charts.Series<ChartData, int>> _chartData = [];
   final List<ChartData> _dataPoints = [];
 
+  // Track which axes are enabled
+  late Map<String, bool> _axisEnabled;
+
   @override
   void initState() {
     super.initState();
+    _axisEnabled = {for (var name in widget.sensor.axisNames) name: true};
     _listenToSensorStream();
   }
 
@@ -33,26 +37,42 @@ class _SensorChartState extends State<SensorChart> {
         int cutoffTime = sensorValue.timestamp - 5000;
         _dataPoints.removeWhere((data) => data.time < cutoffTime);
 
-        // Update chart data
-        _chartData = [
-          for (int i = 0; i < widget.sensor.axisCount; i++)
-            charts.Series<ChartData, int>(
-              id: widget.sensor.axisNames[i],
-              colorFn: (_, __) => charts.MaterialPalette.blue.makeShades(widget.sensor.axisCount)[i],
-              domainFn: (ChartData point, _) => point.time, // X-axis (timestamp)
-              measureFn: (ChartData point, _) => point.value, // Y-axis (sensor value)
-              data: _dataPoints.where((point) => point.axisName == widget.sensor.axisNames[i]).toList(),
-            ),
-        ];
+        _updateChartData();
       });
+    });
+  }
+
+  void _updateChartData() {
+    // Update chart data based on enabled axes
+    _chartData = [
+      for (int i = 0; i < widget.sensor.axisCount; i++)
+        if (_axisEnabled[widget.sensor.axisNames[i]] ?? false)
+          charts.Series<ChartData, int>(
+            id: widget.sensor.axisNames[i],
+            colorFn: (_, __) => charts.MaterialPalette.blue.makeShades(widget.sensor.axisCount)[i],
+            domainFn: (ChartData point, _) => point.time,
+            measureFn: (ChartData point, _) => point.value,
+            data: _dataPoints.where((point) => point.axisName == widget.sensor.axisNames[i]).toList(),
+          ),
+    ];
+  }
+
+  void _toggleAxis(String axisName, bool value) {
+    setState(() {
+      _axisEnabled[axisName] = value;
+      _updateChartData();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // Determine min/max range for X and Y axes
-    final xValues = _dataPoints.map((e) => e.time).toList();
-    final yValues = _dataPoints.map((e) => e.value).toList();
+    // Filter only enabled axes data for scaling
+    final filteredPoints = _dataPoints
+        .where((point) => _axisEnabled[point.axisName] ?? false)
+        .toList();
+
+    final xValues = filteredPoints.map((e) => e.time).toList();
+    final yValues = filteredPoints.map((e) => e.value).toList();
 
     final int? xMin = xValues.isNotEmpty ? xValues.reduce((a, b) => a < b ? a : b) : null;
     final int? xMax = xValues.isNotEmpty ? xValues.reduce((a, b) => a > b ? a : b) : null;
@@ -62,26 +82,43 @@ class _SensorChartState extends State<SensorChart> {
 
     return Column(
       children: [
+        // Checkbox controls for each axis
+        Wrap(
+          spacing: 8.0,
+          children: widget.sensor.axisNames.map((axisName) {
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Checkbox(
+                  value: _axisEnabled[axisName],
+                  onChanged: (value) => _toggleAxis(axisName, value ?? false),
+                ),
+                Text(axisName),
+              ],
+            );
+          }).toList(),
+        ),
+        // Chart display
         Expanded(
           child: charts.LineChart(
             _chartData,
-            animate: true,
+            animate: false,
             domainAxis: charts.NumericAxisSpec(
               viewport: xMin != null && xMax != null
                   ? charts.NumericExtents(xMin.toDouble(), xMax.toDouble())
                   : null,
-              tickProviderSpec: const charts.BasicNumericTickProviderSpec(desiredTickCount: 5),
+              tickProviderSpec: const charts.BasicNumericTickProviderSpec(zeroBound: false, desiredMinTickCount: 3),
             ),
             primaryMeasureAxis: charts.NumericAxisSpec(
               viewport: yMin != null && yMax != null
                   ? charts.NumericExtents(yMin, yMax)
                   : null,
-              tickProviderSpec: const charts.BasicNumericTickProviderSpec(desiredTickCount: 5),
+              tickProviderSpec: const charts.BasicNumericTickProviderSpec(zeroBound: false, desiredMinTickCount: 3),
             ),
             behaviors: [
               charts.SeriesLegend(),
               charts.ChartTitle('Time (ms)', behaviorPosition: charts.BehaviorPosition.bottom),
-              charts.ChartTitle('Value', behaviorPosition: charts.BehaviorPosition.start),
+              charts.ChartTitle(widget.sensor.axisUnits.first, behaviorPosition: charts.BehaviorPosition.start),
             ],
           ),
         ),
