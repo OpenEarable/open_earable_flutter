@@ -34,9 +34,18 @@ class SensorView extends StatelessWidget {
               List<String> renderedValues = [];
               if (snapshot.hasData) {
                 final sensorValue = snapshot.data!;
-                renderedValues = sensorValue.values
-                    .map((v) => v.toStringAsFixed(2).padLeft(7, ' '))
-                    .toList();
+                renderedValues = sensorValue.valueStrings;
+
+                if (sensorValue is SensorDoubleValue) {
+                  renderedValues = sensorValue.values
+                      .map((v) => v.toStringAsFixed(2).padLeft(7, ' '))
+                      .toList();
+                } else if (sensorValue is SensorIntValue) {
+                  renderedValues = sensorValue.values
+                      .map((v) => v.toString().padLeft(7, ' '))
+                      .toList();
+                }
+
               } else {
                 renderedValues = List.generate(
                     sensor.axisCount, (_) => "#.##".padLeft(7, ' '));
