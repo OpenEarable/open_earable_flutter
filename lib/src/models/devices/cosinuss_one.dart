@@ -175,7 +175,7 @@ class _CosinussOneSensor extends Sensor {
       int accZ = bytes[18];
 
       streamController.add(
-        SensorValue(
+        SensorDoubleValue(
           values: [accX.toDouble(), accY.toDouble(), accZ.toDouble()],
           timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
         ),
@@ -228,7 +228,7 @@ class _CosinussOneSensor extends Sensor {
               32; // ambient light sensor (e.g., if sensor is not placed correctly)
 
       streamController.add(
-        SensorValue(
+        SensorDoubleValue(
           values: [
             ppgRed.toDouble(),
             ppgGreen.toDouble(),
@@ -268,7 +268,7 @@ class _CosinussOneSensor extends Sensor {
       }
 
       streamController.add(
-        SensorValue(
+        SensorDoubleValue(
           values: [temperature],
           timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
         ),
@@ -300,7 +300,7 @@ class _CosinussOneSensor extends Sensor {
       }
 
       streamController.add(
-        SensorValue(
+        SensorDoubleValue(
           values: [bpm.toDouble()],
           timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
         ),

@@ -414,7 +414,7 @@ class _OpenEarableSensor extends Sensor {
     _dataSubscription = _sensorManager.subscribeToSensorData(0).listen((data) {
       int timestamp = data["timestamp"];
 
-      SensorValue sensorValue = SensorValue(
+      SensorValue sensorValue = SensorDoubleValue(
         values: [
           kalmanX.filtered(data[sensorName]["X"]),
           kalmanY.filtered(data[sensorName]["Y"]),
@@ -436,7 +436,7 @@ class _OpenEarableSensor extends Sensor {
     _dataSubscription = _sensorManager.subscribeToSensorData(1).listen((data) {
       int timestamp = data["timestamp"];
 
-      SensorValue sensorValue = SensorValue(
+      SensorValue sensorValue = SensorDoubleValue(
         values: [data[sensorName][componentName]],
         timestamp: timestamp,
       );
