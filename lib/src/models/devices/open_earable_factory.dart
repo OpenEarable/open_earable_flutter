@@ -18,7 +18,6 @@ const String _deviceParseInfoServiceUuid =
 const String _deviceParseInfoCharacteristicUuid =
     "caa25cb8-7e1b-44f2-adc9-e8c06c9ced43";
 
-Logger _logger = Logger();
 
 class OpenEarableFactory extends WearableFactory {
   final _v1Regex = RegExp(r'^1\.\d+\.\d+$');
@@ -27,13 +26,13 @@ class OpenEarableFactory extends WearableFactory {
   @override
   Future<bool> matches(DiscoveredDevice device, List<BleService> services) async {
     if (!services.any((service) => service.uuid == _deviceInfoServiceUuid)) {
-      _logger.d("'$device' has no service matching '$_deviceInfoServiceUuid'");
+      logger.d("'$device' has no service matching '$_deviceInfoServiceUuid'");
       return false;
     }
     String firmwareVersion = await _getFirmwareVersion(device);
-    _logger.d("Firmware Version: '$firmwareVersion'");
+    logger.d("Firmware Version: '$firmwareVersion'");
 
-    _logger.t("matches V2: ${_v2Regex.hasMatch(firmwareVersion)}");
+    logger.t("matches V2: ${_v2Regex.hasMatch(firmwareVersion)}");
 
     return _v1Regex.hasMatch(firmwareVersion) || _v2Regex.hasMatch(firmwareVersion);
   }
@@ -77,7 +76,7 @@ class OpenEarableFactory extends WearableFactory {
       serviceId: _deviceInfoServiceUuid,
       characteristicId: _deviceFirmwareVersionCharacteristicUuid,
     );
-    _logger.d("Raw Firmware Version: $softwareGenerationBytes");
+    logger.d("Raw Firmware Version: $softwareGenerationBytes");
     int firstZeroIndex = softwareGenerationBytes.indexOf(0);
     if (firstZeroIndex != -1) {
       softwareGenerationBytes = softwareGenerationBytes.sublist(0, firstZeroIndex);
@@ -94,9 +93,9 @@ class OpenEarableFactory extends WearableFactory {
       serviceId: _deviceParseInfoServiceUuid,
       characteristicId: _deviceParseInfoCharacteristicUuid,
     );
-    _logger.d("Read raw parse info: $sensorParseSchemeData");
+    logger.d("Read raw parse info: $sensorParseSchemeData");
     Map<String, Object> parseInfo = _parseSchemeCharacteristic(sensorParseSchemeData);
-    _logger.i("Found the following info about parsing: $parseInfo");
+    logger.i("Found the following info about parsing: $parseInfo");
 
     OpenEarableSensorManager sensorManager = OpenEarableSensorManager(
       bleManager: bleManager!,
@@ -105,10 +104,10 @@ class OpenEarableFactory extends WearableFactory {
 
     for (String sensorName in parseInfo.keys) {
       Map<String, Object> sensorDetail = parseInfo[sensorName] as Map<String, Object>;
-      _logger.t("sensor detail: $sensorDetail");
+      logger.t("sensor detail: $sensorDetail");
 
       Map<String, Object> componentsMap = sensorDetail['Components'] as Map<String, Object>;
-      _logger.t("components: $componentsMap");
+      logger.t("components: $componentsMap");
       
       sensorConfigurations.add(
         _OpenEarableSensorConfiguration(
@@ -121,7 +120,7 @@ class OpenEarableFactory extends WearableFactory {
       for (String groupName in componentsMap.keys) {
 
         Map<String, Object> groupDetail = componentsMap[groupName] as Map<String, Object>;
-        _logger.t("group detail: $groupDetail");
+        logger.t("group detail: $groupDetail");
         List<(String, String)> axisDetails = groupDetail.entries.map((axis) {
           Map<String, Object> v = axis.value as Map<String, Object>;
           return (axis.key, v['unit'] as String);
@@ -141,8 +140,8 @@ class OpenEarableFactory extends WearableFactory {
       }
     }
 
-    _logger.d("Created sensors: $sensors");
-    _logger.d("Created sensor configurations: $sensorConfigurations");
+    logger.d("Created sensors: $sensors");
+    logger.d("Created sensor configurations: $sensorConfigurations");
 
     return (sensors, sensorConfigurations);
   }
@@ -290,9 +289,9 @@ class _OpenEarableSensor extends Sensor {
     _dataSubscription?.cancel();
     _dataSubscription = _sensorManager.subscribeToSensorData(_sensorId).listen((data) {
       int timestamp = data["timestamp"];
-      _logger.t("SensorData: $data");
+      logger.t("SensorData: $data");
 
-      _logger.t("componentData of $componentName: ${data[componentName]}");
+      logger.t("componentData of $componentName: ${data[componentName]}");
 
       List<double> values = [];
       for (var entry in (data[componentName] as Map).entries) {

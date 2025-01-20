@@ -2,21 +2,8 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:logger/logger.dart';
-import 'package:open_earable_flutter/src/models/capabilities/battery_service.dart';
-import 'package:open_earable_flutter/src/models/capabilities/status_led.dart';
-
-import '../capabilities/device_firmware_version.dart';
-import '../capabilities/device_hardware_version.dart';
-import '../capabilities/device_identifier.dart';
-import '../capabilities/rgb_led.dart';
-import '../capabilities/sensor.dart';
-import '../capabilities/sensor_configuration.dart';
-import '../capabilities/sensor_configuration_manager.dart';
-import '../capabilities/sensor_manager.dart';
+import 'package:open_earable_flutter/open_earable_flutter.dart';
 import '../../managers/ble_manager.dart';
-import 'discovered_device.dart';
-import 'wearable.dart';
 
 const String _batteryServiceUuid = "180F";
 const String _batteryLevelCharacteristicUuid = "2A19";
@@ -37,8 +24,6 @@ const String _deviceFirmwareVersionCharacteristicUuid =
     "45622512-6468-465a-b141-0b9b0f96b468";
 const String _deviceHardwareVersionCharacteristicUuid =
     "45622513-6468-465a-b141-0b9b0f96b468";
-
-Logger _logger = Logger();
 
 class OpenEarableV2 extends Wearable
     implements
@@ -162,7 +147,7 @@ class OpenEarableV2 extends Wearable
       characteristicId: _batteryLevelCharacteristicUuid,
     );
 
-    _logger.t("Battery level bytes: $batteryLevelList");
+    logger.t("Battery level bytes: $batteryLevelList");
 
     if (batteryLevelList.length != 1) {
       throw StateError('Battery level characteristic expected 1 value, but got ${batteryLevelList.length}');
@@ -179,7 +164,7 @@ class OpenEarableV2 extends Wearable
       characteristicId: _batteryEnergyStatusCharacteristicUuid,
     );
 
-    _logger.t("Battery energy status bytes: $energyStatusList");
+    logger.t("Battery energy status bytes: $energyStatusList");
 
     if (energyStatusList.length != 7) {
       throw StateError('Battery energy status characteristic expected 7 values, but got ${energyStatusList.length}');
@@ -200,7 +185,7 @@ class OpenEarableV2 extends Wearable
       chargeRate: chargeRate,
     );
 
-    _logger.d('Battery energy status: $batteryEnergyStatus');
+    logger.d('Battery energy status: $batteryEnergyStatus');
 
     return batteryEnergyStatus;
   }
@@ -212,7 +197,7 @@ class OpenEarableV2 extends Wearable
     if (mantissa >= 0x800) {
       mantissa = -((0x1000) - mantissa);
     }
-    _logger.t("Exponent: $exponent, Mantissa: $mantissa");
+    logger.t("Exponent: $exponent, Mantissa: $mantissa");
     double result = mantissa.toDouble() * pow(10.0, exponent.toDouble());
     return result;
   }
@@ -225,7 +210,7 @@ class OpenEarableV2 extends Wearable
       characteristicId: _batteryHealthStatusCharacteristicUuid,
     );
 
-    _logger.t("Battery health status bytes: $healthStatusList");
+    logger.t("Battery health status bytes: $healthStatusList");
 
     if (healthStatusList.length != 5) {
       throw StateError('Battery health status characteristic expected 5 values, but got ${healthStatusList.length}');
@@ -241,7 +226,7 @@ class OpenEarableV2 extends Wearable
       currentTemperature: currentTemperature,
     );
 
-    _logger.d('Battery health status: $batteryHealthStatus');
+    logger.d('Battery health status: $batteryHealthStatus');
 
     return batteryHealthStatus;
   }
@@ -255,7 +240,7 @@ class OpenEarableV2 extends Wearable
     );
 
     int powerState = (powerStateList[1] << 8) | powerStateList[2];
-    _logger.d("Battery power status bits: ${powerState.toRadixString(2)}");
+    logger.d("Battery power status bits: ${powerState.toRadixString(2)}");
 
     bool batteryPresent = powerState >> 15 & 0x1 != 0;
 
@@ -298,7 +283,7 @@ class OpenEarableV2 extends Wearable
       chargingFaultReason: chargingFaultReason,
     );
 
-    _logger.d('Battery power status: $batteryPowerStatus');
+    logger.d('Battery power status: $batteryPowerStatus');
 
     return batteryPowerStatus;
   }
@@ -317,7 +302,7 @@ class OpenEarableV2 extends Wearable
       try {
         yield await readPowerStatus();
       } catch (e) {
-        _logger.e('Error reading power status: $e');
+        logger.e('Error reading power status: $e');
       }
       await Future.delayed(const Duration(seconds: 5));
     }
@@ -329,7 +314,7 @@ class OpenEarableV2 extends Wearable
       try {
         yield await readEnergyStatus();
       } catch (e) {
-        _logger.e('Error reading energy status: $e');
+        logger.e('Error reading energy status: $e');
       }
       await Future.delayed(const Duration(seconds: 5));
     }
@@ -341,7 +326,7 @@ class OpenEarableV2 extends Wearable
       try {
         yield await readHealthStatus();
       } catch (e) {
-        _logger.e('Error reading health status: $e');
+        logger.e('Error reading health status: $e');
       }
       await Future.delayed(const Duration(seconds: 5));
     }

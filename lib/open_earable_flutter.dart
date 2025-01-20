@@ -31,7 +31,7 @@ export 'src/models/capabilities/storage_path_audio_player.dart';
 
 part 'src/constants.dart';
 
-Logger _logger = Logger();
+Logger logger = Logger();
 
 class WearableManager {
   static final WearableManager _instance = WearableManager._internal();
@@ -70,12 +70,12 @@ class WearableManager {
       for (WearableFactory wearableFactory in _wearableFactories) {
         wearableFactory.bleManager = _bleManager;
         wearableFactory.disconnectNotifier = disconnectNotifier;
-        _logger.t("checking factory: $wearableFactory");
+        logger.t("checking factory: $wearableFactory");
         if (await wearableFactory.matches(device, connectionResult.$2)) {
           Wearable wearable = await wearableFactory.createFromDevice(device);
           return wearable;
         } else {
-          _logger.d("'$wearableFactory' does not support '$device'");
+          logger.d("'$wearableFactory' does not support '$device'");
         }
       }
       throw Exception('Device is currently not supported');
