@@ -219,6 +219,10 @@ class _OpenEarableSensor extends Sensor {
 
   StreamSubscription? _dataSubscription;
 
+  int _listenersCount = 0;
+
+  final StreamController<SensorValue> _streamController = StreamController.broadcast();
+
   _OpenEarableSensor({
     required int sensorId,
     required String sensorName,
@@ -235,7 +239,22 @@ class _OpenEarableSensor extends Sensor {
           sensorName: sensorName,
           chartTitle: chartTitle,
           shortChartTitle: shortChartTitle,
-        );
+        ) {
+    _streamController.onListen = () {
+      _listenersCount++;
+      logger.t("Sensor stream listener added from $sensorName, $_listenersCount listeners");
+      if (_listenersCount > 0) {
+        _dataSubscription?.resume();
+      }
+    };
+    _streamController.onCancel = () {
+      _listenersCount--;
+      logger.t("Sensor stream listener removed from $sensorName, $_listenersCount listeners");
+      if (_listenersCount == 0) {
+        _dataSubscription?.pause();
+      }
+    };
+  }
 
   @override
   List<String> get axisNames => _axisNames;
@@ -283,8 +302,6 @@ class _OpenEarableSensor extends Sensor {
   }
 
   Stream<SensorValue> _createSingleDataSubscription(String componentName) {
-    StreamController<SensorValue> streamController = StreamController.broadcast();
-
     _dataSubscription?.cancel();
     _dataSubscription = _sensorManager.subscribeToSensorData(_sensorId).listen((data) {
       int timestamp = data["timestamp"];
@@ -292,6 +309,7 @@ class _OpenEarableSensor extends Sensor {
 
       logger.t("componentData of $componentName: ${data[componentName]}");
 
+      //TODO: use int for integer based values
       List<double> values = [];
       for (var entry in (data[componentName] as Map).entries) {
         if (entry.key == 'units') {
@@ -306,10 +324,10 @@ class _OpenEarableSensor extends Sensor {
         timestamp: timestamp,
       );
 
-      streamController.add(sensorValue);
+      _streamController.add(sensorValue);
     });
 
-    return streamController.stream;
+    return _streamController.stream;
   }
 
   @override
