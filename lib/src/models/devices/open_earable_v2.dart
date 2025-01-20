@@ -332,4 +332,3 @@ class OpenEarableV2 extends Wearable
     }
   }
 }
-

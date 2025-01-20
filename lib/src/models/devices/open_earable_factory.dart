@@ -283,7 +283,7 @@ class _OpenEarableSensor extends Sensor {
   }
 
   Stream<SensorValue> _createSingleDataSubscription(String componentName) {
-    StreamController<SensorValue> streamController = StreamController();
+    StreamController<SensorValue> streamController = StreamController.broadcast();
 
     _dataSubscription?.cancel();
     _dataSubscription = _sensorManager.subscribeToSensorData(_sensorId).listen((data) {
