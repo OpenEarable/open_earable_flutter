@@ -1,40 +1,25 @@
+import 'package:example/fota/src/bloc/bloc/update_bloc.dart';
+import 'package:example/fota/src/model/firmware_update_request.dart';
+import 'package:example/fota/src/providers/firmware_update_request_provider.dart';
+import 'package:example/fota/src/view/stepper_view/firmware_select.dart';
+import 'package:example/fota/src/view/stepper_view/peripheral_select.dart';
+import 'package:example/fota/src/view/stepper_view/update_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'src/bloc/bloc/update_bloc.dart';
-import 'src/model/firmware_update_request.dart';
-import 'src/providers/firmware_update_request_provider.dart';
-import 'src/view/stepper_view/firmware_select.dart';
-import 'src/view/stepper_view/peripheral_select.dart';
-import 'src/view/stepper_view/update_view.dart';
+import 'package:open_earable_flutter/open_earable_flutter.dart';
 import 'package:provider/provider.dart';
 
-void main() {
-  runApp(MyApp());
-}
+class FirmwareUpdateWidget extends StatefulWidget {
+  const FirmwareUpdateWidget({super.key});
 
-class MyApp extends StatefulWidget {
   @override
-  _MyAppState createState() => _MyAppState();
+  State<FirmwareUpdateWidget> createState() => _FirmwareUpdateWidget();
 }
 
-class _MyAppState extends State<MyApp> {
+class _FirmwareUpdateWidget extends State<FirmwareUpdateWidget> {
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => FirmwareUpdateRequestProvider(),
-      builder: (context, child) => _materialApp(context),
-    );
-  }
-
-  MaterialApp _materialApp(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(
-          title: Text('MCU Manager'),
-        ),
-        body: _body(context),
-      ),
-    );
+    return _body(context);
   }
 
   Widget _body(BuildContext context) {
@@ -58,15 +43,17 @@ class _MyAppState extends State<MyApp> {
           content: Center(child: FirmwareSelect()),
           isActive: provider.currentStep == 0,
         ),
+        /*
         Step(
           title: Text('Select Device'),
           content: Center(child: PeripheralSelect()),
           isActive: provider.currentStep == 1,
         ),
+        */
         Step(
           title: Text('Update'),
           content: Text('Update'),
-          isActive: provider.currentStep == 2,
+          isActive: provider.currentStep == 1,
         ),
       ],
     );
@@ -88,6 +75,7 @@ class _MyAppState extends State<MyApp> {
             ),
           ],
         );
+      /*
       case 1:
         if (parameters.peripheral == null) {
           return Container();
@@ -104,7 +92,10 @@ class _MyAppState extends State<MyApp> {
             ),
           ],
         );
-      case 2:
+        */
+      case 1:
+        print("ID");
+        print(parameters.peripheral!.identifier);
         return BlocProvider(
           create: (context) => UpdateBloc(firmwareUpdateRequest: parameters),
           child: UpdateStepView(),

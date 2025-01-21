@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-import '../../model/firmware_update_request.dart';
-import '../../providers/firmware_update_request_provider.dart';
-import '../../repository/peripheral_repository.dart';
+import '../../../src/model/firmware_update_request.dart';
+import '../../../src/providers/firmware_update_request_provider.dart';
+import '../../../src/repository/peripheral_repository.dart';
 import 'package:provider/provider.dart';
 
 class PeripheralList extends StatelessWidget {

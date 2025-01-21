@@ -1,7 +1,14 @@
 import 'dart:async';
 
+import 'package:example/fota/src/bloc/bloc/update_bloc.dart';
+import 'package:example/fota/src/model/firmware_update_request.dart';
+import 'package:example/fota/src/providers/firmware_update_request_provider.dart';
+import 'package:example/fota/src/view/stepper_view/update_view.dart';
+import 'package:example/widgets/firmware_update_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:open_earable_flutter/open_earable_flutter.dart';
+import 'package:provider/provider.dart';
 
 import 'widgets/frequency_player_widget.dart';
 import 'widgets/jingle_player_widget.dart';
@@ -11,6 +18,8 @@ import 'widgets/audio_player_control_widget.dart';
 import 'widgets/sensor_view.dart';
 import 'widgets/storage_path_audio_player_widget.dart';
 import 'widgets/grouped_box.dart';
+
+import 'package:rxdart/rxdart.dart';
 
 void main() {
   runApp(const MyApp());
@@ -33,6 +42,13 @@ class MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (context) => FirmwareUpdateRequestProvider(),
+      builder: (context, child) => _materialApp(context),
+    );
+  }
+
+  Widget _materialApp(BuildContext context) {
     List<SensorView>? sensorViews;
     List<SensorConfigurationView>? sensorConfigurationViews;
     if (_connectedDevice != null) {
@@ -95,6 +111,11 @@ class MyAppState extends State<MyApp> {
                             trailing: _buildTrailingWidget(device.id),
                             onTap: () {
                               _connectToDevice(device);
+                              context
+                                  .read<FirmwareUpdateRequestProvider>()
+                                  .setPeripheral(SelectedPeripheral(
+                                      name: device.name,
+                                      identifier: device.id));
                             },
                           ),
                           if (index != discoveredDevices.length - 1)
@@ -141,9 +162,15 @@ class MyAppState extends State<MyApp> {
                           future: (_connectedDevice as DeviceFirmwareVersion)
                               .readDeviceFirmwareVersion(),
                           builder: (context, snapshot) {
-                            return Text(
-                              "Firmware Version:  ${snapshot.data}",
-                            );
+                            return Row(children: [
+                              Text(
+                                "Firmware Version:  ${snapshot.data}",
+                              ),
+                              Spacer(),
+                              ElevatedButton(
+                                  onPressed: () => print("update"),
+                                  child: Text("Update Firmware"))
+                            ]);
                           },
                         ),
                       if (_connectedDevice is DeviceHardwareVersion)
@@ -216,6 +243,7 @@ class MyAppState extends State<MyApp> {
                         .toList(),
                   ),
                 ),
+              FirmwareUpdateWidget(),
             ]
                 .map((e) => Padding(
                       padding: const EdgeInsets.only(
@@ -244,7 +272,7 @@ class MyAppState extends State<MyApp> {
     return const SizedBox.shrink();
   }
 
-  void _startScanning() async {
+  void _startScanning() {
     _wearableManager.startScan();
     _scanSubscription?.cancel();
     _scanSubscription = _wearableManager.scanStream.listen((incomingDevice) {

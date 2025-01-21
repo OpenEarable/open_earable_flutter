@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../model/firmware_update_request.dart';
-import '../../providers/firmware_update_request_provider.dart';
-import '../../view/peripheral_select/peripheral_list.dart';
+import '../../../src/model/firmware_update_request.dart';
+import '../../../src/providers/firmware_update_request_provider.dart';
+import '../../../src/view/peripheral_select/peripheral_list.dart';
 import 'package:provider/provider.dart';
 
-class PeripheralSelect2 extends StatelessWidget {
-  const PeripheralSelect2({Key? key}) : super(key: key);
+class PeripheralSelect extends StatelessWidget {
+  const PeripheralSelect({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

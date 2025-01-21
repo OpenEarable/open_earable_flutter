@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_archive/flutter_archive.dart';
-import '../model/firmware_update_request.dart';
-import '../model/manifest.dart';
-import '../repository/firmware_image_repository.dart';
+import '../../src/model/firmware_update_request.dart';
+import '../../src/model/manifest.dart';
+import '../../src/repository/firmware_image_repository.dart';
 
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart' as path_provider;

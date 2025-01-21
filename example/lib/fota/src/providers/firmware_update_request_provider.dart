@@ -48,7 +48,7 @@ class FirmwareUpdateRequestProvider extends ChangeNotifier {
   }
 
   void nextStep() {
-    if (currentStep == 2) {
+    if (currentStep == 1) {
       return;
     }
     currentStep++;
