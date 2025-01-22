@@ -1,5 +1,6 @@
 import 'models/devices/cosinuss_one.dart';
 import 'models/devices/open_earable_v1.dart';
+import 'models/devices/polar.dart';
 
 const String sensorServiceUuid = "34c2e3bb-34aa-11eb-adc1-0242ac120002";
 const String sensorConfigurationCharacteristicUuid =
@@ -46,4 +47,6 @@ List<String> allServiceUuids = [
   CosinussOne.ppgAndAccServiceUuid,
   CosinussOne.temperatureServiceUuid,
   CosinussOne.heartRateServiceUuid,
+  Polar.disServiceUuid,
+  Polar.heartRateServiceUuid,
 ];
