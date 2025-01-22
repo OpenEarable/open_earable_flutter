@@ -19,7 +19,6 @@ class GroupedBox extends StatelessWidget {
           margin: const EdgeInsets.only(top: 8),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: Colors.grey),
             boxShadow: const [
@@ -40,7 +39,7 @@ class GroupedBox extends StatelessWidget {
           top: 0,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surface,
             child: Text(
               title,
               style: const TextStyle(

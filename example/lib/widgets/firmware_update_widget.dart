@@ -25,6 +25,14 @@ class _FirmwareUpdateWidget extends State<FirmwareUpdateWidget> {
   Widget _body(BuildContext context) {
     final provider = context.watch<FirmwareUpdateRequestProvider>();
     return Stepper(
+      connectorColor: WidgetStateProperty.resolveWith<Color>(
+        (states) {
+          if (states.contains(WidgetState.selected)) {
+            return Theme.of(context).colorScheme.secondary;
+          }
+          return Colors.grey;
+        },
+      ),
       currentStep: provider.currentStep,
       onStepContinue: () {
         setState(() {
