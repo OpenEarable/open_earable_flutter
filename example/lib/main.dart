@@ -123,7 +123,7 @@ class MyAppState extends State<MyApp> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      SelectableText(
                         "Name:                    ${_connectedDevice?.name}",
                       ),
                       if (_connectedDevice is DeviceIdentifier)
@@ -131,7 +131,7 @@ class MyAppState extends State<MyApp> {
                           future: (_connectedDevice as DeviceIdentifier)
                               .readDeviceIdentifier(),
                           builder: (context, snapshot) {
-                            return Text(
+                            return SelectableText(
                               "Device Identifier:   ${snapshot.data}",
                             );
                           },
@@ -141,7 +141,7 @@ class MyAppState extends State<MyApp> {
                           future: (_connectedDevice as DeviceFirmwareVersion)
                               .readDeviceFirmwareVersion(),
                           builder: (context, snapshot) {
-                            return Text(
+                            return SelectableText(
                               "Firmware Version:  ${snapshot.data}",
                             );
                           },
@@ -151,7 +151,7 @@ class MyAppState extends State<MyApp> {
                           future: (_connectedDevice as DeviceHardwareVersion)
                               .readDeviceHardwareVersion(),
                           builder: (context, snapshot) {
-                            return Text(
+                            return SelectableText(
                               "Hardware Version: ${snapshot.data}",
                             );
                           },
