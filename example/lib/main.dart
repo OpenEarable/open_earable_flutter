@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:example/widgets/all_sensor_charts_widget.dart';
+import 'package:example/widgets/battery_info_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:open_earable_flutter/open_earable_flutter.dart';
 
@@ -39,8 +41,8 @@ class MyAppState extends State<MyApp> {
       sensorViews = SensorView.createSensorViews(_connectedDevice!);
       sensorConfigurationViews =
           SensorConfigurationView.createSensorConfigurationViews(
-        _connectedDevice!,
-      );
+            _connectedDevice!,
+          );
     }
 
     return MaterialApp(
@@ -159,11 +161,16 @@ class MyAppState extends State<MyApp> {
                     ],
                   ),
                 ),
+              if (_connectedDevice is ExtendedBatteryService)
+                BatteryInfoWidget(connectedDevice: _connectedDevice as ExtendedBatteryService),
               if (_connectedDevice is RgbLed)
                 GroupedBox(
                   title: "RGB LED",
                   child:
-                      RgbLedControlWidget(rgbLed: _connectedDevice as RgbLed),
+                    RgbLedControlWidget(
+                      rgbLed: _connectedDevice as RgbLed,
+                      statusLed: _connectedDevice as StatusLed?,
+                    ),
                 ),
               if (_connectedDevice is FrequencyPlayer)
                 GroupedBox(
@@ -215,6 +222,11 @@ class MyAppState extends State<MyApp> {
                             ))
                         .toList(),
                   ),
+                ),
+              if (_connectedDevice is SensorManager)
+                GroupedBox(
+                  title: "Sensor Charts",
+                  child: AllSensorChartsWidget(sensorManager: _connectedDevice as SensorManager)
                 ),
             ]
                 .map((e) => Padding(
