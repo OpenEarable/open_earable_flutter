@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:example/widgets/battery_info_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:open_earable_flutter/open_earable_flutter.dart';
 
 import 'widgets/frequency_player_widget.dart';
@@ -43,6 +44,8 @@ class MyAppState extends State<MyApp> {
             _connectedDevice!,
           );
     }
+
+    String? wearableIconPath = _connectedDevice?.getWearableIconPath();
 
     return MaterialApp(
       home: Scaffold(
@@ -124,6 +127,12 @@ class MyAppState extends State<MyApp> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (wearableIconPath != null)
+                        SvgPicture.asset(
+                          wearableIconPath,
+                          width: 100,
+                          height: 100,
+                        ),
                       SelectableText(
                         "Name:                    ${_connectedDevice?.name}",
                       ),
