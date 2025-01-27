@@ -51,9 +51,12 @@ class OpenEarableV1 extends Wearable
       "45622510-6468-465a-b141-0b9b0f96b468";
   static const String audioPlayerServiceUuid =
       "5669146e-476d-11ee-be56-0242ac120002";
-  static const String sensorServiceUuid = "34c2e3bb-34aa-11eb-adc1-0242ac120002";
-  static const String parseInfoServiceUuid = "caa25cb7-7e1b-44f2-adc9-e8c06c9ced43";
-  static const String buttonServiceUuid = "29c10bdc-4773-11ee-be56-0242ac120002";
+  static const String sensorServiceUuid =
+      "34c2e3bb-34aa-11eb-adc1-0242ac120002";
+  static const String parseInfoServiceUuid =
+      "caa25cb7-7e1b-44f2-adc9-e8c06c9ced43";
+  static const String buttonServiceUuid =
+      "29c10bdc-4773-11ee-be56-0242ac120002";
   static const String batteryServiceUuid = "180F";
 
   final List<Sensor> _sensors;
@@ -366,8 +369,6 @@ class _OpenEarableSensor extends Sensor {
   final List<String> _axisUnits;
   final OpenEarableSensorManager _sensorManager;
 
-  StreamSubscription? _dataSubscription;
-
   _OpenEarableSensor({
     required String sensorName,
     required String chartTitle,
@@ -410,8 +411,9 @@ class _OpenEarableSensor extends Sensor {
       errorEstimate: errorMeasure[sensorName]!,
       q: 0.9,
     );
-    _dataSubscription?.cancel();
-    _dataSubscription = _sensorManager.subscribeToSensorData(0).listen((data) {
+
+    StreamSubscription subscription =
+        _sensorManager.subscribeToSensorData(0).listen((data) {
       int timestamp = data["timestamp"];
 
       SensorValue sensorValue = SensorDoubleValue(
@@ -426,14 +428,19 @@ class _OpenEarableSensor extends Sensor {
       streamController.add(sensorValue);
     });
 
+    // Cancel BLE subscription when canceling stream
+    streamController.onCancel = () {
+      subscription.cancel();
+    };
+
     return streamController.stream;
   }
 
   Stream<SensorValue> _createSingleDataSubscription(String componentName) {
     StreamController<SensorValue> streamController = StreamController();
 
-    _dataSubscription?.cancel();
-    _dataSubscription = _sensorManager.subscribeToSensorData(1).listen((data) {
+    StreamSubscription subscription =
+        _sensorManager.subscribeToSensorData(1).listen((data) {
       int timestamp = data["timestamp"];
 
       SensorValue sensorValue = SensorDoubleValue(
@@ -443,6 +450,11 @@ class _OpenEarableSensor extends Sensor {
 
       streamController.add(sensorValue);
     });
+
+    // Cancel BLE subscription when canceling stream
+    streamController.onCancel = () {
+      subscription.cancel();
+    };
 
     return streamController.stream;
   }

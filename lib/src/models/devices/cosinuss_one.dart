@@ -113,8 +113,6 @@ class _CosinussOneSensor extends Sensor {
   final BleManager _bleManager;
   final DiscoveredDevice _discoveredDevice;
 
-  StreamSubscription? _dataSubscription;
-
   _CosinussOneSensor({
     required String sensorName,
     required String chartTitle,
@@ -159,8 +157,7 @@ class _CosinussOneSensor extends Sensor {
       byteData: _sensorBluetoothCharacteristics,
     );
 
-    _dataSubscription?.cancel();
-    _dataSubscription = _bleManager
+    StreamSubscription subscription = _bleManager
         .subscribe(
       deviceId: _discoveredDevice.id,
       serviceId: CosinussOne.ppgAndAccServiceUuid,
@@ -182,6 +179,11 @@ class _CosinussOneSensor extends Sensor {
       );
     });
 
+    // Cancel BLE subscription when canceling stream
+    streamController.onCancel = () {
+      subscription.cancel();
+    };
+
     return streamController.stream;
   }
 
@@ -197,8 +199,7 @@ class _CosinussOneSensor extends Sensor {
       byteData: _sensorBluetoothCharacteristics,
     );
 
-    _dataSubscription?.cancel();
-    _dataSubscription = _bleManager
+    StreamSubscription subscription = _bleManager
         .subscribe(
       deviceId: _discoveredDevice.id,
       serviceId: CosinussOne.ppgAndAccServiceUuid,
@@ -239,6 +240,11 @@ class _CosinussOneSensor extends Sensor {
       );
     });
 
+    // Cancel BLE subscription when canceling stream
+    streamController.onCancel = () {
+      subscription.cancel();
+    };
+
     return streamController.stream;
   }
 
@@ -247,8 +253,7 @@ class _CosinussOneSensor extends Sensor {
 
     int startTime = DateTime.now().millisecondsSinceEpoch;
 
-    _dataSubscription?.cancel();
-    _dataSubscription = _bleManager
+    StreamSubscription subscription = _bleManager
         .subscribe(
       deviceId: _discoveredDevice.id,
       serviceId: CosinussOne.temperatureServiceUuid,
@@ -275,6 +280,11 @@ class _CosinussOneSensor extends Sensor {
       );
     });
 
+    // Cancel BLE subscription when canceling stream
+    streamController.onCancel = () {
+      subscription.cancel();
+    };
+
     return streamController.stream;
   }
 
@@ -283,8 +293,7 @@ class _CosinussOneSensor extends Sensor {
 
     int startTime = DateTime.now().millisecondsSinceEpoch;
 
-    _dataSubscription?.cancel();
-    _dataSubscription = _bleManager
+    StreamSubscription subscription = _bleManager
         .subscribe(
       deviceId: _discoveredDevice.id,
       serviceId: CosinussOne.heartRateServiceUuid,
@@ -306,6 +315,11 @@ class _CosinussOneSensor extends Sensor {
         ),
       );
     });
+
+    // Cancel BLE subscription when canceling stream
+    streamController.onCancel = () {
+      subscription.cancel();
+    };
 
     return streamController.stream;
   }
