@@ -1,3 +1,4 @@
+import 'models/devices/open_earable_v2.dart';
 import 'models/devices/cosinuss_one.dart';
 import 'models/devices/open_earable_v1.dart';
 import 'models/devices/polar.dart';
@@ -44,6 +45,11 @@ List<String> allServiceUuids = [
   OpenEarableV1.parseInfoServiceUuid,
   OpenEarableV1.buttonServiceUuid,
   OpenEarableV1.batteryServiceUuid,
+
+  OpenEarableV2.deviceInfoServiceUuid,
+  OpenEarableV2.batteryServiceUuid,
+  OpenEarableV2.ledServiceUuid,
+
   CosinussOne.ppgAndAccServiceUuid,
   CosinussOne.temperatureServiceUuid,
   CosinussOne.heartRateServiceUuid,
