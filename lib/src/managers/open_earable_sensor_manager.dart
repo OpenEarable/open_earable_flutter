@@ -3,7 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
-import '../../open_earable_flutter.dart';
+import '../constants.dart';
 import '../utils/mahony_ahrs.dart';
 import 'ble_manager.dart';
 
@@ -31,6 +31,7 @@ class OpenEarableSensorManager {
       Exception("Can't write sensor config. Earable not connected");
     }
     await _bleManager.write(
+      deviceId: deviceId,
       serviceId: sensorServiceUuid,
       characteristicId: sensorConfigurationCharacteristicUuid,
       byteData: sensorConfig.byteList,

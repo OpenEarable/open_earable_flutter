@@ -9,7 +9,9 @@ import 'package:universal_ble/universal_ble.dart';
 
 import 'src/managers/ble_manager.dart';
 import 'src/managers/notifier.dart';
+import 'src/models/devices/cosinuss_one.dart';
 import 'src/models/devices/discovered_device.dart';
+import 'src/models/devices/polar.dart';
 import 'src/models/devices/wearable.dart';
 
 export 'src/models/devices/discovered_device.dart';
@@ -67,6 +69,24 @@ class WearableManager {
       disconnectNotifier.notifyListeners,
     );
     if (connectionResult.$1) {
+      if (device.name.startsWith("Polar")) {
+        return Polar(
+          name: device.name,
+          disconnectNotifier: disconnectNotifier,
+          bleManager: _bleManager,
+          discoveredDevice: device,
+        );
+      }
+
+      if (device.name == "earconnect") {
+        return CosinussOne(
+          name: device.name,
+          disconnectNotifier: disconnectNotifier,
+          bleManager: _bleManager,
+          discoveredDevice: device,
+        );
+      }
+
       for (WearableFactory wearableFactory in _wearableFactories) {
         wearableFactory.bleManager = _bleManager;
         wearableFactory.disconnectNotifier = disconnectNotifier;
