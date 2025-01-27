@@ -104,8 +104,6 @@ class _HeartRateSensor extends Sensor {
   final BleManager _bleManager;
   final DiscoveredDevice _discoveredDevice;
 
-  StreamSubscription? _dataSubscription;
-
   _HeartRateSensor({
     required BleManager bleManager,
     required DiscoveredDevice discoveredDevice,
@@ -131,8 +129,7 @@ class _HeartRateSensor extends Sensor {
 
     int startTime = DateTime.now().millisecondsSinceEpoch;
 
-    _dataSubscription?.cancel();
-    _dataSubscription = _bleManager
+    StreamSubscription subscription = _bleManager
         .subscribe(
       deviceId: _discoveredDevice.id,
       serviceId: Polar.heartRateServiceUuid,
@@ -154,6 +151,11 @@ class _HeartRateSensor extends Sensor {
         ),
       );
     });
+
+    // Cancel BLE subscription when canceling stream
+    streamController.onCancel = () {
+      subscription.cancel();
+    };
 
     return streamController.stream;
   }
