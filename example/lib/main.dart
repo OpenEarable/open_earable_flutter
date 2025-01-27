@@ -171,7 +171,7 @@ class MyAppState extends State<MyApp> {
                 ),
               if (_connectedDevice is ExtendedBatteryService)
                 BatteryInfoWidget(connectedDevice: _connectedDevice as ExtendedBatteryService),
-              if (_connectedDevice is RgbLed)
+              if (_connectedDevice is RgbLed && _connectedDevice is StatusLed)
                 GroupedBox(
                   title: "RGB LED",
                   child:
@@ -179,6 +179,12 @@ class MyAppState extends State<MyApp> {
                       rgbLed: _connectedDevice as RgbLed,
                       statusLed: _connectedDevice as StatusLed?,
                     ),
+                ),
+              if (_connectedDevice is RgbLed && _connectedDevice is! StatusLed)
+                GroupedBox(
+                  title: "RGB LED",
+                  child:
+                      RgbLedControlWidget(rgbLed: _connectedDevice as RgbLed),
                 ),
               if (_connectedDevice is FrequencyPlayer)
                 GroupedBox(

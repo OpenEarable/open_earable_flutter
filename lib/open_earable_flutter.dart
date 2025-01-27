@@ -9,7 +9,9 @@ import 'package:universal_ble/universal_ble.dart';
 
 import 'src/managers/ble_manager.dart';
 import 'src/managers/notifier.dart';
+import 'src/models/devices/cosinuss_one.dart';
 import 'src/models/devices/discovered_device.dart';
+import 'src/models/devices/polar.dart';
 import 'src/models/devices/wearable.dart';
 
 export 'src/models/devices/discovered_device.dart';
@@ -29,7 +31,7 @@ export 'src/models/capabilities/jingle_player.dart';
 export 'src/models/capabilities/audio_player_controls.dart';
 export 'src/models/capabilities/storage_path_audio_player.dart';
 
-Logger _logger = Logger();
+Logger logger = Logger();
 
 class WearableManager {
   static final WearableManager _instance = WearableManager._internal();
@@ -65,15 +67,33 @@ class WearableManager {
       disconnectNotifier.notifyListeners,
     );
     if (connectionResult.$1) {
+      if (device.name.startsWith("Polar")) {
+        return Polar(
+          name: device.name,
+          disconnectNotifier: disconnectNotifier,
+          bleManager: _bleManager,
+          discoveredDevice: device,
+        );
+      }
+
+      if (device.name == "earconnect") {
+        return CosinussOne(
+          name: device.name,
+          disconnectNotifier: disconnectNotifier,
+          bleManager: _bleManager,
+          discoveredDevice: device,
+        );
+      }
+
       for (WearableFactory wearableFactory in _wearableFactories) {
         wearableFactory.bleManager = _bleManager;
         wearableFactory.disconnectNotifier = disconnectNotifier;
-        _logger.t("checking factory: $wearableFactory");
+        logger.t("checking factory: $wearableFactory");
         if (await wearableFactory.matches(device, connectionResult.$2)) {
           Wearable wearable = await wearableFactory.createFromDevice(device);
           return wearable;
         } else {
-          _logger.d("'$wearableFactory' does not support '$device'");
+          logger.d("'$wearableFactory' does not support '$device'");
         }
       }
       throw Exception('Device is currently not supported');
