@@ -5,19 +5,16 @@ import 'dart:typed_data';
 import 'package:open_earable_flutter/open_earable_flutter.dart';
 import '../../managers/ble_manager.dart';
 
-const String _batteryServiceUuid = "180F";
 const String _batteryLevelCharacteristicUuid = "2A19";
 const String _batteryLevelStatusCharacteristicUuid = "2BED";
 const String _batteryHealthStatusCharacteristicUuid = "2BEA";
 const String _batteryEnergyStatusCharacteristicUuid = "2BF0";
 
-const String _ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
 const String _ledSetColorCharacteristic =
     "81040e7a-4819-11ee-be56-0242ac120002";
 const String _ledSetStateCharacteristic =
     "81040e7b-4819-11ee-be56-0242ac120002";
 
-const String _deviceInfoServiceUuid = "45622510-6468-465a-b141-0b9b0f96b468";
 const String _deviceIdentifierCharacteristicUuid =
     "45622511-6468-465a-b141-0b9b0f96b468";
 const String _deviceFirmwareVersionCharacteristicUuid =
@@ -36,6 +33,11 @@ class OpenEarableV2 extends Wearable
         DeviceIdentifier,
         DeviceFirmwareVersion,
         DeviceHardwareVersion {
+
+  static const String deviceInfoServiceUuid = "45622510-6468-465a-b141-0b9b0f96b468";
+  static const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
+  static const String batteryServiceUuid = "180F";
+
   final List<Sensor> _sensors;
   final List<SensorConfiguration> _sensorConfigurations;
   final BleManager _bleManager;
@@ -71,7 +73,7 @@ class OpenEarableV2 extends Wearable
     data.setUint8(2, b);
     await _bleManager.write(
       deviceId: _discoveredDevice.id,
-      serviceId: _ledServiceUuid,
+      serviceId: ledServiceUuid,
       characteristicId: _ledSetColorCharacteristic,
       byteData: data.buffer.asUint8List(),
     );
@@ -83,7 +85,7 @@ class OpenEarableV2 extends Wearable
     statusData.setUint8(0, status ? 0 : 1);
     await _bleManager.write(
       deviceId: _discoveredDevice.id,
-      serviceId: _ledServiceUuid,
+      serviceId: ledServiceUuid,
       characteristicId: _ledSetStateCharacteristic,
       byteData: statusData.buffer.asUint8List(),
     );
@@ -96,7 +98,7 @@ class OpenEarableV2 extends Wearable
   Future<String?> readDeviceIdentifier() async {
     List<int> deviceIdentifierBytes = await _bleManager.read(
       deviceId: _discoveredDevice.id,
-      serviceId: _deviceInfoServiceUuid,
+      serviceId: deviceInfoServiceUuid,
       characteristicId: _deviceIdentifierCharacteristicUuid,
     );
     return String.fromCharCodes(deviceIdentifierBytes);
@@ -109,7 +111,7 @@ class OpenEarableV2 extends Wearable
   Future<String?> readDeviceFirmwareVersion() async {
     List<int> deviceGenerationBytes = await _bleManager.read(
       deviceId: _discoveredDevice.id,
-      serviceId: _deviceInfoServiceUuid,
+      serviceId: deviceInfoServiceUuid,
       characteristicId: _deviceFirmwareVersionCharacteristicUuid,
     );
     return String.fromCharCodes(deviceGenerationBytes);
@@ -122,7 +124,7 @@ class OpenEarableV2 extends Wearable
   Future<String?> readDeviceHardwareVersion() async {
     List<int> hardwareGenerationBytes = await _bleManager.read(
       deviceId: _discoveredDevice.id,
-      serviceId: _deviceInfoServiceUuid,
+      serviceId: deviceInfoServiceUuid,
       characteristicId: _deviceHardwareVersionCharacteristicUuid,
     );
     return String.fromCharCodes(hardwareGenerationBytes);
@@ -144,7 +146,7 @@ class OpenEarableV2 extends Wearable
   Future<int> readBatteryPercentage() async {
     List<int> batteryLevelList = await _bleManager.read(
       deviceId: _discoveredDevice.id,
-      serviceId: _batteryServiceUuid,
+      serviceId: batteryServiceUuid,
       characteristicId: _batteryLevelCharacteristicUuid,
     );
 
@@ -161,7 +163,7 @@ class OpenEarableV2 extends Wearable
   Future<BatteryEnergyStatus> readEnergyStatus() async {
     List<int> energyStatusList = await _bleManager.read(
       deviceId: _discoveredDevice.id,
-      serviceId: _batteryServiceUuid,
+      serviceId: batteryServiceUuid,
       characteristicId: _batteryEnergyStatusCharacteristicUuid,
     );
 
@@ -207,7 +209,7 @@ class OpenEarableV2 extends Wearable
   Future<BatteryHealthStatus> readHealthStatus() async {
     List<int> healthStatusList = await _bleManager.read(
       deviceId: _discoveredDevice.id,
-      serviceId: _batteryServiceUuid,
+      serviceId: batteryServiceUuid,
       characteristicId: _batteryHealthStatusCharacteristicUuid,
     );
 
@@ -236,7 +238,7 @@ class OpenEarableV2 extends Wearable
   Future<BatteryPowerStatus> readPowerStatus() async {
     List<int> powerStateList = await _bleManager.read(
       deviceId: _discoveredDevice.id,
-      serviceId: _batteryServiceUuid,
+      serviceId: batteryServiceUuid,
       characteristicId: _batteryLevelStatusCharacteristicUuid,
     );
 
@@ -333,4 +335,3 @@ class OpenEarableV2 extends Wearable
     }
   }
 }
-
