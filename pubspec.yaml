@@ -34,6 +34,8 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  assets:
+    - assets/wearable_icons/open_earable_v1/
 
   # To add assets to your package, add an assets section, like this:
   # assets:
