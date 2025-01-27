@@ -5,7 +5,6 @@ import 'package:open_earable_flutter/src/managers/open_earable_sensor_manager.da
 import 'package:open_earable_flutter/src/models/devices/open_earable_v1.dart';
 import 'package:open_earable_flutter/src/models/devices/open_earable_v2.dart';
 import 'package:open_earable_flutter/src/models/wearable_factory.dart';
-import 'package:open_earable_flutter/src/utils/simple_kalman.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 const String _deviceInfoServiceUuid = "45622510-6468-465a-b141-0b9b0f96b468";
@@ -261,45 +260,6 @@ class _OpenEarableSensor extends Sensor {
 
   @override
   List<String> get axisUnits => _axisUnits;
-
-  Stream<SensorValue> _getAccGyroMagStream() {
-    StreamController<SensorValue> streamController = StreamController();
-
-    final errorMeasure = {"ACC": 5.0, "GYRO": 10.0, "MAG": 25.0};
-
-    SimpleKalman kalmanX = SimpleKalman(
-      errorMeasure: errorMeasure[sensorName]!,
-      errorEstimate: errorMeasure[sensorName]!,
-      q: 0.9,
-    );
-    SimpleKalman kalmanY = SimpleKalman(
-      errorMeasure: errorMeasure[sensorName]!,
-      errorEstimate: errorMeasure[sensorName]!,
-      q: 0.9,
-    );
-    SimpleKalman kalmanZ = SimpleKalman(
-      errorMeasure: errorMeasure[sensorName]!,
-      errorEstimate: errorMeasure[sensorName]!,
-      q: 0.9,
-    );
-    _dataSubscription?.cancel();
-    _dataSubscription = _sensorManager.subscribeToSensorData(0).listen((data) {
-      int timestamp = data["timestamp"];
-
-      SensorValue sensorValue = SensorDoubleValue(
-        values: [
-          kalmanX.filtered(data[sensorName]["X"]),
-          kalmanY.filtered(data[sensorName]["Y"]),
-          kalmanZ.filtered(data[sensorName]["Z"]),
-        ],
-        timestamp: timestamp,
-      );
-
-      streamController.add(sensorValue);
-    });
-
-    return streamController.stream;
-  }
 
   Stream<SensorValue> _createSingleDataSubscription(String componentName) {
     _dataSubscription?.cancel();

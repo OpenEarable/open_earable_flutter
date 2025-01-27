@@ -3,15 +3,15 @@ library open_earable_flutter;
 import 'dart:async';
 
 import 'package:logger/logger.dart';
+import 'package:open_earable_flutter/src/models/devices/cosinuss_one_factory.dart';
 import 'package:open_earable_flutter/src/models/devices/open_earable_factory.dart';
+import 'package:open_earable_flutter/src/models/devices/polar_factory.dart';
 import 'package:open_earable_flutter/src/models/wearable_factory.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 import 'src/managers/ble_manager.dart';
 import 'src/managers/notifier.dart';
-import 'src/models/devices/cosinuss_one.dart';
 import 'src/models/devices/discovered_device.dart';
-import 'src/models/devices/polar.dart';
 import 'src/models/devices/wearable.dart';
 
 export 'src/models/devices/discovered_device.dart';
@@ -38,7 +38,11 @@ class WearableManager {
 
   late final BleManager _bleManager;
 
-  final List<WearableFactory> _wearableFactories = [OpenEarableFactory()];
+  final List<WearableFactory> _wearableFactories = [
+    OpenEarableFactory(),
+    CosinussOneFactory(),
+    PolarFactory(),
+  ];
 
   factory WearableManager() {
     return _instance;
@@ -51,6 +55,10 @@ class WearableManager {
 
   void _init() {
     print('WearableManager initialized');
+  }
+
+  void addWearableFactory(WearableFactory factory) {
+    _wearableFactories.add(factory);
   }
 
   Future<void> startScan() {
@@ -67,24 +75,6 @@ class WearableManager {
       disconnectNotifier.notifyListeners,
     );
     if (connectionResult.$1) {
-      if (device.name.startsWith("Polar")) {
-        return Polar(
-          name: device.name,
-          disconnectNotifier: disconnectNotifier,
-          bleManager: _bleManager,
-          discoveredDevice: device,
-        );
-      }
-
-      if (device.name == "earconnect") {
-        return CosinussOne(
-          name: device.name,
-          disconnectNotifier: disconnectNotifier,
-          bleManager: _bleManager,
-          discoveredDevice: device,
-        );
-      }
-
       for (WearableFactory wearableFactory in _wearableFactories) {
         wearableFactory.bleManager = _bleManager;
         wearableFactory.disconnectNotifier = disconnectNotifier;
