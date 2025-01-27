@@ -125,7 +125,7 @@ class OpenEarableFactory extends WearableFactory {
         }).toList();
 
         sensors.add(
-          _OpenEarableSensor(
+          _OpenEarableSensorV2(
             sensorId: sensorDetail['SensorID'] as int,
             sensorName: groupName,
             chartTitle: groupName,
@@ -210,19 +210,13 @@ String _parseString(List<int> data) {
   return String.fromCharCodes(stringBytes);
 }
 
-class _OpenEarableSensor extends Sensor {
+class _OpenEarableSensorV2 extends Sensor {
   final int _sensorId;
   final List<String> _axisNames;
   final List<String> _axisUnits;
   final OpenEarableSensorManager _sensorManager;
 
-  StreamSubscription? _dataSubscription;
-
-  int _listenersCount = 0;
-
-  final StreamController<SensorValue> _streamController = StreamController.broadcast();
-
-  _OpenEarableSensor({
+  _OpenEarableSensorV2({
     required int sensorId,
     required String sensorName,
     required String chartTitle,
@@ -238,22 +232,7 @@ class _OpenEarableSensor extends Sensor {
           sensorName: sensorName,
           chartTitle: chartTitle,
           shortChartTitle: shortChartTitle,
-        ) {
-    _streamController.onListen = () {
-      _listenersCount++;
-      logger.t("Sensor stream listener added from $sensorName, $_listenersCount listeners");
-      if (_listenersCount > 0) {
-        _dataSubscription?.resume();
-      }
-    };
-    _streamController.onCancel = () {
-      _listenersCount--;
-      logger.t("Sensor stream listener removed from $sensorName, $_listenersCount listeners");
-      if (_listenersCount == 0) {
-        _dataSubscription?.pause();
-      }
-    };
-  }
+        );
 
   @override
   List<String> get axisNames => _axisNames;
@@ -262,8 +241,9 @@ class _OpenEarableSensor extends Sensor {
   List<String> get axisUnits => _axisUnits;
 
   Stream<SensorValue> _createSingleDataSubscription(String componentName) {
-    _dataSubscription?.cancel();
-    _dataSubscription = _sensorManager.subscribeToSensorData(_sensorId).listen((data) {
+    StreamController<SensorValue> streamController = StreamController();
+
+    StreamSubscription subscription = _sensorManager.subscribeToSensorData(_sensorId).listen((data) {
       int timestamp = data["timestamp"];
       logger.t("SensorData: $data");
 
@@ -284,26 +264,19 @@ class _OpenEarableSensor extends Sensor {
         timestamp: timestamp,
       );
 
-      _streamController.add(sensorValue);
+      streamController.add(sensorValue);
     });
 
-    return _streamController.stream;
+    streamController.onCancel = () {
+      subscription.cancel();
+    };
+
+    return streamController.stream;
   }
 
   @override
   Stream<SensorValue> get sensorStream {
-    switch (sensorName) {
-      // case "ACC":
-      // case "GYRO":
-      // case "MAG":
-      //   return _getAccGyroMagStream();
-      // case "BARO":
-      //   return _createSingleDataSubscription("Pressure");
-      // case "TEMP":
-      //   return _createSingleDataSubscription("Temperature");
-      default:
-        return _createSingleDataSubscription(sensorName);
-    }
+    return _createSingleDataSubscription(sensorName);
   }
 }
 
