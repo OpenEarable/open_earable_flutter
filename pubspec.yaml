@@ -37,6 +37,7 @@ dev_dependencies:
 flutter:
   assets:
     - assets/wearable_icons/open_earable_v1/
+    - assets/wearable_icons/open_earable_v2/
 
   # To add assets to your package, add an assets section, like this:
   # assets:
