@@ -3,10 +3,6 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:open_earable_flutter/open_earable_flutter.dart';
-import 'package:open_earable_flutter/src/models/capabilities/battery_energy_status.dart';
-import 'package:open_earable_flutter/src/models/capabilities/battery_health_status.dart';
-import 'package:open_earable_flutter/src/models/capabilities/battery_level.dart';
-import 'package:open_earable_flutter/src/models/capabilities/battery_level_status.dart';
 import '../../managers/ble_manager.dart';
 
 const String _batteryLevelCharacteristicUuid = "2A19";
@@ -64,6 +60,18 @@ class OpenEarableV2 extends Wearable
 
   @override
   String get deviceId => _discoveredDevice.id;
+
+  @override
+  String? getWearableIconPath({bool darkmode = false}) {
+    String basePath =
+        'packages/open_earable_flutter/assets/wearable_icons/open_earable_v2';
+
+    if (darkmode) {
+      return '$basePath/icon_no_text_white.svg';
+    }
+
+    return '$basePath/icon_no_text.svg';
+  }
 
   @override
   Future<void> writeLedColor({
