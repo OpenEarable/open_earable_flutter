@@ -368,24 +368,10 @@ class OpenEarableV1 extends Wearable
   
   @override
   Stream<int> get batteryPercentageStream async* {
-    StreamController<int> streamController = StreamController();
-
-    int batteryLevel = await readBatteryPercentage();
-    streamController.add(batteryLevel);
-
-    StreamSubscription subscription =
-      _bleManager.subscribe(serviceId: batteryServiceUuid, characteristicId: _batteryLevelCharacteristicUuid, deviceId: _discoveredDevice.id).listen(
-        (value) {
-          logger.t("Battery level bytes: $value");
-          streamController.add(value[0]);
-        },
-      );
-
-    streamController.onCancel = () {
-      subscription.cancel();
-    };
-
-    yield* streamController.stream;
+    while (true) {
+      yield await readBatteryPercentage();
+      await Future.delayed(const Duration(seconds: 5));
+    }
   }
   
   @override
