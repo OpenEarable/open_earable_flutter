@@ -367,11 +367,30 @@ class OpenEarableV1 extends Wearable
   }
   
   @override
-  Stream<int> get batteryPercentageStream async* {
-    while (true) {
-      yield await readBatteryPercentage();
-      await Future.delayed(const Duration(seconds: 5));
-    }
+  Stream<int> get batteryPercentageStream {
+    StreamController<int> controller = StreamController();
+    Timer? pollingTimer;
+
+    controller.onCancel = () {
+      pollingTimer?.cancel();
+    };
+
+    controller.onListen = () {
+      pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+        try {
+          int batteryPercentage = await readBatteryPercentage();
+          controller.add(batteryPercentage);
+        } catch (e) {
+          controller.addError(e);
+        }
+      });
+    };
+
+    readBatteryPercentage().then(controller.add).catchError((e) {
+      logger.e('Error reading battery percentage: $e');
+    });
+
+    return controller.stream;
   }
   
   @override

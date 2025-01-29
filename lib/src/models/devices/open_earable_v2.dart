@@ -307,46 +307,114 @@ class OpenEarableV2 extends Wearable
   }
 
   @override
-  Stream<int> get batteryPercentageStream async* {
-    while (true) {
-      yield await readBatteryPercentage();
-      await Future.delayed(const Duration(seconds: 5));
-    }
+  Stream<int> get batteryPercentageStream {
+    StreamController<int> controller = StreamController<int>();
+    Timer? batteryPollingTimer;
+    
+    controller.onCancel = () {
+      batteryPollingTimer?.cancel();
+    };
+
+    controller.onListen = () {
+      batteryPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+        readBatteryPercentage().then((batteryPercentage) {
+          controller.add(batteryPercentage);
+        }).catchError((e) {
+          logger.e('Error reading battery percentage: $e');
+        });
+      });
+
+      readBatteryPercentage().then((batteryPercentage) {
+        controller.add(batteryPercentage);
+      }).catchError((e) {
+        logger.e('Error reading battery percentage: $e');
+      });
+    };
+
+    return controller.stream;
   }
 
   @override
-  Stream<BatteryPowerStatus> get powerStatusStream async* {
-    while (true) {
-      try {
-        yield await readPowerStatus();
-      } catch (e) {
+  Stream<BatteryPowerStatus> get powerStatusStream {
+    StreamController<BatteryPowerStatus> controller = StreamController<BatteryPowerStatus>();
+    Timer? powerPollingTimer;
+
+    controller.onCancel = () {
+      powerPollingTimer?.cancel();
+    };
+
+    controller.onListen = () {
+      powerPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+        readPowerStatus().then((powerStatus) {
+          controller.add(powerStatus);
+        }).catchError((e) {
+          logger.e('Error reading power status: $e');
+        });
+      });
+
+      readPowerStatus().then((powerStatus) {
+        controller.add(powerStatus);
+      }).catchError((e) {
         logger.e('Error reading power status: $e');
-      }
-      await Future.delayed(const Duration(seconds: 5));
-    }
+      });
+    };
+
+    return controller.stream;
   }
 
   @override
-  Stream<BatteryEnergyStatus> get energyStatusStream async* {
-    while (true) {
-      try {
-        yield await readEnergyStatus();
-      } catch (e) {
+  Stream<BatteryEnergyStatus> get energyStatusStream {
+    StreamController<BatteryEnergyStatus> controller = StreamController<BatteryEnergyStatus>();
+    Timer? energyPollingTimer;
+
+    controller.onCancel = () {
+      energyPollingTimer?.cancel();
+    };
+
+    controller.onListen = () {
+      energyPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+        readEnergyStatus().then((energyStatus) {
+          controller.add(energyStatus);
+        }).catchError((e) {
+          logger.e('Error reading energy status: $e');
+        });
+      });
+
+      readEnergyStatus().then((energyStatus) {
+        controller.add(energyStatus);
+      }).catchError((e) {
         logger.e('Error reading energy status: $e');
-      }
-      await Future.delayed(const Duration(seconds: 5));
-    }
+      });
+    };
+
+    return controller.stream;
   }
 
   @override
-  Stream<BatteryHealthStatus> get healthStatusStream async* {
-    while (true) {
-      try {
-        yield await readHealthStatus();
-      } catch (e) {
+  Stream<BatteryHealthStatus> get healthStatusStream {
+    StreamController<BatteryHealthStatus> controller = StreamController<BatteryHealthStatus>();
+    Timer? healthPollingTimer;
+
+    controller.onCancel = () {
+      healthPollingTimer?.cancel();
+    };
+
+    controller.onListen = () {
+      healthPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+        readHealthStatus().then((healthStatus) {
+          controller.add(healthStatus);
+        }).catchError((e) {
+          logger.e('Error reading health status: $e');
+        });
+      });
+
+      readHealthStatus().then((healthStatus) {
+        controller.add(healthStatus);
+      }).catchError((e) {
         logger.e('Error reading health status: $e');
-      }
-      await Future.delayed(const Duration(seconds: 5));
-    }
+      });
+    };
+
+    return controller.stream;
   }
 }
