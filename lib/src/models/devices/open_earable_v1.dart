@@ -282,6 +282,7 @@ class OpenEarableV1 extends Wearable
     data.setAll(6, loudnessBytes.buffer.asUint8List());
 
     await _bleManager.write(
+      deviceId: _discoveredDevice.id,
       serviceId: audioPlayerServiceUuid,
       characteristicId: _audioSourceCharacteristic,
       byteData: data,
@@ -307,6 +308,7 @@ class OpenEarableV1 extends Wearable
     data[0] = type;
     data[1] = jingleMap[jingle.key]!;
     await _bleManager.write(
+      deviceId: _discoveredDevice.id,
       serviceId: audioPlayerServiceUuid,
       characteristicId: _audioSourceCharacteristic,
       byteData: data,
@@ -321,6 +323,7 @@ class OpenEarableV1 extends Wearable
     Uint8List data = Uint8List(1);
     data[0] = 1;
     await _bleManager.write(
+      deviceId: _discoveredDevice.id,
       serviceId: audioPlayerServiceUuid,
       characteristicId: _audioStateCharacteristic,
       byteData: data,
@@ -332,6 +335,7 @@ class OpenEarableV1 extends Wearable
     Uint8List data = Uint8List(1);
     data[0] = 2;
     await _bleManager.write(
+      deviceId: _discoveredDevice.id,
       serviceId: audioPlayerServiceUuid,
       characteristicId: _audioStateCharacteristic,
       byteData: data,
@@ -343,6 +347,7 @@ class OpenEarableV1 extends Wearable
     Uint8List data = Uint8List(1);
     data[0] = 3;
     await _bleManager.write(
+      deviceId: _discoveredDevice.id,
       serviceId: audioPlayerServiceUuid,
       characteristicId: _audioStateCharacteristic,
       byteData: data,
@@ -360,6 +365,7 @@ class OpenEarableV1 extends Wearable
     data.setRange(2, 2 + nameBytes.length, nameBytes);
 
     await _bleManager.write(
+      deviceId: _discoveredDevice.id,
       serviceId: audioPlayerServiceUuid,
       characteristicId: _audioSourceCharacteristic,
       byteData: data,
