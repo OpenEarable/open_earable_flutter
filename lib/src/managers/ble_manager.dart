@@ -20,42 +20,39 @@ class BleManager {
   late Stream<DiscoveredDevice> _scanStream;
   StreamController<DiscoveredDevice>? _scanStreamController;
 
-  /// The device that is currently being connected to.
-  DiscoveredDevice? get connectingDevice => _connectingDevice;
-  DiscoveredDevice? _connectingDevice;
-
-  /// The currently connected device.
-  DiscoveredDevice? get connectedDevice => _connectedDevice;
-  DiscoveredDevice? _connectedDevice;
-
-  // Returns false if no device is connected
-  bool get connected => _connectedDevice != null;
-
-  /// The info of the currently connected device.
-  String? get deviceIdentifier => _deviceIdentifier;
-  String? _deviceIdentifier;
-
-  String? get deviceFirmwareVersion => _deviceFirmwareVersion;
-  String? _deviceFirmwareVersion;
-
-  String? get deviceHardwareVersion => _deviceHardwareVersion;
-  String? _deviceHardwareVersion;
-
-  final StreamController<bool> _connectionStateController =
-      StreamController<bool>.broadcast();
-
-  Stream<bool> get connectionStateStream => _connectionStateController.stream;
-
   String _getCharacteristicKey(String deviceId, String characteristicId) =>
       "$deviceId||$characteristicId";
 
   bool _inited = false;
+
+  final Map<String, Completer> _connectionCompleters = {};
+  final Map<String, VoidCallback> _connectCallbacks = {};
+  final Map<String, VoidCallback> _disconnectCallbacks = {};
+
+  final List<String> _connectedDevicesIds = [];
+
+  bool isConnected(String deviceId) {
+    return _connectedDevicesIds.contains(deviceId);
+  }
 
   void _init() {
     if (_inited) {
       return;
     }
     _inited = true;
+
+    UniversalBle.onConnectionChange = (String deviceId, bool isConnected) {
+      logger.d("Connection change for $deviceId: $isConnected");
+      if (isConnected) {
+        _connectedDevicesIds.add(deviceId);
+        _connectCallbacks[deviceId]?.call();
+        _connectCallbacks.remove(deviceId);
+      } else {
+        _connectedDevicesIds.remove(deviceId);
+        _disconnectCallbacks[deviceId]?.call();
+        _disconnectCallbacks.remove(deviceId);
+      }
+    };
 
     UniversalBle.onValueChange = (
       String deviceId,
@@ -164,48 +161,33 @@ class BleManager {
         e.close();
       }
     }
-    _connectingDevice = device;
 
-    UniversalBle.onConnectionChange = (String deviceId, bool isConnected) {};
-
-    return _retryConnection(2, device, onDisconnect);
-  }
-
-  Future<(bool, List<BleService>)> _retryConnection(
-    int retries,
-    DiscoveredDevice device,
-    VoidCallback onDisconnect,
-  ) async {
     Completer<(bool, List<BleService>)> completer =
         Completer<(bool, List<BleService>)>();
+    _connectionCompleters[device.id] = completer;
 
-    if (retries <= 0) {
-      _connectingDevice = null;
-      return (false, <BleService>[]);
-    }
-    UniversalBle.onConnectionChange =
-        (String deviceId, bool isConnected) async {
-      if (device.id != deviceId) {
-        return;
+    _connectCallbacks[device.id] = () async {
+      if (!kIsWeb) {
+        UniversalBle.requestMtu(device.id, mtu);
       }
-
       bool connectionResult = false;
       List<BleService> services = [];
-      try {
-        if (isConnected) {
-          _connectedDevice = device;
-          if (!kIsWeb) {
-            UniversalBle.requestMtu(device.id, mtu);
-          }
-          services = await UniversalBle.discoverServices(device.id);
-          connectionResult = true;
-        } else {
-          onDisconnect.call();
-        }
-      } finally {
-        completer.complete((connectionResult, services));
-      }
+
+      services = await UniversalBle.discoverServices(device.id);
+      connectionResult = true;
+
+      _connectionCompleters[device.id]?.complete((connectionResult, services));
+      _connectionCompleters.remove(device.id);
     };
+
+    _disconnectCallbacks[device.id] = () {
+      _connectionCompleters[device.id]?.complete((false, <BleService>[]));
+      _connectionCompleters.remove(device.id);
+
+      onDisconnect();
+    };
+
+
     UniversalBle.connect(device.id);
 
     return completer.future;
@@ -213,16 +195,16 @@ class BleManager {
 
   /// Writes byte data to a specific characteristic of the connected Earable device.
   Future<void> write({
-    String? deviceId,
+    required String deviceId,
     required String serviceId,
     required String characteristicId,
     required List<int> byteData,
   }) async {
-    if (_connectedDevice == null) {
+    if (!isConnected(deviceId)) {
       throw Exception("Write failed because no Earable is connected");
     }
     await UniversalBle.writeValue(
-      deviceId ?? _connectedDevice!.id,
+      deviceId,
       serviceId,
       characteristicId,
       Uint8List.fromList(byteData),
@@ -232,7 +214,7 @@ class BleManager {
 
   /// Subscribes to a specific characteristic of the connected Earable device.
   Stream<List<int>> subscribe({
-    String? deviceId,
+    required String deviceId,
     required String serviceId,
     required String characteristicId,
   }) {
@@ -243,10 +225,10 @@ class BleManager {
 
     final streamController = StreamController<List<int>>();
     String streamIdentifier =
-        _getCharacteristicKey(_connectedDevice!.id, characteristicId);
+        _getCharacteristicKey(deviceId, characteristicId);
     if (!_streamControllers.containsKey(streamIdentifier)) {
       UniversalBle.setNotifiable(
-        deviceId ?? _connectedDevice!.id,
+        deviceId,
         serviceId,
         characteristicId,
         BleInputProperty.notification,
@@ -261,7 +243,7 @@ class BleManager {
         _streamControllers[streamIdentifier]!.remove(streamController);
         if (_streamControllers[streamIdentifier]!.isEmpty) {
           UniversalBle.setNotifiable(
-            _connectedDevice!.id,
+            deviceId,
             serviceId,
             characteristicId,
             BleInputProperty.disabled,
@@ -276,16 +258,16 @@ class BleManager {
 
   /// Reads data from a specific characteristic of the connected Earable device.
   Future<List<int>> read({
-    String? deviceId,
+    required String deviceId,
     required String serviceId,
     required String characteristicId,
   }) async {
-    if (_connectedDevice == null) {
+    if (!isConnected(deviceId)) {
       throw Exception("Read failed because no Earable is connected");
     }
 
     final response = await UniversalBle.readValue(
-      deviceId ?? _connectedDevice!.id,
+      deviceId,
       serviceId,
       characteristicId,
     );
