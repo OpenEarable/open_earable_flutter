@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:open_earable_flutter/src/models/devices/wearable_types.dart';
+
 import '../capabilities/sensor.dart';
 import '../capabilities/sensor_manager.dart';
 import '../../managers/ble_manager.dart';
@@ -104,6 +106,9 @@ class CosinussOne extends Wearable implements SensorManager {
 
   @override
   List<Sensor> get sensors => List.unmodifiable(_sensors);
+  
+  @override
+  WearableType get type => CosinussOneType();
 }
 
 // Based on https://github.com/teco-kit/cosinuss-flutter

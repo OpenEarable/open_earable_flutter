@@ -2,7 +2,17 @@ import 'dart:ui';
 
 import '../../managers/notifier.dart';
 
+abstract class WearableType {
+  final String name;
+
+  WearableType({
+    required this.name,
+  });
+}
+
 abstract class Wearable {
+  WearableType get type;
+
   final String name;
 
   Wearable({
@@ -35,6 +45,10 @@ abstract class Wearable {
     for (final listener in _disconnectListeners) {
       listener.call();
     }
+  }
+
+  bool isType(WearableType type) {
+    return this.type == type;
   }
 
   String get deviceId;

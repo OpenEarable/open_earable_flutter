@@ -415,6 +415,9 @@ class OpenEarableV1 extends Wearable
 
     return batteryLevelList[0];
   }
+  
+  @override
+  WearableType get type => OpenEarableV1Type();
 }
 
 class _OpenEarableSensor extends Sensor {

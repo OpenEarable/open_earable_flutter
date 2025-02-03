@@ -417,4 +417,7 @@ class OpenEarableV2 extends Wearable
 
     return controller.stream;
   }
+  
+  @override
+  WearableType get type => OpenEarableV2Type();
 }

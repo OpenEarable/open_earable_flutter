@@ -6,6 +6,7 @@ import '../capabilities/device_hardware_version.dart';
 import '../capabilities/sensor.dart';
 import '../capabilities/sensor_manager.dart';
 import '../../managers/ble_manager.dart';
+import '../devices/wearable_types.dart';
 import 'discovered_device.dart';
 import 'wearable.dart';
 
@@ -96,6 +97,9 @@ class Polar extends Wearable
 
     return hardwareVersion;
   }
+  
+  @override
+  WearableType get type => PolarDeviceType();
 }
 
 class _HeartRateSensor extends Sensor {

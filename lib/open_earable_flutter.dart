@@ -33,6 +33,7 @@ export 'src/models/capabilities/frequency_player.dart';
 export 'src/models/capabilities/jingle_player.dart';
 export 'src/models/capabilities/audio_player_controls.dart';
 export 'src/models/capabilities/storage_path_audio_player.dart';
+export 'src/models/devices/wearable_types.dart';
 
 Logger logger = Logger();
 
