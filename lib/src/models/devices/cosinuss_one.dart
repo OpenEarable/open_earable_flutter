@@ -95,6 +95,18 @@ class CosinussOne extends Wearable implements SensorManager {
   }
 
   @override
+  String? getWearableIconPath({bool darkmode = false}) {
+    String basePath =
+        'packages/open_earable_flutter/assets/wearable_icons/cosinuss_one';
+
+    if (darkmode) {
+      return '$basePath/icon_white.svg';
+    }
+
+    return '$basePath/icon.svg';
+  }
+
+  @override
   String get deviceId => _discoveredDevice.id;
 
   @override
