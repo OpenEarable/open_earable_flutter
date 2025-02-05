@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:open_earable_flutter/open_earable_flutter.dart';
+import 'package:open_earable_flutter/src/utils/mahony_ahrs.dart';
 
 import '../../managers/open_earable_sensor_manager.dart';
 import '../../utils/simple_kalman.dart';
@@ -120,6 +121,16 @@ class OpenEarableV1 extends Wearable
         shortChartTitle: 'Magn.',
         axisNames: ['X', 'Y', 'Z'],
         axisUnits: ["µT", "µT", "µT"],
+      ),
+    );
+    _sensors.add(
+      _OpenEarableSensor(
+        sensorManager: sensorManager,
+        sensorName: 'ATT',
+        chartTitle: 'Attitude',
+        shortChartTitle: 'Att.',
+        axisNames: ['Alpha', 'Beta', 'Gamma'],
+        axisUnits: ["°", "°", "°"],
       ),
     );
     _sensors.add(
@@ -492,6 +503,58 @@ class _OpenEarableSensor extends Sensor {
     return streamController.stream;
   }
 
+  Stream<SensorValue> _getAttitudeStream() {
+    StreamController<SensorValue> streamController = StreamController();
+
+    MahonyAHRS attitudeFilter = MahonyAHRS();
+
+    int oldTimestamp = 0;
+
+    StreamSubscription subscription =
+        _sensorManager.subscribeToSensorData(0).listen((data) {
+      int timestamp = data["timestamp"];
+
+      double td = (timestamp - oldTimestamp).toDouble();
+      td = td / 1000;
+
+      oldTimestamp = timestamp;
+
+      // Use a mahony filter to calculate the attitude
+      double gx = data["GYRO"]["X"];
+      double gy = data["GYRO"]["Y"];
+      double gz = data["GYRO"]["Z"];
+
+      double ax = data["ACC"]["X"];
+      double ay = data["ACC"]["Y"];
+      double az = data["ACC"]["Z"];
+
+      logger.t("Gyro: $gx, $gy, $gz, Acc: $ax, $ay, $az, td: $td");
+
+      attitudeFilter.update(ax, ay, az, gx, gy, gz, td);
+
+      Map<String, double> eulerAngles = attitudeFilter.getEulerAngles();
+
+      SensorValue sensorValue = SensorDoubleValue(
+        values: [
+          eulerAngles["roll"]!,
+          eulerAngles["pitch"]!,
+          eulerAngles["yaw"]!,
+        ],
+        timestamp: timestamp,
+      );
+
+      logger.t("Attitude: $sensorValue");
+      streamController.add(sensorValue);
+    });
+
+    // Cancel BLE subscription when canceling stream
+    streamController.onCancel = () {
+      subscription.cancel();
+    };
+
+    return streamController.stream;
+  }
+
   Stream<SensorValue> _createSingleDataSubscription(String componentName) {
     StreamController<SensorValue> streamController = StreamController();
 
@@ -522,6 +585,8 @@ class _OpenEarableSensor extends Sensor {
       case "GYRO":
       case "MAG":
         return _getAccGyroMagStream();
+      case "ATT":
+        return _getAttitudeStream();
       case "BARO":
         return _createSingleDataSubscription("Pressure");
       case "TEMP":

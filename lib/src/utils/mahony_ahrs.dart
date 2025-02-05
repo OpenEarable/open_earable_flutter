@@ -40,6 +40,14 @@ class MahonyAHRS {
     _ki = 0.0;
   }
 
+  /// Update the AHRS filter with new sensor data
+  /// [ax] Accelerometer X-axis (m/s^2)
+  /// [ay] Accelerometer Y-axis (m/s^2)
+  /// [az] Accelerometer Z-axis (m/s^2)
+  /// [gx] Gyroscope X-axis (rad/s)
+  /// [gy] Gyroscope Y-axis (rad/s)
+  /// [gz] Gyroscope Z-axis (rad/s)
+  /// [td] Time delta (s)
   void update(
     double ax,
     double ay,
@@ -121,5 +129,24 @@ class MahonyAHRS {
     _qX = q2 * norm;
     _qY = q3 * norm;
     _qZ = q4 * norm;
+  }
+
+  Map<String, double> getEulerAngles() {
+    Map<String, double> angles = {};
+
+    List<double> q = quaternion;
+    double yaw = -atan2(2 * (q[0] * q[3] + q[1] * q[2]),
+        1 - 2 * (q[2] * q[2] + q[3] * q[3]),);
+    // Pitch (around Y-axis)
+    double pitch = -asin(2 * (q[0] * q[2] - q[3] * q[1]));
+    // Roll (around X-axis)
+    double roll = -atan2(2 * (q[0] * q[1] + q[2] * q[3]),
+        1 - 2 * (q[1] * q[1] + q[2] * q[2]),);
+
+    angles["yaw"] = yaw;
+    angles["pitch"] = pitch;
+    angles["roll"] = roll;
+
+    return angles;
   }
 }

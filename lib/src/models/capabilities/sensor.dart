@@ -30,6 +30,11 @@ class SensorValue {
     required List<String> valueStrings,
     required this.timestamp,
   }) : _valuesStrings = valueStrings;
+
+  @override
+  String toString() {
+    return 'SensorValue(valueStrings: $valueStrings, timestamp: $timestamp)';
+  }
 }
 
 class SensorDoubleValue extends SensorValue {
