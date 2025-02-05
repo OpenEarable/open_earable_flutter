@@ -16,7 +16,7 @@ class PolarFactory extends WearableFactory {
       throw Exception("disconnectNotifier needs to be set before using the factory");
     }
 
-    if (device.name.startsWith(_namePrefix)) {
+    if (!device.name.startsWith(_namePrefix)) {
       throw Exception("device is not a polar device");
     }
 
