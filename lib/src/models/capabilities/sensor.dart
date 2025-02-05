@@ -16,6 +16,11 @@ abstract class Sensor {
   int get axisCount => axisNames.length;
 
   Stream<SensorValue> get sensorStream;
+
+  @override
+  String toString() {
+    return 'Sensor(sensorName: $sensorName, chartTitle: $chartTitle, shortChartTitle: $shortChartTitle, axisNames: $axisNames, axisUnits: $axisUnits)';
+  }
 }
 
 class SensorValue {

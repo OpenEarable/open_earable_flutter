@@ -7,6 +7,8 @@ import 'package:open_earable_flutter/src/models/devices/open_earable_v2.dart';
 import 'package:open_earable_flutter/src/models/wearable_factory.dart';
 import 'package:universal_ble/universal_ble.dart';
 
+import '../../utils/mahony_ahrs.dart';
+
 const String _deviceInfoServiceUuid = "45622510-6468-465a-b141-0b9b0f96b468";
 const String _deviceFirmwareVersionCharacteristicUuid =
     "45622512-6468-465a-b141-0b9b0f96b468";
@@ -55,6 +57,7 @@ class OpenEarableFactory extends WearableFactory {
       );
     } else if (_v2Regex.hasMatch(firmwareVersion)) {
       (List<Sensor>, List<SensorConfiguration>) sensorInfo = await _initSensors(device);
+      logger.d("SensorInfo: $sensorInfo");
       return OpenEarableV2(
         name: device.name,
         disconnectNotifier: disconnectNotifier!,
@@ -137,6 +140,18 @@ class OpenEarableFactory extends WearableFactory {
         );
       }
     }
+
+    sensors.add(
+      _OpenEarableSensorV2(
+        sensorId: 99,
+        sensorManager: sensorManager,
+        sensorName: 'ATT',
+        chartTitle: 'Attitude',
+        shortChartTitle: 'Att.',
+        axisNames: ['Alpha', 'Beta', 'Gamma'],
+        axisUnits: ["°", "°", "°"],
+      ),
+    );
 
     logger.d("Created sensors: $sensors");
     logger.d("Created sensor configurations: $sensorConfigurations");
@@ -274,9 +289,66 @@ class _OpenEarableSensorV2 extends Sensor {
     return streamController.stream;
   }
 
+  Stream<SensorValue> _getAttitudeStream() {
+    StreamController<SensorValue> streamController = StreamController();
+
+    MahonyAHRS attitudeFilter = MahonyAHRS();
+
+    int oldTimestamp = 0;
+
+    StreamSubscription subscription =
+        _sensorManager.subscribeToSensorData(0).listen((data) {
+      int timestamp = data["timestamp"];
+
+      double td = (timestamp - oldTimestamp).toDouble();
+      td = td / 1000;
+
+      oldTimestamp = timestamp;
+
+      // Use a mahony filter to calculate the attitude
+      double gx = -data["GYRO"]["X"];
+      double gy = -data["GYRO"]["Y"];
+      double gz = -data["GYRO"]["Z"];
+
+      double ax = -data["ACC"]["X"];
+      double ay = -data["ACC"]["Y"];
+      double az = -data["ACC"]["Z"];
+
+      logger.t("Gyro: $gx, $gy, $gz, Acc: $ax, $ay, $az, td: $td");
+
+      attitudeFilter.update(ax, ay, az, gx, gy, gz, td);
+
+      Map<String, double> eulerAngles = attitudeFilter.getEulerAngles();
+
+      SensorValue sensorValue = SensorDoubleValue(
+        values: [
+          eulerAngles["roll"]!,
+          eulerAngles["pitch"]!,
+          eulerAngles["yaw"]!,
+        ],
+        timestamp: timestamp,
+      );
+
+      logger.t("Attitude: $sensorValue");
+      streamController.add(sensorValue);
+    });
+
+    // Cancel BLE subscription when canceling stream
+    streamController.onCancel = () {
+      subscription.cancel();
+    };
+
+    return streamController.stream;
+  }
+
   @override
   Stream<SensorValue> get sensorStream {
-    return _createSingleDataSubscription(sensorName);
+    switch (sensorName) {
+      case "ATT":
+        return _getAttitudeStream();
+      default:
+        return _createSingleDataSubscription(sensorName);
+    }
   }
 }
 
