@@ -1,12 +1,16 @@
+import 'sensor_configuration.dart';
+
 abstract class Sensor {
   final String sensorName;
   final String chartTitle;
   final String shortChartTitle;
+  final List<SensorConfiguration> relatedConfigurations;
 
   const Sensor({
     required this.sensorName,
     required this.chartTitle,
     required this.shortChartTitle,
+    this.relatedConfigurations = const [],
   });
 
   List<String> get axisNames;

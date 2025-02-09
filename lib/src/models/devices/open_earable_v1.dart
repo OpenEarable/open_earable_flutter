@@ -92,6 +92,21 @@ class OpenEarableV1 extends Wearable
       deviceId: _discoveredDevice.id,
     );
 
+    final imuSensorConfig = _ImuSensorConfiguration(
+      sensorManager: sensorManager,
+    );
+    _sensorConfigurations.add(imuSensorConfig);
+
+    final barometerSensorConfig = _BarometerSensorConfiguration(
+      sensorManager: sensorManager,
+    );
+    _sensorConfigurations.add(barometerSensorConfig);
+
+    final microphoneSensorConfig = _MicrophoneSensorConfiguration(
+      sensorManager: sensorManager,
+    );
+    _sensorConfigurations.add(microphoneSensorConfig);
+
     _sensors.add(
       _OpenEarableSensor(
         sensorManager: sensorManager,
@@ -100,6 +115,7 @@ class OpenEarableV1 extends Wearable
         shortChartTitle: 'Acc.',
         axisNames: ['X', 'Y', 'Z'],
         axisUnits: ["m/s\u00B2", "m/s\u00B2", "m/s\u00B2"],
+        relatedConfigurations: [imuSensorConfig],
       ),
     );
     _sensors.add(
@@ -110,6 +126,7 @@ class OpenEarableV1 extends Wearable
         shortChartTitle: 'Gyro.',
         axisNames: ['X', 'Y', 'Z'],
         axisUnits: ["°/s", "°/s", "°/s"],
+        relatedConfigurations: [imuSensorConfig],
       ),
     );
     _sensors.add(
@@ -120,6 +137,7 @@ class OpenEarableV1 extends Wearable
         shortChartTitle: 'Magn.',
         axisNames: ['X', 'Y', 'Z'],
         axisUnits: ["µT", "µT", "µT"],
+        relatedConfigurations: [imuSensorConfig],
       ),
     );
     _sensors.add(
@@ -130,6 +148,7 @@ class OpenEarableV1 extends Wearable
         shortChartTitle: 'Press.',
         axisNames: ['Pressure'],
         axisUnits: ["Pa"],
+        relatedConfigurations: [barometerSensorConfig],
       ),
     );
     _sensors.add(
@@ -140,22 +159,7 @@ class OpenEarableV1 extends Wearable
         shortChartTitle: 'Temp. (A.)',
         axisNames: ['Temperature'],
         axisUnits: ["°C"],
-      ),
-    );
-
-    _sensorConfigurations.add(
-      _ImuSensorConfiguration(
-        sensorManager: sensorManager,
-      ),
-    );
-    _sensorConfigurations.add(
-      _BarometerSensorConfiguration(
-        sensorManager: sensorManager,
-      ),
-    );
-    _sensorConfigurations.add(
-      _MicrophoneSensorConfiguration(
-        sensorManager: sensorManager,
+        relatedConfigurations: [barometerSensorConfig],
       ),
     );
   }
@@ -371,7 +375,7 @@ class OpenEarableV1 extends Wearable
       byteData: data,
     );
   }
-  
+
   @override
   Stream<int> get batteryPercentageStream {
     StreamController<int> controller = StreamController();
@@ -398,7 +402,7 @@ class OpenEarableV1 extends Wearable
 
     return controller.stream;
   }
-  
+
   @override
   Future<int> readBatteryPercentage() async {
     List<int> batteryLevelList = await _bleManager.read(
@@ -410,7 +414,8 @@ class OpenEarableV1 extends Wearable
     logger.t("Battery level bytes: $batteryLevelList");
 
     if (batteryLevelList.length != 1) {
-      throw StateError('Battery level characteristic expected 1 value, but got ${batteryLevelList.length}');
+      throw StateError(
+          'Battery level characteristic expected 1 value, but got ${batteryLevelList.length}');
     }
 
     return batteryLevelList[0];
@@ -429,6 +434,7 @@ class _OpenEarableSensor extends Sensor {
     required List<String> axisNames,
     required List<String> axisUnits,
     required OpenEarableSensorManager sensorManager,
+    required List<SensorConfiguration> relatedConfigurations,
   })  : _axisNames = axisNames,
         _axisUnits = axisUnits,
         _sensorManager = sensorManager,
@@ -436,6 +442,7 @@ class _OpenEarableSensor extends Sensor {
           sensorName: sensorName,
           chartTitle: chartTitle,
           shortChartTitle: shortChartTitle,
+          relatedConfigurations: relatedConfigurations,
         );
 
   @override
