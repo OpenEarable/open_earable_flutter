@@ -7,6 +7,7 @@ import 'package:open_earable_flutter/open_earable_flutter.dart';
 import '../../managers/open_earable_sensor_manager.dart';
 import '../../utils/simple_kalman.dart';
 import '../../managers/ble_manager.dart';
+import '../capabilities/sensor_configuration_specializations/sensor_frequency_configuration.dart';
 
 const String _ledSetStateCharacteristic =
     "81040e7a-4819-11ee-be56-0242ac120002";
@@ -415,7 +416,8 @@ class OpenEarableV1 extends Wearable
 
     if (batteryLevelList.length != 1) {
       throw StateError(
-          'Battery level characteristic expected 1 value, but got ${batteryLevelList.length}');
+        'Battery level characteristic expected 1 value, but got ${batteryLevelList.length}',
+      );
     }
 
     return batteryLevelList[0];
@@ -545,11 +547,11 @@ class _ImuSensorConfiguration extends SensorConfiguration {
         super(
           name: 'IMU',
           unit: 'Hz',
-          values: const [
-            SensorConfigurationValue(key: '0'),
-            SensorConfigurationValue(key: '10'),
-            SensorConfigurationValue(key: '20'),
-            SensorConfigurationValue(key: '30'),
+          values: [
+            SensorFrequencyConfigurationValue(frequency: 0),
+            SensorFrequencyConfigurationValue(frequency: 10),
+            SensorFrequencyConfigurationValue(frequency: 20),
+            SensorFrequencyConfigurationValue(frequency: 30),
           ],
         );
 
@@ -579,11 +581,11 @@ class _BarometerSensorConfiguration extends SensorConfiguration {
         super(
           name: 'Barometer',
           unit: 'Hz',
-          values: const [
-            SensorConfigurationValue(key: '0'),
-            SensorConfigurationValue(key: '10'),
-            SensorConfigurationValue(key: '20'),
-            SensorConfigurationValue(key: '30'),
+          values: [
+            SensorFrequencyConfigurationValue(frequency: 0),
+            SensorFrequencyConfigurationValue(frequency: 10),
+            SensorFrequencyConfigurationValue(frequency: 20),
+            SensorFrequencyConfigurationValue(frequency: 30),
           ],
         );
 
@@ -604,7 +606,7 @@ class _BarometerSensorConfiguration extends SensorConfiguration {
   }
 }
 
-class _MicrophoneSensorConfiguration extends SensorConfiguration {
+class _MicrophoneSensorConfiguration extends SensorFrequencyConfiguration {
   final OpenEarableSensorManager _sensorManager;
 
   _MicrophoneSensorConfiguration({
@@ -613,17 +615,17 @@ class _MicrophoneSensorConfiguration extends SensorConfiguration {
         super(
           name: 'Microphone',
           unit: 'Hz',
-          values: const [
-            SensorConfigurationValue(key: "0"),
-            SensorConfigurationValue(key: "16000"),
-            SensorConfigurationValue(key: "20000"),
-            SensorConfigurationValue(key: "25000"),
-            SensorConfigurationValue(key: "31250"),
-            SensorConfigurationValue(key: "33333"),
-            SensorConfigurationValue(key: "40000"),
-            SensorConfigurationValue(key: "41667"),
-            SensorConfigurationValue(key: "50000"),
-            SensorConfigurationValue(key: "62500"),
+          values: [
+            SensorFrequencyConfigurationValue(frequency: 0),
+            SensorFrequencyConfigurationValue(frequency: 16000),
+            SensorFrequencyConfigurationValue(frequency: 20000),
+            SensorFrequencyConfigurationValue(frequency: 25000),
+            SensorFrequencyConfigurationValue(frequency: 31250),
+            SensorFrequencyConfigurationValue(frequency: 33333),
+            SensorFrequencyConfigurationValue(frequency: 40000),
+            SensorFrequencyConfigurationValue(frequency: 41667),
+            SensorFrequencyConfigurationValue(frequency: 50000),
+            SensorFrequencyConfigurationValue(frequency: 62500),
           ],
         );
 

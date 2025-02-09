@@ -291,8 +291,8 @@ class _OpenEarableSensorConfiguration extends SensorConfiguration {
       name: name,
       unit: "Hz",
       values: [
-        const SensorConfigurationValue(key: "0"),
-        const SensorConfigurationValue(key: "10"),
+        SensorConfigurationValue(key: "0"),
+        SensorConfigurationValue(key: "10"),
       ], //TODO: fill with values
     );
 
