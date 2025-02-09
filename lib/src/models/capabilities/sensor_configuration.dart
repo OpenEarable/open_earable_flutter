@@ -22,7 +22,7 @@ abstract class SensorConfiguration {
 class SensorConfigurationValue {
   final String key;
 
-  const SensorConfigurationValue({
+  SensorConfigurationValue({
     required this.key,
   });
 
