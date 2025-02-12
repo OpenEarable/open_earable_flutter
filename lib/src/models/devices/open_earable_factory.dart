@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:open_earable_flutter/open_earable_flutter.dart';
 import 'package:open_earable_flutter/src/managers/open_earable_sensor_manager.dart';
+import 'package:open_earable_flutter/src/models/capabilities/sensor_configuration_specializations/sensor_frequency_configuration.dart';
 import 'package:open_earable_flutter/src/models/devices/open_earable_v1.dart';
 import 'package:open_earable_flutter/src/models/devices/open_earable_v2.dart';
 import 'package:open_earable_flutter/src/models/wearable_factory.dart';
@@ -106,14 +107,14 @@ class OpenEarableFactory extends WearableFactory {
 
       Map<String, Object> componentsMap = sensorDetail['Components'] as Map<String, Object>;
       logger.t("components: $componentsMap");
-      
-      sensorConfigurations.add(
-        _OpenEarableSensorConfiguration(
-          sensorId: sensorDetail['SensorID'] as int,
-          name: sensorName,
-          sensorManager: sensorManager,
-        ),
+
+      SensorConfiguration sensorConfig = _OpenEarableSensorConfiguration(
+        sensorId: sensorDetail['SensorID'] as int,
+        name: sensorName,
+        sensorManager: sensorManager,
       );
+      
+      sensorConfigurations.add(sensorConfig);
 
       for (String groupName in componentsMap.keys) {
 
@@ -133,6 +134,7 @@ class OpenEarableFactory extends WearableFactory {
             axisNames: axisDetails.map((e) => e.$1).toList(),
             axisUnits: axisDetails.map((e) => e.$2).toList(),
             sensorManager: sensorManager,
+            relatedConfigurations: [sensorConfig],
           ),
         );
       }
@@ -224,6 +226,7 @@ class _OpenEarableSensorV2 extends Sensor {
     required List<String> axisNames,
     required List<String> axisUnits,
     required OpenEarableSensorManager sensorManager,
+    List<SensorConfiguration> relatedConfigurations = const [],
   })  : _sensorId = sensorId,
         _axisNames = axisNames,
         _axisUnits = axisUnits,
@@ -232,6 +235,7 @@ class _OpenEarableSensorV2 extends Sensor {
           sensorName: sensorName,
           chartTitle: chartTitle,
           shortChartTitle: shortChartTitle,
+          relatedConfigurations: relatedConfigurations,
         );
 
   @override
@@ -291,8 +295,11 @@ class _OpenEarableSensorConfiguration extends SensorConfiguration {
       name: name,
       unit: "Hz",
       values: [
-        SensorConfigurationValue(key: "0"),
-        SensorConfigurationValue(key: "10"),
+        SensorFrequencyConfigurationValue(frequency: 0),
+        SensorFrequencyConfigurationValue(frequency: 10),
+        SensorFrequencyConfigurationValue(frequency: 30),
+        SensorFrequencyConfigurationValue(frequency: 50),
+        SensorFrequencyConfigurationValue(frequency: 100),
       ], //TODO: fill with values
     );
 
