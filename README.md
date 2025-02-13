@@ -8,7 +8,7 @@
 
 This Dart package provides functionality for interacting with OpenEarable devices. It enables you to communicate with OpenEarable devices, control LED colors, control audio, and access raw sensor data.  
   
-[Try it online](https://open-earable-lib-web-example.web.app/), provided your browser supports [Web Bluetooth](https://caniuse.com/web-bluetooth).  
+[Try it online](https://lib-example.open-earable.teco.edu/), provided your browser supports [Web Bluetooth](https://caniuse.com/web-bluetooth).  
   
 <br>  
 
