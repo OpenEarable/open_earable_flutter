@@ -35,6 +35,9 @@ const String buttonStateCharacteristicUuid =
 const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
 const String ledSetStateCharacteristic = "81040e7a-4819-11ee-be56-0242ac120002";
 
+const String smpServiceUuid = "8d53dc1d-1db7-4cd3-868b-8a527460aa84";
+const String smpCharacteristic = "da2e7828-fbce-4e01-ae9e-261174997c48";
+
 // All UUIDs in a list for filters
 List<String> allServiceUuids = [
   OpenEarableV1.ledServiceUuid,

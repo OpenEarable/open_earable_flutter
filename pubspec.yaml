@@ -23,6 +23,8 @@ dependencies:
   permission_handler: ^11.3.1
   universal_ble: ^0.12.0
   web: 0.5.1   # Needed for web compatibility with permission_handler
+  cbor: ^6.3.5
+  crypto: ^3.0.6
 
 dev_dependencies:
   flutter_test:
