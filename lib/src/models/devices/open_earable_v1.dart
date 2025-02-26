@@ -2,23 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:open_earable_flutter/open_earable_flutter.dart';
+
 import '../../managers/open_earable_sensor_manager.dart';
 import '../../utils/simple_kalman.dart';
-import '../capabilities/audio_player_controls.dart';
-import '../capabilities/device_firmware_version.dart';
-import '../capabilities/device_hardware_version.dart';
-import '../capabilities/device_identifier.dart';
-import '../capabilities/frequency_player.dart';
-import '../capabilities/jingle_player.dart';
-import '../capabilities/rgb_led.dart';
-import '../capabilities/sensor.dart';
-import '../capabilities/sensor_configuration.dart';
-import '../capabilities/sensor_configuration_manager.dart';
-import '../capabilities/sensor_manager.dart';
 import '../../managers/ble_manager.dart';
-import '../capabilities/storage_path_audio_player.dart';
-import 'discovered_device.dart';
-import 'wearable.dart';
 
 const String _ledSetStateCharacteristic =
     "81040e7a-4819-11ee-be56-0242ac120002";
@@ -34,6 +22,8 @@ const String _audioSourceCharacteristic =
     "566916a8-476d-11ee-be56-0242ac120002";
 const String _audioStateCharacteristic = "566916a9-476d-11ee-be56-0242ac120002";
 
+const String _batteryLevelCharacteristicUuid = "2A19";
+
 class OpenEarableV1 extends Wearable
     implements
         SensorManager,
@@ -45,7 +35,8 @@ class OpenEarableV1 extends Wearable
         FrequencyPlayer,
         JinglePlayer,
         AudioPlayerControls,
-        StoragePathAudioPlayer {
+        StoragePathAudioPlayer,
+        BatteryLevelService {
   static const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
   static const String deviceInfoServiceUuid =
       "45622510-6468-465a-b141-0b9b0f96b468";
@@ -291,6 +282,7 @@ class OpenEarableV1 extends Wearable
     data.setAll(6, loudnessBytes.buffer.asUint8List());
 
     await _bleManager.write(
+      deviceId: _discoveredDevice.id,
       serviceId: audioPlayerServiceUuid,
       characteristicId: _audioSourceCharacteristic,
       byteData: data,
@@ -316,6 +308,7 @@ class OpenEarableV1 extends Wearable
     data[0] = type;
     data[1] = jingleMap[jingle.key]!;
     await _bleManager.write(
+      deviceId: _discoveredDevice.id,
       serviceId: audioPlayerServiceUuid,
       characteristicId: _audioSourceCharacteristic,
       byteData: data,
@@ -330,6 +323,7 @@ class OpenEarableV1 extends Wearable
     Uint8List data = Uint8List(1);
     data[0] = 1;
     await _bleManager.write(
+      deviceId: _discoveredDevice.id,
       serviceId: audioPlayerServiceUuid,
       characteristicId: _audioStateCharacteristic,
       byteData: data,
@@ -341,6 +335,7 @@ class OpenEarableV1 extends Wearable
     Uint8List data = Uint8List(1);
     data[0] = 2;
     await _bleManager.write(
+      deviceId: _discoveredDevice.id,
       serviceId: audioPlayerServiceUuid,
       characteristicId: _audioStateCharacteristic,
       byteData: data,
@@ -352,6 +347,7 @@ class OpenEarableV1 extends Wearable
     Uint8List data = Uint8List(1);
     data[0] = 3;
     await _bleManager.write(
+      deviceId: _discoveredDevice.id,
       serviceId: audioPlayerServiceUuid,
       characteristicId: _audioStateCharacteristic,
       byteData: data,
@@ -369,10 +365,55 @@ class OpenEarableV1 extends Wearable
     data.setRange(2, 2 + nameBytes.length, nameBytes);
 
     await _bleManager.write(
+      deviceId: _discoveredDevice.id,
       serviceId: audioPlayerServiceUuid,
       characteristicId: _audioSourceCharacteristic,
       byteData: data,
     );
+  }
+  
+  @override
+  Stream<int> get batteryPercentageStream {
+    StreamController<int> controller = StreamController();
+    Timer? pollingTimer;
+
+    controller.onCancel = () {
+      pollingTimer?.cancel();
+    };
+
+    controller.onListen = () {
+      pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+        try {
+          int batteryPercentage = await readBatteryPercentage();
+          controller.add(batteryPercentage);
+        } catch (e) {
+          controller.addError(e);
+        }
+      });
+    };
+
+    readBatteryPercentage().then(controller.add).catchError((e) {
+      logger.e('Error reading battery percentage: $e');
+    });
+
+    return controller.stream;
+  }
+  
+  @override
+  Future<int> readBatteryPercentage() async {
+    List<int> batteryLevelList = await _bleManager.read(
+      deviceId: _discoveredDevice.id,
+      serviceId: batteryServiceUuid,
+      characteristicId: _batteryLevelCharacteristicUuid,
+    );
+
+    logger.t("Battery level bytes: $batteryLevelList");
+
+    if (batteryLevelList.length != 1) {
+      throw StateError('Battery level characteristic expected 1 value, but got ${batteryLevelList.length}');
+    }
+
+    return batteryLevelList[0];
   }
 }
 

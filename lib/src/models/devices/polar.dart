@@ -39,6 +39,29 @@ class Polar extends Wearable
   }
 
   @override
+  String? getWearableIconPath({bool darkmode = false}) {
+    String basePath =
+        'packages/open_earable_flutter/assets/wearable_icons/polar';
+
+    if (_discoveredDevice.name.contains("Unite") ||
+        _discoveredDevice.name.contains("Ignite") ||
+        _discoveredDevice.name.contains("Vantage") ||
+        _discoveredDevice.name.contains("Pacer")) {
+      basePath += '/watch';
+    } else if (_discoveredDevice.name.contains("H9") ||
+        _discoveredDevice.name.contains("H10")) {
+      basePath += '/strap_sensor';
+    } else {
+      basePath += '/default';
+    }
+
+    if (darkmode) {
+      return '$basePath/icon_white.svg';
+    }
+    return '$basePath/icon.svg';
+  }
+
+  @override
   String get deviceId => _discoveredDevice.id;
 
   @override

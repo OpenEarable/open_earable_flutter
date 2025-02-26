@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:example/widgets/battery_info_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:open_earable_flutter/open_earable_flutter.dart';
@@ -40,8 +41,8 @@ class MyAppState extends State<MyApp> {
       sensorViews = SensorView.createSensorViews(_connectedDevice!);
       sensorConfigurationViews =
           SensorConfigurationView.createSensorConfigurationViews(
-        _connectedDevice!,
-      );
+            _connectedDevice!,
+          );
     }
 
     String? wearableIconPath = _connectedDevice?.getWearableIconPath();
@@ -168,7 +169,18 @@ class MyAppState extends State<MyApp> {
                     ],
                   ),
                 ),
-              if (_connectedDevice is RgbLed)
+              if (_connectedDevice != null)
+                BatteryInfoWidget(connectedDevice: _connectedDevice!),
+              if (_connectedDevice is RgbLed && _connectedDevice is StatusLed)
+                GroupedBox(
+                  title: "RGB LED",
+                  child:
+                    RgbLedControlWidget(
+                      rgbLed: _connectedDevice as RgbLed,
+                      statusLed: _connectedDevice as StatusLed?,
+                    ),
+                ),
+              if (_connectedDevice is RgbLed && _connectedDevice is! StatusLed)
                 GroupedBox(
                   title: "RGB LED",
                   child:

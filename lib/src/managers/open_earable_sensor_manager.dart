@@ -27,7 +27,7 @@ class OpenEarableSensorManager {
   /// The [sensorConfig] parameter contains the sensor id, sampling rate
   /// and latency of the sensor.
   Future<void> writeSensorConfig(OpenEarableSensorConfig sensorConfig) async {
-    if (!_bleManager.connected) {
+    if (!_bleManager.isConnected(deviceId)) {
       Exception("Can't write sensor config. Earable not connected");
     }
     await _bleManager.write(
@@ -48,7 +48,7 @@ class OpenEarableSensorManager {
   /// - 1: Barometer data
   /// Returns a [Stream] of sensor data as a [Map] of sensor values.
   Stream<Map<String, dynamic>> subscribeToSensorData(int sensorId) {
-    if (!_bleManager.connected) {
+    if (!_bleManager.isConnected(deviceId)) {
       Exception("Can't subscribe to sensor data. Earable not connected");
     }
     StreamController<Map<String, dynamic>> streamController =
