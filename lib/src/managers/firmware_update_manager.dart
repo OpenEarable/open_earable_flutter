@@ -3,9 +3,13 @@ import 'dart:typed_data';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:cbor/cbor.dart';
 import 'package:open_earable_flutter/src/constants.dart';
-import 'dart:typed_data';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:crypto/crypto.dart';
+
+// Constants for the firmware image structure
+const int IMAGE_TLV_INFO_SIZE = 4; // Size of the TLV info header
+const int IMAGE_TLV_ENTRY_MIN_SIZE = 4; // Minimum size of a TLV entry
+
+const int IMAGE_TLV_SHA256 = 0x10; // SHA-256 hash type
 
 class FirmwareUpdateManager {
   FirmwareUpdateManager();
@@ -23,37 +27,33 @@ class FirmwareUpdateManager {
     await enableNotifications(deviceId);
     setupListener(deviceId);
     Uint8List firmwareData = await loadFirmwareFromAssets(assetPath);
+
     print('Firmware data loaded. Size: ${firmwareData.length} bytes');
 
     // Determine the SHA256 hash of the firmware
-    Digest sha256Hash = sha256.convert(firmwareData);
-    Uint8List shaList = Uint8List.fromList(sha256Hash.bytes);
+    var sha256Hash = extractHashFromTlv(firmwareData);
 
     var mtu = await UniversalBle.requestMtu(deviceId, 247);
-    //mtu = 10;
+
     print("MTU size: $mtu");
     int chunkSize = mtu - 100;
 
     int offset = 0;
     int seq = 0;
     while (offset < firmwareData.length) {
-      // Calculate the current chunk size
       int currentChunkSize = (firmwareData.length - offset).clamp(0, chunkSize);
 
-      // Extract the data chunk
       Uint8List dataChunk =
           firmwareData.sublist(offset, offset + currentChunkSize);
 
-      // Create the CBOR payload for the current chunk
       Uint8List payload = createCborImageUploadPayload(
         offset: offset,
         dataChunk: dataChunk,
         totalSize: offset == 0 ? firmwareData.length : null,
-        sha256: offset == 0 ? shaList : null,
+        sha256: offset == 0 ? sha256Hash : null,
       );
       Uint8List header = buildSmpHeader(0, 2, 0, payload.length, 1, seq, 1);
       print("header generated: $header, payloadLen: ${payload.length}");
-      //Uint8List header = Uint8List.fromList([2, 1, 1]);
 
       Uint8List packet = Uint8List(header.length + payload.length);
       if (packet.length > mtu) {
@@ -64,7 +64,6 @@ class FirmwareUpdateManager {
 
       print("payload length: ${packet.length}");
 
-      // Send the payload over BLE (use your BLE library for the write operation)
       int maxRetries = 3;
       bool success = false;
       int attempt = 0;
@@ -103,7 +102,7 @@ class FirmwareUpdateManager {
       }
       offset += currentChunkSize;
     }
-    await applyUpdate(deviceId, sha256Hash.toString());
+    await applyUpdate(deviceId, sha256Hash);
   }
 
   Uint8List buildSmpHeader(
@@ -145,47 +144,12 @@ class FirmwareUpdateManager {
     });
   }
 
-  // [155, 208, 0, 39, 223, 222, 69, 72, 27, 181, 189, 147, 127, 71, 158, 203, 51, 35, 175, 64, 169, 224, 239, 155, 250, 154, 105, 32, 222, 248, 205, 122]
-  // [120, 208, 57, 231, 61, 132, 181, 16, 42, 25, 162, 15, 8, 229, 100, 227, 182, 68, 38, 65, 39, 250, 195, 72, 120, 118, 7, 216, 82, 151, 162, 6]
-  Future<void> applyUpdate(String deviceId, String hash) async {
+  Future<void> applyUpdate(String deviceId, Uint8List hash) async {
     print(hash);
     final confirmPayload = Uint8List.fromList(
       cbor.encode(
         CborMap({
-          CborString("hash"): CborBytes([
-            155,
-            208,
-            0,
-            39,
-            223,
-            222,
-            69,
-            72,
-            27,
-            181,
-            189,
-            147,
-            127,
-            71,
-            158,
-            203,
-            51,
-            35,
-            175,
-            64,
-            169,
-            224,
-            239,
-            155,
-            250,
-            154,
-            105,
-            32,
-            222,
-            248,
-            205,
-            122
-          ]),
+          CborString("hash"): CborBytes(hash),
           CborString("confirm"):
               const CborBool(true), // Confirm the new firmware
         }),
@@ -285,9 +249,6 @@ class FirmwareUpdateManager {
       } catch (e) {
         print('Error decoding CBOR: $e');
       }
-
-      //if (receivedDeviceId == deviceId &&
-      //    characteristicUuid == smpCharacteristic) {}
     };
   }
 
@@ -299,46 +260,27 @@ class FirmwareUpdateManager {
     int image = 0,
     bool upgrade = false,
   }) {
-    // Build the payload map
     final payload = <CborValue, CborValue>{
-      CborString('off'): CborSmallInt(offset), // Mandatory offset
-      CborString('data'): CborBytes(dataChunk), // Mandatory data chunk
+      CborString('off'): CborSmallInt(offset),
+      CborString('data'): CborBytes(dataChunk),
     };
 
-    // Add fields that are required only for the first chunk (offset == 0)
+    // Add fields that are required only for the first chunk
     if (offset == 0) {
-      payload[CborValue('image')] =
-          CborSmallInt(image); // Optional image number
+      payload[CborValue('image')] = CborSmallInt(image);
       if (totalSize != null) {
-        payload[CborValue('len')] =
-            CborSmallInt(totalSize); // Optional total size
+        payload[CborValue('len')] = CborSmallInt(totalSize);
       }
       if (sha256 != null) {
-        payload[CborValue('sha')] = CborBytes(sha256); // Optional SHA256 hash
+        payload[CborValue('sha')] = CborBytes(sha256);
       }
-      payload[CborValue('upgrade')] =
-          CborBool(upgrade); // Optional upgrade flag
+      payload[CborValue('upgrade')] = CborBool(upgrade);
     }
 
-    // Encode the payload as CBOR
     var map = CborMap(payload);
 
-    // Return the encoded CBOR payload as a list of bytes
     return Uint8List.fromList(cbor.encode(map));
   }
-
-  /*
-  List<int> createImageUploadPayload(
-      int offset, Uint8List dataChunk, int totalSize) {
-    //const cbor = CborEncoder();
-    cbor.encode(CborMap({1: 2, 3: 4}));
-    cbor.encode(CborMap({
-      CborString('off'): CborSmallInt(offset), // Offset of this chunk
-      CborString('data'): dataChunk, // Chunk data
-      CborString('len'): CborSmallInt(totalSize), // Total firmware size
-    }));
-  }
-  */
 
   Future<BleService> findSmpService(String deviceId) async {
     final services = await UniversalBle.discoverServices(deviceId);
@@ -364,5 +306,53 @@ class FirmwareUpdateManager {
       ),
     );
     return smpCharacteristic;
+  }
+
+  // Parse the firmware image and compute the hash
+  Uint8List extractHashFromTlv(Uint8List firmwareData) {
+    try {
+      // structure of mcuboot image format: https://docs.mcuboot.com/design.html#image-format
+      // Parse header
+      final header = firmwareData.sublist(0, 32);
+      final magic = header.buffer.asByteData().getUint32(0, Endian.little);
+      final headerSize = header.buffer
+          .asByteData()
+          .getUint32(8, Endian.little); // ih_img_size at offset 16
+      final imageSize = header.buffer
+          .asByteData()
+          .getUint32(12, Endian.little); // ih_img_size at offset 16
+
+      // Locate the TLV trailer
+      final tlvOffset = headerSize + imageSize;
+
+      // Iterate through TLV entries and find hash
+      var tlvEntryOffset = tlvOffset + IMAGE_TLV_INFO_SIZE;
+      while (tlvEntryOffset + IMAGE_TLV_ENTRY_MIN_SIZE < firmwareData.length) {
+        final tlvEntry = firmwareData.sublist(
+          tlvEntryOffset,
+          tlvEntryOffset + IMAGE_TLV_ENTRY_MIN_SIZE,
+        );
+        final tlvType = tlvEntry[0];
+        final tlvLength =
+            tlvEntry.buffer.asByteData().getUint16(2, Endian.little);
+
+        if (tlvType == IMAGE_TLV_SHA256) {
+          final hashValue = firmwareData.sublist(
+            tlvEntryOffset + 4,
+            tlvEntryOffset + 4 + tlvLength,
+          );
+          print(
+            'Stored Hash: ${hashValue.map((byte) => byte.toRadixString(16).padLeft(2, '0')).toList().join()}',
+          );
+          return hashValue;
+        }
+
+        // Move to the next TLV entry
+        tlvEntryOffset += 4 + tlvLength;
+      }
+    } catch (e) {
+      print('Error parsing firmware image: $e');
+    }
+    throw Exception('Hash not found in TLV trailer.');
   }
 }
