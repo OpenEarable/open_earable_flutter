@@ -167,7 +167,7 @@ class BleManager {
     _connectionCompleters[device.id] = completer;
 
     _connectCallbacks[device.id] = () async {
-      if (!kIsWeb) {
+      if (!kIsWeb && !Platform.isLinux) {
         UniversalBle.requestMtu(device.id, mtu);
       }
       bool connectionResult = false;
