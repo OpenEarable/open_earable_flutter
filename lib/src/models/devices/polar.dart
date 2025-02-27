@@ -6,6 +6,7 @@ import '../capabilities/device_hardware_version.dart';
 import '../capabilities/sensor.dart';
 import '../capabilities/sensor_manager.dart';
 import '../../managers/ble_manager.dart';
+import '../capabilities/sensor_specializations/heart_rate_sensor.dart';
 import 'discovered_device.dart';
 import 'wearable.dart';
 
@@ -121,34 +122,21 @@ class Polar extends Wearable
   }
 }
 
-class _HeartRateSensor extends Sensor {
-  final List<String> _axisNames;
-  final List<String> _axisUnits;
+class _HeartRateSensor extends HeartRateSensor {
   final BleManager _bleManager;
   final DiscoveredDevice _discoveredDevice;
 
   _HeartRateSensor({
     required BleManager bleManager,
     required DiscoveredDevice discoveredDevice,
-  })  : _axisNames = ["HR"],
-        _axisUnits = ["bpm"],
-        _bleManager = bleManager,
+  })  : _bleManager = bleManager,
         _discoveredDevice = discoveredDevice,
-        super(
-          sensorName: "HR",
-          chartTitle: "Heart Rate",
-          shortChartTitle: "HR",
-        );
+        super();
 
   @override
-  List<String> get axisNames => _axisNames;
-
-  @override
-  List<String> get axisUnits => _axisUnits;
-
-  @override
-  Stream<SensorValue> get sensorStream {
-    StreamController<SensorValue> streamController = StreamController();
+  Stream<HeartRateSensorValue> get sensorStream {
+    StreamController<HeartRateSensorValue> streamController =
+        StreamController();
 
     int startTime = DateTime.now().millisecondsSinceEpoch;
 
@@ -168,8 +156,8 @@ class _HeartRateSensor extends Sensor {
           : bytes[1] & 0xFF;
 
       streamController.add(
-        SensorIntValue(
-          values: [heartRate],
+        HeartRateSensorValue(
+          heartRateBpm: heartRate,
           timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
         ),
       );
