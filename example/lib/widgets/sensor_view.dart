@@ -22,9 +22,22 @@ class SensorView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '${sensor.chartTitle} (${sensor.sensorName}):',
-          style: const TextStyle(fontWeight: FontWeight.bold),
+        Row(
+          children: [
+            if (sensor is HeartRateSensor)
+              const Icon(
+                Icons.favorite,
+                color: Colors.red,
+                size: 16.0,
+                semanticLabel: 'Heart Icon',
+              ),
+            if (sensor is HeartRateSensor)
+              const SizedBox(width: 5),
+            Text(
+              '${sensor.chartTitle} (${sensor.sensorName}):',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 0, 0, 0),
