@@ -7,7 +7,6 @@ import 'package:open_earable_flutter/open_earable_flutter.dart';
 import '../../managers/open_earable_sensor_manager.dart';
 import '../../utils/simple_kalman.dart';
 import '../../managers/ble_manager.dart';
-import '../capabilities/sensor_configuration_specializations/sensor_frequency_configuration.dart';
 
 const String _ledSetStateCharacteristic =
     "81040e7a-4819-11ee-be56-0242ac120002";

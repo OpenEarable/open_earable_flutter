@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:open_earable_flutter/open_earable_flutter.dart';
 import 'package:open_earable_flutter/src/managers/open_earable_sensor_manager.dart';
-import 'package:open_earable_flutter/src/models/capabilities/sensor_configuration_specializations/sensor_frequency_configuration.dart';
 import 'package:open_earable_flutter/src/models/devices/open_earable_v1.dart';
 import 'package:open_earable_flutter/src/models/devices/open_earable_v2.dart';
 import 'package:open_earable_flutter/src/models/wearable_factory.dart';
