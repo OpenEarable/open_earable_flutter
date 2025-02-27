@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import '../../../open_earable_flutter.dart';
 import '../../managers/ble_manager.dart';
-import '../capabilities/sensor_specializations/heart_rate_sensor.dart';
 
 // For activating PPG and ACC
 final List<int> _sensorBluetoothCharacteristics = [
