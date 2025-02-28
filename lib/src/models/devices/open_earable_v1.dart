@@ -537,7 +537,7 @@ class _OpenEarableSensor extends Sensor {
   }
 }
 
-class _ImuSensorConfiguration extends SensorConfiguration {
+class _ImuSensorConfiguration extends SensorFrequencyConfiguration {
   final OpenEarableSensorManager _sensorManager;
 
   _ImuSensorConfiguration({
@@ -571,7 +571,7 @@ class _ImuSensorConfiguration extends SensorConfiguration {
   }
 }
 
-class _BarometerSensorConfiguration extends SensorConfiguration {
+class _BarometerSensorConfiguration extends SensorFrequencyConfiguration {
   final OpenEarableSensorManager _sensorManager;
 
   _BarometerSensorConfiguration({
