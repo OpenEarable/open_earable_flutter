@@ -1,12 +1,10 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import '../capabilities/device_firmware_version.dart';
 import '../capabilities/device_hardware_version.dart';
 import '../capabilities/sensor.dart';
 import '../capabilities/sensor_manager.dart';
 import '../../managers/ble_manager.dart';
-import '../capabilities/sensor_specializations/heart_rate_sensor.dart';
 import 'discovered_device.dart';
 import 'wearable.dart';
 
@@ -24,20 +22,10 @@ class Polar extends Wearable
     required super.disconnectNotifier,
     required BleManager bleManager,
     required DiscoveredDevice discoveredDevice,
-  })  : _sensors = [],
+    required List<Sensor> sensors,
+  })  : _sensors = sensors,
         _bleManager = bleManager,
-        _discoveredDevice = discoveredDevice {
-    _initSensors();
-  }
-
-  void _initSensors() {
-    _sensors.add(
-      _HeartRateSensor(
-        bleManager: _bleManager,
-        discoveredDevice: _discoveredDevice,
-      ),
-    );
-  }
+        _discoveredDevice = discoveredDevice;
 
   @override
   String? getWearableIconPath({bool darkmode = false}) {
@@ -119,83 +107,5 @@ class Polar extends Wearable
     }
 
     return hardwareVersion;
-  }
-}
-
-class _HeartRateSensor extends HeartRateSensor {
-  final BleManager _bleManager;
-  final DiscoveredDevice _discoveredDevice;
-
-  _HeartRateSensor({
-    required BleManager bleManager,
-    required DiscoveredDevice discoveredDevice,
-  })  : _bleManager = bleManager,
-        _discoveredDevice = discoveredDevice,
-        super();
-
-  @override
-  Stream<HeartRateSensorValue> get sensorStream {
-    StreamController<HeartRateSensorValue> streamController =
-        StreamController();
-
-    int startTime = DateTime.now().millisecondsSinceEpoch;
-
-    StreamSubscription subscription = _bleManager
-        .subscribe(
-      deviceId: _discoveredDevice.id,
-      serviceId: Polar.heartRateServiceUuid,
-      characteristicId: "00002a37-0000-1000-8000-00805f9b34fb",
-    )
-        .listen((data) {
-      Uint8List bytes = Uint8List.fromList(data);
-
-      int hrFormat = data[0] & 0x01;
-      bool sensorContact = (data[0] & 0x06) >> 1 == 0x03;
-      bool contactSupported = (data[0] & 0x04) != 0;
-      bool rrPresent = (data[0] & 0x10) >> 4 == 1;
-      int energyExpendedFlag = (data[0] & 0x08) >> 3;
-
-      int heartRate = hrFormat == 1
-          ? (data[1] & 0xFF) | ((data[2] & 0xFF) << 8)
-          : data[1] & 0xFF;
-
-      int offset = hrFormat + 2;
-      int energyExpended = 0;
-      if (energyExpendedFlag == 1) {
-        energyExpended =
-            (data[offset] & 0xFF) | ((data[offset + 1] & 0xFF) << 8);
-        offset += 2;
-      }
-
-      List<int> rrIntervals = [];
-      List<int> rrIntervalsMs = [];
-      if (rrPresent) {
-        while (offset + 1 < data.length) {
-          int rrValue =
-              (data[offset] & 0xFF) | ((data[offset + 1] & 0xFF) << 8);
-          offset += 2;
-          rrIntervals.add(rrValue);
-          rrIntervalsMs.add(_mapRr1024ToRrMs(rrValue));
-        }
-      }
-
-      streamController.add(
-        HeartRateSensorValue(
-          heartRateBpm: heartRate,
-          timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
-        ),
-      );
-    });
-
-    // Cancel BLE subscription when canceling stream
-    streamController.onCancel = () {
-      subscription.cancel();
-    };
-
-    return streamController.stream;
-  }
-
-  int _mapRr1024ToRrMs(int rrValue) {
-    return (rrValue * 1000) ~/ 1024;
   }
 }
