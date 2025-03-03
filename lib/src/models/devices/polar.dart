@@ -149,11 +149,35 @@ class _HeartRateSensor extends HeartRateSensor {
         .listen((data) {
       Uint8List bytes = Uint8List.fromList(data);
 
-      int hrFormat = bytes[0] & 0x01;
+      int hrFormat = data[0] & 0x01;
+      bool sensorContact = (data[0] & 0x06) >> 1 == 0x03;
+      bool contactSupported = (data[0] & 0x04) != 0;
+      bool rrPresent = (data[0] & 0x10) >> 4 == 1;
+      int energyExpendedFlag = (data[0] & 0x08) >> 3;
 
       int heartRate = hrFormat == 1
-          ? (bytes[1] & 0xFF) | ((bytes[2] & 0xFF) << 8)
-          : bytes[1] & 0xFF;
+          ? (data[1] & 0xFF) | ((data[2] & 0xFF) << 8)
+          : data[1] & 0xFF;
+
+      int offset = hrFormat + 2;
+      int energyExpended = 0;
+      if (energyExpendedFlag == 1) {
+        energyExpended =
+            (data[offset] & 0xFF) | ((data[offset + 1] & 0xFF) << 8);
+        offset += 2;
+      }
+
+      List<int> rrIntervals = [];
+      List<int> rrIntervalsMs = [];
+      if (rrPresent) {
+        while (offset + 1 < data.length) {
+          int rrValue =
+              (data[offset] & 0xFF) | ((data[offset + 1] & 0xFF) << 8);
+          offset += 2;
+          rrIntervals.add(rrValue);
+          rrIntervalsMs.add(_mapRr1024ToRrMs(rrValue));
+        }
+      }
 
       streamController.add(
         HeartRateSensorValue(
@@ -169,5 +193,9 @@ class _HeartRateSensor extends HeartRateSensor {
     };
 
     return streamController.stream;
+  }
+
+  int _mapRr1024ToRrMs(int rrValue) {
+    return (rrValue * 1000) ~/ 1024;
   }
 }
