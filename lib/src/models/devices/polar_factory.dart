@@ -7,7 +7,9 @@ import 'package:open_earable_flutter/src/models/devices/wearable.dart';
 import 'package:open_earable_flutter/src/models/wearable_factory.dart';
 import 'package:universal_ble/universal_ble.dart';
 import '../../managers/ble_manager.dart';
+import '../capabilities/sensor.dart';
 import '../capabilities/sensor_specializations/heart_rate_sensor.dart';
+import '../capabilities/sensor_specializations/heart_rate_variability_sensor.dart';
 
 class PolarFactory extends WearableFactory {
   static const String _namePrefix = "Polar";
@@ -27,17 +29,29 @@ class PolarFactory extends WearableFactory {
       throw Exception("device is not a polar device");
     }
 
+    List<Sensor> sensors = [
+      _PolarHeartRateSensor(
+        bleManager: bleManager!,
+        discoveredDevice: device,
+      ),
+    ];
+
+    if (device.name.contains(" H9") || device.name.contains(" H10")) {
+      // Chest straps support HRV
+      sensors.add(
+        _PolarHeartRateVariabilitySensor(
+          bleManager: bleManager!,
+          discoveredDevice: device,
+        ),
+      );
+    }
+
     return Polar(
       name: device.name,
       disconnectNotifier: disconnectNotifier!,
       bleManager: bleManager!,
       discoveredDevice: device,
-      sensors: [
-        _HeartRateSensor(
-          bleManager: bleManager!,
-          discoveredDevice: device,
-        ),
-      ],
+      sensors: sensors,
     );
   }
 
@@ -50,11 +64,11 @@ class PolarFactory extends WearableFactory {
   }
 }
 
-class _HeartRateSensor extends HeartRateSensor {
+class _PolarHeartRateSensor extends HeartRateSensor {
   final BleManager _bleManager;
   final DiscoveredDevice _discoveredDevice;
 
-  _HeartRateSensor({
+  _PolarHeartRateSensor({
     required BleManager bleManager,
     required DiscoveredDevice discoveredDevice,
   })  : _bleManager = bleManager,
@@ -77,35 +91,11 @@ class _HeartRateSensor extends HeartRateSensor {
         .listen((data) {
       Uint8List bytes = Uint8List.fromList(data);
 
-      int hrFormat = data[0] & 0x01;
-      bool sensorContact = (data[0] & 0x06) >> 1 == 0x03;
-      bool contactSupported = (data[0] & 0x04) != 0;
-      bool rrPresent = (data[0] & 0x10) >> 4 == 1;
-      int energyExpendedFlag = (data[0] & 0x08) >> 3;
+      int hrFormat = bytes[0] & 0x01;
 
       int heartRate = hrFormat == 1
-          ? (data[1] & 0xFF) | ((data[2] & 0xFF) << 8)
-          : data[1] & 0xFF;
-
-      int offset = hrFormat + 2;
-      int energyExpended = 0;
-      if (energyExpendedFlag == 1) {
-        energyExpended =
-            (data[offset] & 0xFF) | ((data[offset + 1] & 0xFF) << 8);
-        offset += 2;
-      }
-
-      List<int> rrIntervals = [];
-      List<int> rrIntervalsMs = [];
-      if (rrPresent) {
-        while (offset + 1 < data.length) {
-          int rrValue =
-              (data[offset] & 0xFF) | ((data[offset + 1] & 0xFF) << 8);
-          offset += 2;
-          rrIntervals.add(rrValue);
-          rrIntervalsMs.add(_mapRr1024ToRrMs(rrValue));
-        }
-      }
+          ? (bytes[1] & 0xFF) | ((bytes[2] & 0xFF) << 8)
+          : bytes[1] & 0xFF;
 
       streamController.add(
         HeartRateSensorValue(
@@ -122,8 +112,63 @@ class _HeartRateSensor extends HeartRateSensor {
 
     return streamController.stream;
   }
+}
 
-  int _mapRr1024ToRrMs(int rrValue) {
+class _PolarHeartRateVariabilitySensor extends HeartRateVariabilitySensor {
+  _PolarHeartRateVariabilitySensor({
+    required BleManager bleManager,
+    required DiscoveredDevice discoveredDevice,
+  }) : super(
+          rrIntervalsMsStream:
+              _getRrIntervalsMsStream(bleManager, discoveredDevice),
+        );
+
+  static Stream<List<int>> _getRrIntervalsMsStream(
+    BleManager bleManager,
+    DiscoveredDevice discoveredDevice,
+  ) {
+    StreamController<List<int>> streamController = StreamController();
+
+    StreamSubscription subscription = bleManager
+        .subscribe(
+      deviceId: discoveredDevice.id,
+      serviceId: Polar.heartRateServiceUuid,
+      characteristicId: "00002a37-0000-1000-8000-00805f9b34fb",
+    )
+        .listen((data) {
+      Uint8List bytes = Uint8List.fromList(data);
+
+      int hrFormat = bytes[0] & 0x01;
+      bool rrPresent = (bytes[0] & 0x10) >> 4 == 1;
+      int energyExpendedFlag = (bytes[0] & 0x08) >> 3;
+
+      int offset = hrFormat + 2;
+      if (energyExpendedFlag == 1) {
+        offset += 2;
+      }
+
+      List<int> rrIntervalsMs = [];
+      if (rrPresent) {
+        while (offset + 1 < bytes.length) {
+          int rrValue =
+              (bytes[offset] & 0xFF) | ((bytes[offset + 1] & 0xFF) << 8);
+          offset += 2;
+          rrIntervalsMs.add(_mapRr1024ToRrMs(rrValue));
+        }
+
+        streamController.add(rrIntervalsMs);
+      }
+    });
+
+    // Cancel BLE subscription when canceling stream
+    streamController.onCancel = () {
+      subscription.cancel();
+    };
+
+    return streamController.stream;
+  }
+
+  static int _mapRr1024ToRrMs(int rrValue) {
     return (rrValue * 1000) ~/ 1024;
   }
 }
