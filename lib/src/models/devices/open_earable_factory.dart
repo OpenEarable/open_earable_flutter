@@ -22,6 +22,11 @@ class OpenEarableFactory extends WearableFactory {
   final _v2Regex = RegExp(r'^2\.\d+\.\d+$');
 
   @override
+  bool possiblySupported(DiscoveredDevice device) {
+    return device.name.startsWith('OpenEarable');
+  }
+
+  @override
   Future<bool> matches(DiscoveredDevice device, List<BleService> services) async {
     if (!services.any((service) => service.uuid == _deviceInfoServiceUuid)) {
       logger.d("'$device' has no service matching '$_deviceInfoServiceUuid'");

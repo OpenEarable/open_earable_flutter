@@ -56,6 +56,11 @@ class PolarFactory extends WearableFactory {
   }
 
   @override
+  bool possiblySupported(DiscoveredDevice device) {
+    return device.name.startsWith(_namePrefix);
+  }
+
+  @override
   Future<bool> matches(
     DiscoveredDevice device,
     List<BleService> services,

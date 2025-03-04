@@ -7,6 +7,9 @@ abstract class WearableFactory {
   BleManager? bleManager;
   Notifier? disconnectNotifier;
 
+  /// For having a filter when scanning for devices
+  bool possiblySupported(DiscoveredDevice device);
+
   Future<bool> matches(DiscoveredDevice device, List<BleService> services);
   Future<Wearable> createFromDevice(DiscoveredDevice device);
 }

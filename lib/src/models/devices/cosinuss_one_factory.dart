@@ -8,6 +8,11 @@ class CosinussOneFactory extends WearableFactory {
   static const String _name = "earconnect";
 
   @override
+  bool possiblySupported(DiscoveredDevice device) {
+    return device.name == _name;
+  }
+
+  @override
   Future<bool> matches(DiscoveredDevice device, List<BleService> services) async {
     return device.name == _name;
   }
