@@ -71,7 +71,7 @@ class BleManager {
   }
 
   /// Initiates the BLE device scan to discover nearby Bluetooth devices.
-  Future<void> startScan() async {
+  Future<void> startScan({bool filterByServices = false}) async {
     _init();
 
     // The example code does not await this function before getting `scanStream`.
@@ -144,7 +144,7 @@ class BleManager {
         await UniversalBle.startScan(
           scanFilter: ScanFilter(
             // Needs to be passed for web, can be empty for the rest
-            withServices: kIsWeb ? allServiceUuids : [],
+            withServices: (kIsWeb || filterByServices) ? allServiceUuids : [],
           ),
         );
       }
