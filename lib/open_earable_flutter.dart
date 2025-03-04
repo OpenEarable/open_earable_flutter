@@ -44,6 +44,8 @@ class WearableManager {
 
   late final BleManager _bleManager;
 
+  bool _excludeUnsupportedOnScan = false;
+
   final List<WearableFactory> _wearableFactories = [
     OpenEarableFactory(),
     CosinussOneFactory(),
@@ -67,11 +69,23 @@ class WearableManager {
     _wearableFactories.add(factory);
   }
 
-  Future<void> startScan() {
+  Future<void> startScan({
+    bool excludeUnsupported = false,
+  }) {
+    _excludeUnsupportedOnScan = excludeUnsupported;
     return _bleManager.startScan();
   }
 
-  Stream<DiscoveredDevice> get scanStream => _bleManager.scanStream;
+  Stream<DiscoveredDevice> get scanStream {
+    if (_excludeUnsupportedOnScan) {
+      return _bleManager.scanStream.where(
+        (device) => _wearableFactories
+            .any((factory) => factory.possiblySupported(device)),
+      );
+    }
+
+    return _bleManager.scanStream;
+  }
 
   Future<Wearable> connectToDevice(DiscoveredDevice device) async {
     Notifier disconnectNotifier = Notifier();
