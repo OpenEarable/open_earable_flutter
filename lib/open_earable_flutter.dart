@@ -67,8 +67,10 @@ class WearableManager {
     _wearableFactories.add(factory);
   }
 
-  Future<void> startScan() {
-    return _bleManager.startScan();
+  Future<void> startScan({
+    bool excludeUnsupported = false,
+  }) {
+    return _bleManager.startScan(filterByServices: excludeUnsupported);
   }
 
   Stream<DiscoveredDevice> get scanStream => _bleManager.scanStream;
