@@ -6,6 +6,8 @@ import 'models/devices/polar.dart';
 const String sensorServiceUuid = "34c2e3bb-34aa-11eb-adc1-0242ac120002";
 const String sensorConfigurationCharacteristicUuid =
     "34c2e3bd-34aa-11eb-adc1-0242ac120002";
+const String sensorConfigurationV2CharacteristicUuid =
+    "34c2e3be-34aa-11eb-adc1-0242ac120002";
 const String sensorDataCharacteristicUuid =
     "34c2e3bc-34aa-11eb-adc1-0242ac120002";
 
@@ -19,6 +21,7 @@ const String deviceHardwareVersionCharacteristicUuid =
 
 const String parseInfoServiceUuid = "caa25cb7-7e1b-44f2-adc9-e8c06c9ced43";
 const String schemeCharacteristicUuid = "caa25cb8-7e1b-44f2-adc9-e8c06c9ced43";
+const String schemeCharacteristicV2Uuid = "caa25cb9-7e1b-44f2-adc9-e8c06c9ced43";
 const String sensorNamesCharacteristicUuid =
     "caa25cb9-7e1b-44f2-adc9-e8c06c9ced43";
 
