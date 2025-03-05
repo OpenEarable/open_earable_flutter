@@ -87,7 +87,7 @@ class OpenEarableV1 extends Wearable
   }
 
   void _initSensors() {
-    OpenEarableSensorManager sensorManager = OpenEarableSensorManager(
+    OpenEarableSensorHandler sensorManager = OpenEarableSensorHandler(
       bleManager: _bleManager,
       deviceId: _discoveredDevice.id,
     );
@@ -426,7 +426,7 @@ class OpenEarableV1 extends Wearable
 class _OpenEarableSensor extends Sensor {
   final List<String> _axisNames;
   final List<String> _axisUnits;
-  final OpenEarableSensorManager _sensorManager;
+  final OpenEarableSensorHandler _sensorManager;
 
   _OpenEarableSensor({
     required String sensorName,
@@ -434,7 +434,7 @@ class _OpenEarableSensor extends Sensor {
     required String shortChartTitle,
     required List<String> axisNames,
     required List<String> axisUnits,
-    required OpenEarableSensorManager sensorManager,
+    required OpenEarableSensorHandler sensorManager,
     required List<SensorConfiguration> relatedConfigurations,
   })  : _axisNames = axisNames,
         _axisUnits = axisUnits,
@@ -538,10 +538,10 @@ class _OpenEarableSensor extends Sensor {
 }
 
 class _ImuSensorConfiguration extends SensorFrequencyConfiguration {
-  final OpenEarableSensorManager _sensorManager;
+  final OpenEarableSensorHandler _sensorManager;
 
   _ImuSensorConfiguration({
-    required OpenEarableSensorManager sensorManager,
+    required OpenEarableSensorHandler sensorManager,
   })  : _sensorManager = sensorManager,
         super(
           name: 'IMU',
@@ -572,10 +572,10 @@ class _ImuSensorConfiguration extends SensorFrequencyConfiguration {
 }
 
 class _BarometerSensorConfiguration extends SensorFrequencyConfiguration {
-  final OpenEarableSensorManager _sensorManager;
+  final OpenEarableSensorHandler _sensorManager;
 
   _BarometerSensorConfiguration({
-    required OpenEarableSensorManager sensorManager,
+    required OpenEarableSensorHandler sensorManager,
   })  : _sensorManager = sensorManager,
         super(
           name: 'Barometer',
@@ -606,10 +606,10 @@ class _BarometerSensorConfiguration extends SensorFrequencyConfiguration {
 }
 
 class _MicrophoneSensorConfiguration extends SensorFrequencyConfiguration {
-  final OpenEarableSensorManager _sensorManager;
+  final OpenEarableSensorHandler _sensorManager;
 
   _MicrophoneSensorConfiguration({
-    required OpenEarableSensorManager sensorManager,
+    required OpenEarableSensorHandler sensorManager,
   })  : _sensorManager = sensorManager,
         super(
           name: 'Microphone',
