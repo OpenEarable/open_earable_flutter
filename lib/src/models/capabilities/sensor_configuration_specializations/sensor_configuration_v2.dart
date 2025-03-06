@@ -1,15 +1,21 @@
 import 'dart:ffi';
 
+import 'package:open_earable_flutter/src/models/capabilities/sensor_config_capabilities/recordable_sensor_config.dart';
+import 'package:open_earable_flutter/src/models/capabilities/sensor_config_capabilities/streamable_sensor_configuration.dart';
+
 import '../../../managers/v2_sensor_handler.dart';
 import '../sensor_configuration.dart';
 
-class SensorConfigurationV2 extends SensorConfiguration<SensorConfigurationValueV2> {
-  // TODO: Add capabilities to sensor configuration
+class SensorConfigurationV2 extends SensorConfiguration<SensorConfigurationValueV2> implements StreamableSensorConfiguration, RecordableSensorConfig {
+
   final int maxStreamingFreqIndex;
   final V2SensorHandler _sensorHandler;
 
+  @override
+  bool recordData = false;
+  
+  @override
   bool streamData = false;
-  bool storeData = false;
 
   SensorConfigurationV2({
     required String name,
@@ -30,7 +36,7 @@ class SensorConfigurationV2 extends SensorConfiguration<SensorConfigurationValue
       sensorId: configuration.sensorId as Uint8,
       sampleRateIndex: configuration.frequencyIndex as Uint8,
       streamData: streamData,
-      storeData: storeData,
+      storeData: recordData,
     );
     _sensorHandler.writeSensorConfig(sensorConfig);
   }
