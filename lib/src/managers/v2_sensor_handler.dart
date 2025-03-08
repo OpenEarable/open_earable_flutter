@@ -6,21 +6,21 @@ import '../../open_earable_flutter.dart';
 import '../constants.dart';
 import 'ble_manager.dart';
 import 'sensor_handler.dart';
-import '../utils/sensor_scheme_parser/sensor_scheme_parser.dart';
+import '../utils/sensor_scheme_parser/sensor_scheme_reader.dart';
 import '../utils/sensor_value_parser/sensor_value_parser.dart';
 
 class V2SensorHandler extends SensorHandler<V2SensorConfig> {
   final DiscoveredDevice _discoveredDevice;
   final BleManager _bleManager;
 
-  final SensorSchemeParser _sensorSchemeParser;
+  final SensorSchemeReader _sensorSchemeParser;
   final SensorValueParser _sensorValueParser;
   List<SensorScheme>? _sensorSchemes;
 
   V2SensorHandler({
     required DiscoveredDevice discoveredDevice,
     required BleManager bleManager,
-    required SensorSchemeParser sensorSchemeParser,
+    required SensorSchemeReader sensorSchemeParser,
     required SensorValueParser sensorValueParser,
   })  : _discoveredDevice = discoveredDevice,
         _bleManager = bleManager,
@@ -88,13 +88,7 @@ class V2SensorHandler extends SensorHandler<V2SensorConfig> {
   /// Reads the sensor scheme that is needed to parse the raw sensor
   /// data bytes
   Future<void> _readSensorScheme() async {
-    List<int> byteStream = await _bleManager.read(
-      deviceId: _discoveredDevice.id,
-      serviceId: parseInfoServiceUuid,
-      characteristicId: schemeCharacteristicV2Uuid,
-    );
-
-    _sensorSchemes = _sensorSchemeParser.parse(byteStream);
+    _sensorSchemes = await _sensorSchemeParser.readSensorSchemes();
   }
 }
 

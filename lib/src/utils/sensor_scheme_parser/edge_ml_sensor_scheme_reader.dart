@@ -1,13 +1,23 @@
-import 'sensor_scheme_parser.dart';
+import 'package:open_earable_flutter/src/managers/ble_manager.dart';
+
+import '../../constants.dart';
+import 'sensor_scheme_reader.dart';
 
 /// This class is used to parse the sensor scheme from the byte stream of Devices, matching the EdgeML sensor scheme.
-class EdgeMlSensorSchemeParser extends SensorSchemeParser {
+class EdgeMlSensorSchemeReader extends SensorSchemeReader {
+
+  final BleManager _bleManager;
+  final String _deviceId;
+
+  Map<int, SensorScheme> _sensorSchemes = {};
+
+  /// Creates a [EdgeMlSensorSchemeReader] instance with the specified [bleManager] and [deviceId].
+  EdgeMlSensorSchemeReader(this._bleManager, this._deviceId);
 
   /// Parses the sensor scheme from the byte stream.
   /// The [byteStream] is a list of bytes that contains the sensor scheme.
   /// Returns a list of [SensorScheme] objects.
-  @override
-  List<SensorScheme> parse(List<int> byteStream) {
+  List<SensorScheme> _parse(List<int> byteStream) {
     int currentIndex = 0;
 
     int numSensors = byteStream[currentIndex++];
@@ -62,5 +72,33 @@ class EdgeMlSensorSchemeParser extends SensorSchemeParser {
     }
 
     return sensorSchemes;
+  }
+  
+  @override
+  Future<SensorScheme?> getSchemeForSensor(int sensorId) {
+    if (_sensorSchemes.isEmpty) {
+      return readSensorSchemes().then((value) {
+        return _sensorSchemes[sensorId];
+      });
+    } else {
+      return Future.value(_sensorSchemes[sensorId]);
+    }
+  }
+  
+  @override
+  Future<List<SensorScheme>> readSensorSchemes({bool forceRead = false}) {
+    if (!forceRead && _sensorSchemes.isNotEmpty) {
+      return Future.value(_sensorSchemes.values.toList());
+    }
+
+    return _bleManager.read(
+      deviceId: _deviceId,
+      serviceId: parseInfoServiceUuid,
+      characteristicId: schemeCharacteristicUuid,
+    ).then((byteStream) {
+      List<SensorScheme> sensorSchemeList = _parse(byteStream);
+      _sensorSchemes = Map.fromEntries(sensorSchemeList.map((e) => MapEntry(e.sensorId, e)));
+      return _sensorSchemes.values.toList();
+    });
   }
 }

@@ -1,6 +1,7 @@
-abstract class SensorSchemeParser {
-  /// Parses the byte stream and returns a list of [SensorScheme] instances.
-  List<SensorScheme> parse(List<int> byteStream);
+abstract class SensorSchemeReader {
+  Future<SensorScheme?> getSchemeForSensor(int sensorId);
+
+  Future<List<SensorScheme>> readSensorSchemes({bool forceRead = false});
 }
 
 /// Represents a sensor component with its type, group name, component name, and unit name.
