@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import '../sensor_scheme_parser/sensor_scheme_parser.dart';
+import '../sensor_scheme_parser/sensor_scheme_reader.dart';
 import 'sensor_value_parser.dart';
 
 class EdgeMlSensorValueParser extends SensorValueParser {

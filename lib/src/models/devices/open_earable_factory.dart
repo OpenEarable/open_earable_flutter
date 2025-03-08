@@ -6,13 +6,12 @@ import 'package:open_earable_flutter/src/models/capabilities/sensor_configuratio
 import 'package:open_earable_flutter/src/models/devices/open_earable_v1.dart';
 import 'package:open_earable_flutter/src/models/devices/open_earable_v2.dart';
 import 'package:open_earable_flutter/src/models/wearable_factory.dart';
-import 'package:open_earable_flutter/src/utils/sensor_scheme_parser/sensor_scheme_parser.dart';
-import 'package:open_earable_flutter/src/utils/sensor_scheme_parser/v2_sensor_scheme_parser.dart';
+import 'package:open_earable_flutter/src/utils/sensor_scheme_parser/sensor_scheme_reader.dart';
+import 'package:open_earable_flutter/src/utils/sensor_scheme_parser/v2_sensor_scheme_reader.dart';
 import 'package:open_earable_flutter/src/utils/sensor_value_parser/edge_ml_sensor_value_parser.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 import '../../managers/v2_sensor_handler.dart';
-import '../../constants.dart';
 
 const String _deviceInfoServiceUuid = "45622510-6468-465a-b141-0b9b0f96b468";
 const String _deviceFirmwareVersionCharacteristicUuid =
@@ -86,14 +85,7 @@ class OpenEarableFactory extends WearableFactory {
   Future<(List<Sensor>, List<SensorConfiguration>)> _initSensors(DiscoveredDevice device) async {
     List<Sensor> sensors = [];
     List<SensorConfiguration> sensorConfigurations = [];
-
-    List<int> sensorParseSchemeData = await bleManager!.read(
-      deviceId: device.id,
-      serviceId: parseInfoServiceUuid,
-      characteristicId: schemeCharacteristicV2Uuid,
-    );
-
-    SensorSchemeParser schemeParser = V2SensorSchemeParser();
+    SensorSchemeReader schemeParser = V2SensorSchemeReader(bleManager!, device.id);
 
     V2SensorHandler sensorManager = V2SensorHandler(
       bleManager: bleManager!,
@@ -102,7 +94,7 @@ class OpenEarableFactory extends WearableFactory {
       sensorValueParser: EdgeMlSensorValueParser(),
     );
 
-    List<SensorScheme> sensorSchemes = schemeParser.parse(sensorParseSchemeData);
+    List<SensorScheme> sensorSchemes = await schemeParser.readSensorSchemes();
 
     for (SensorScheme scheme in sensorSchemes) {
       List<SensorConfigurationValueV2> sensorConfigurationValues = [];

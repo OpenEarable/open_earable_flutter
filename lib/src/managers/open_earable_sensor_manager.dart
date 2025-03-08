@@ -3,12 +3,12 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:open_earable_flutter/src/managers/sensor_handler.dart';
-import 'package:open_earable_flutter/src/utils/sensor_scheme_parser/edge_ml_sensor_scheme_parser.dart';
+import 'package:open_earable_flutter/src/utils/sensor_scheme_parser/edge_ml_sensor_scheme_reader.dart';
 import 'package:open_earable_flutter/src/utils/sensor_value_parser/sensor_value_parser.dart';
 
 import '../constants.dart';
 import '../utils/mahony_ahrs.dart';
-import '../utils/sensor_scheme_parser/sensor_scheme_parser.dart';
+import '../utils/sensor_scheme_parser/sensor_scheme_reader.dart';
 import '../utils/sensor_value_parser/edge_ml_sensor_value_parser.dart';
 import 'ble_manager.dart';
 
@@ -20,7 +20,7 @@ class OpenEarableSensorHandler extends SensorHandler<OpenEarableSensorConfig> {
   final BleManager _bleManager;
   final MahonyAHRS _mahonyAHRS = MahonyAHRS();
 
-  final SensorSchemeParser _sensorSchemeParser;
+  final SensorSchemeReader _sensorSchemeParser;
   final SensorValueParser _sensorValueParser;
   List<SensorScheme>? _sensorSchemes;
 
@@ -28,11 +28,13 @@ class OpenEarableSensorHandler extends SensorHandler<OpenEarableSensorConfig> {
   OpenEarableSensorHandler({
     required BleManager bleManager,
     required this.deviceId,
-    SensorSchemeParser? sensorSchemeParser,
+    SensorSchemeReader? sensorSchemeParser,
     SensorValueParser? sensorValueParser,
   })  : _bleManager = bleManager,
-        _sensorSchemeParser = sensorSchemeParser ?? EdgeMlSensorSchemeParser(),
-        _sensorValueParser = sensorValueParser ?? EdgeMlSensorValueParser();
+        _sensorSchemeParser = sensorSchemeParser ?? EdgeMlSensorSchemeReader(bleManager, deviceId),
+        _sensorValueParser = sensorValueParser ?? EdgeMlSensorValueParser() {
+    _readSensorScheme();
+  }
 
   /// Writes the sensor configuration to the OpenEarable device.
   ///
@@ -49,7 +51,7 @@ class OpenEarableSensorHandler extends SensorHandler<OpenEarableSensorConfig> {
       characteristicId: sensorConfigurationCharacteristicUuid,
       byteData: sensorConfig.byteList,
     );
-    if (_sensorSchemes == null) {
+    if (_sensorSchemes == null || _sensorSchemes!.isEmpty) {
       await _readSensorScheme();
     }
   }
@@ -143,13 +145,7 @@ class OpenEarableSensorHandler extends SensorHandler<OpenEarableSensorConfig> {
   /// Reads the sensor scheme that is needed to parse the raw sensor
   /// data bytes
   Future<void> _readSensorScheme() async {
-    List<int> byteStream = await _bleManager.read(
-      deviceId: deviceId,
-      serviceId: parseInfoServiceUuid,
-      characteristicId: schemeCharacteristicUuid,
-    );
-
-    _sensorSchemes = _sensorSchemeParser.parse(byteStream);
+    _sensorSchemes = await _sensorSchemeParser.readSensorSchemes();
   }
 }
 
