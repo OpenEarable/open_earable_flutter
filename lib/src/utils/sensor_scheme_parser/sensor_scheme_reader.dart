@@ -1,5 +1,5 @@
 abstract class SensorSchemeReader {
-  Future<SensorScheme?> getSchemeForSensor(int sensorId);
+  Future<SensorScheme> getSchemeForSensor(int sensorId);
 
   Future<List<SensorScheme>> readSensorSchemes({bool forceRead = false});
 }
