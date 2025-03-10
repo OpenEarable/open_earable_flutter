@@ -75,11 +75,18 @@ class EdgeMlSensorSchemeReader extends SensorSchemeReader {
   }
   
   @override
-  Future<SensorScheme?> getSchemeForSensor(int sensorId) {
-    if (_sensorSchemes.isEmpty) {
-      return readSensorSchemes().then((value) {
-        return _sensorSchemes[sensorId];
-      });
+  Future<SensorScheme> getSchemeForSensor(int sensorId) async {
+    if (_sensorSchemes.isEmpty || !_sensorSchemes.containsKey(sensorId)) {
+      try {
+        await readSensorSchemes();
+      } catch (e) {
+        throw Exception('Failed to read sensor schemes: $e');
+      }
+      if (_sensorSchemes.containsKey(sensorId)) {
+        return _sensorSchemes[sensorId]!;
+      } else {
+        throw Exception('Sensor scheme not found for sensor id: $sensorId');
+      }
     } else {
       return Future.value(_sensorSchemes[sensorId]);
     }

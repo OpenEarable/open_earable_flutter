@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:open_earable_flutter/src/constants.dart';
@@ -22,6 +23,10 @@ class V2SensorSchemeReader extends SensorSchemeReader {
       characteristicId: sensorListCharacteristicUuid,
     );
 
+    if (sensorIdBuffer.isEmpty) {
+      throw Exception("No sensor ids found.");
+    }
+
     int sensorIdCount = sensorIdBuffer[0];
     List<int> sensorIds = sensorIdBuffer.sublist(1, sensorIdCount + 1);
 
@@ -30,7 +35,7 @@ class V2SensorSchemeReader extends SensorSchemeReader {
   }
 
   @override
-  Future<SensorScheme?> getSchemeForSensor(int sensorId) async {
+  Future<SensorScheme> getSchemeForSensor(int sensorId) async {
     if (_sensorIds.isEmpty) {
       await _readSensorIds();
     }
@@ -39,8 +44,15 @@ class V2SensorSchemeReader extends SensorSchemeReader {
     }
 
     if (_sensorSchemes.containsKey(sensorId)) {
-      return _sensorSchemes[sensorId];
+      return _sensorSchemes[sensorId]!;
     }
+
+    // Listen to the notification of the characteristic
+    Stream stream = _bleManager.subscribe(
+      deviceId: _deviceId,
+      serviceId: parseInfoServiceUuid,
+      characteristicId: sensorSchemeCharacteristicUuid,
+    );
 
     // Request sensor value
     await _bleManager.write(
@@ -50,21 +62,22 @@ class V2SensorSchemeReader extends SensorSchemeReader {
       byteData: [sensorId],
     );
 
-    //TODO: Listen to response
+    // Wait for the notification
+    try {
+      await for (List<int> value in stream.timeout(const Duration(seconds: 5))) {
+      SensorScheme scheme = _parseSensorScheme(value);
+      if (scheme.sensorId != sensorId) {
+        throw Exception("Sensor id mismatch. Expected: $sensorId, got: ${scheme.sensorId}");
+      }
 
-    List<int> rawScheme = await _bleManager.read(
-      deviceId: _deviceId,
-      serviceId: parseInfoServiceUuid,
-      characteristicId: sensorSchemeCharacteristicUuid,
-    );
-
-    SensorScheme scheme = _parseSensorScheme(rawScheme);
-    if (scheme.sensorId != sensorId) {
-      logger.e("Sensor id mismatch. Expected: $sensorId, got: ${scheme.sensorId}");
-      return null;
+      _sensorSchemes[sensorId] = scheme;
+      return scheme;
+      }
+    } on TimeoutException catch (e) {
+      throw Exception("Timeout while waiting for sensor scheme: $e");
     }
 
-    return scheme;
+    throw Exception("Unknown error while waiting for sensor scheme.");
   }
 
   @override
@@ -75,10 +88,8 @@ class V2SensorSchemeReader extends SensorSchemeReader {
 
     for (int sensorId in _sensorIds) {
       if (!_sensorSchemes.containsKey(sensorId) || forceRead) {
-        SensorScheme? scheme = await getSchemeForSensor(sensorId);
-        if (scheme != null) {
-          _sensorSchemes[sensorId] = scheme;
-        }
+        SensorScheme scheme = await getSchemeForSensor(sensorId);
+        _sensorSchemes[sensorId] = scheme;
       }
     }
 
