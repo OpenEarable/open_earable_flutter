@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:open_earable_flutter/src/constants.dart';
 import 'package:open_earable_flutter/src/managers/ble_manager.dart';
 
-import '../../../open_earable_flutter.dart' show logger;
 import 'sensor_scheme_reader.dart';
 
 class V2SensorSchemeReader extends SensorSchemeReader {
