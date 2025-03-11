@@ -1,5 +1,3 @@
-import 'dart:ffi';
-
 import 'package:open_earable_flutter/src/models/capabilities/sensor_config_capabilities/recordable_sensor_config.dart';
 import 'package:open_earable_flutter/src/models/capabilities/sensor_config_capabilities/streamable_sensor_configuration.dart';
 
@@ -33,8 +31,8 @@ class SensorConfigurationV2 extends SensorConfiguration<SensorConfigurationValue
   @override
   void setConfiguration(SensorConfigurationValueV2 configuration) {
     V2SensorConfig sensorConfig = V2SensorConfig(
-      sensorId: configuration.sensorId as Uint8,
-      sampleRateIndex: configuration.frequencyIndex as Uint8,
+      sensorId: configuration.sensorId,
+      sampleRateIndex: configuration.frequencyIndex,
       streamData: streamData,
       storeData: recordData,
     );
@@ -51,7 +49,7 @@ class SensorConfigurationValueV2 extends SensorConfigurationValue {
     required this.sensorId,
     required this.frequency,
     required this.frequencyIndex,
-  }) : super(key: frequency.toString());
+  }) : super(key: frequency.toStringAsPrecision(4));
 
   @override
   String toString() {

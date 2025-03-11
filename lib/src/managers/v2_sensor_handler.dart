@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ffi';
 import 'dart:typed_data';
 
 import '../../open_earable_flutter.dart';
@@ -65,8 +64,8 @@ class V2SensorHandler extends SensorHandler<V2SensorConfig> {
     }
 
     Uint8List sensorConfigBytes = Uint8List(3);
-    sensorConfigBytes[0] = sensorConfig.sensorId as int;
-    sensorConfigBytes[1] = sensorConfig.sampleRateIndex as int;
+    sensorConfigBytes[0] = sensorConfig.sensorId;
+    sensorConfigBytes[1] = sensorConfig.sampleRateIndex;
     sensorConfigBytes[2] = (sensorConfig.streamData ? 1 : 0) |
         (sensorConfig.storeData ? 1 : 0) << 1;
 
@@ -93,8 +92,8 @@ class V2SensorHandler extends SensorHandler<V2SensorConfig> {
 }
 
 class V2SensorConfig extends SensorConfig {
-  final Uint8 sensorId;
-  final Uint8 sampleRateIndex;
+  final int sensorId;
+  final int sampleRateIndex;
   final bool streamData;
   final bool storeData;
 
