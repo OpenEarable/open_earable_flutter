@@ -8,7 +8,6 @@ import 'package:open_earable_flutter/src/models/devices/open_earable_v2.dart';
 import 'package:open_earable_flutter/src/models/wearable_factory.dart';
 import 'package:open_earable_flutter/src/utils/sensor_scheme_parser/sensor_scheme_reader.dart';
 import 'package:open_earable_flutter/src/utils/sensor_scheme_parser/v2_sensor_scheme_reader.dart';
-import 'package:open_earable_flutter/src/utils/sensor_value_parser/edge_ml_sensor_value_parser.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 import '../../managers/v2_sensor_handler.dart';
