@@ -24,6 +24,7 @@ abstract class Sensor {
 
 class SensorValue {
   final List<String> _valuesStrings;
+  //TODO: adjust for v2 that uses uint64 timestamp
   final int timestamp;
 
   int get dimensions => _valuesStrings.length;

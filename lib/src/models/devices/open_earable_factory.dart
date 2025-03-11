@@ -12,6 +12,7 @@ import 'package:open_earable_flutter/src/utils/sensor_value_parser/edge_ml_senso
 import 'package:universal_ble/universal_ble.dart';
 
 import '../../managers/v2_sensor_handler.dart';
+import '../../utils/sensor_value_parser/v2_sensor_value_parser.dart';
 
 const String _deviceInfoServiceUuid = "45622510-6468-465a-b141-0b9b0f96b468";
 const String _deviceFirmwareVersionCharacteristicUuid =
@@ -91,7 +92,7 @@ class OpenEarableFactory extends WearableFactory {
       bleManager: bleManager!,
       discoveredDevice: device,
       sensorSchemeParser: schemeParser,
-      sensorValueParser: EdgeMlSensorValueParser(),
+      sensorValueParser: V2SensorValueParser(),
     );
 
     List<SensorScheme> sensorSchemes = await schemeParser.readSensorSchemes();
@@ -137,9 +138,9 @@ class OpenEarableFactory extends WearableFactory {
 
         Sensor sensor = _OpenEarableSensorV2(
           sensorId: scheme.sensorId,
-          sensorName: scheme.sensorName,
-          chartTitle: scheme.sensorName,
-          shortChartTitle: scheme.sensorName,
+          sensorName: groupName,
+          chartTitle: groupName,
+          shortChartTitle: groupName,
           axisNames: axisNames,
           axisUnits: axisUnits,
           sensorManager: sensorManager,
@@ -155,71 +156,6 @@ class OpenEarableFactory extends WearableFactory {
     return (sensors, sensorConfigurations);
   }
 }
-
-
-// Map<String, Object> _parseSchemeCharacteristic(List<int> data) {
-//   Map<String, Object> parsedData = {};
-  
-//   int sensorCount = data.removeAt(0);
-//   for (int i = 0; i < sensorCount; i++) {
-//     Map<String, Object> sensorMap = _parseSensorScheme(data);
-//     parsedData.addAll(sensorMap);
-//   }
-
-//   return parsedData;
-// }
-
-// Map<String, Object> _parseSensorScheme(List<int> data) {
-//   int sensorID = data.removeAt(0);
-//   String sensorName = _parseString(data);
-//   int componentsCount = data.removeAt(0);
-
-//   Map<String, Object> componentsMap = {};
-//   for (int i = 0; i < componentsCount; i++) {
-//     Map<String, Object> comp = _parseComponentScheme(data);
-//     for (var group in comp.keys) {
-//       if (!componentsMap.containsKey(group)) {
-//         componentsMap[group] = <String, Object>{};
-//       }
-//       Map<String, Object> groupMap = comp[group] as Map<String, Object>;
-//       (componentsMap[group] as Map<String, Object>).addAll(groupMap);
-//     }
-//   }
-
-//   Map<String, Object> parsedSensorScheme = {
-//     sensorName : {
-//       'SensorID' : sensorID,
-//       'Components' : componentsMap,
-//     },
-//   };
-
-//   return parsedSensorScheme;
-// }
-
-// Map<String, Object> _parseComponentScheme(List<int> data) {
-//   int type = data.removeAt(0);
-//   String groupName = _parseString(data);
-//   String componentName = _parseString(data);
-//   String unitName = _parseString(data);
-  
-//   Map<String, Object> parsedComponentScheme = {
-//     groupName : {
-//       componentName : {
-//         'type' : type,
-//         'unit' : unitName,
-//       },
-//     },
-//   };
-
-//   return parsedComponentScheme;
-// }
-
-// String _parseString(List<int> data) {
-//   int stringLength = data.removeAt(0);
-//   List<int> stringBytes = data.sublist(0, stringLength);
-//   data.removeRange(0, stringLength);
-//   return String.fromCharCodes(stringBytes);
-// }
 
 class _OpenEarableSensorV2 extends Sensor {
   final int _sensorId;
@@ -292,39 +228,3 @@ class _OpenEarableSensorV2 extends Sensor {
     return _createSingleDataSubscription(sensorName);
   }
 }
-
-// class _OpenEarableSensorConfiguration extends SensorConfiguration {
-//   final OpenEarableSensorHandler _sensorManager;
-//   final int _sensorId;
-
-//   _OpenEarableSensorConfiguration({required int sensorId, required String name, required OpenEarableSensorHandler sensorManager}):
-//     _sensorManager = sensorManager,
-//     _sensorId = sensorId,
-//     super(
-//       name: name,
-//       unit: "Hz",
-//       values: [
-//         SensorFrequencyConfigurationValue(frequency: 0),
-//         SensorFrequencyConfigurationValue(frequency: 10),
-//         SensorFrequencyConfigurationValue(frequency: 30),
-//         SensorFrequencyConfigurationValue(frequency: 50),
-//         SensorFrequencyConfigurationValue(frequency: 100),
-//       ], //TODO: fill with values
-//     );
-
-//   @override
-//   void setConfiguration(SensorConfigurationValue configuration) {
-//     if (!super.values.contains(configuration)) {
-//       throw UnimplementedError();
-//     }
-
-//     double? microphoneSamplingRate = double.parse(configuration.key);
-//     OpenEarableSensorConfig microphoneConfig = OpenEarableSensorConfig(
-//       sensorId: _sensorId,
-//       samplingRate: microphoneSamplingRate,
-//       latency: 0,
-//     );
-
-//     _sensorManager.writeSensorConfig(microphoneConfig);
-//   }
-// }
