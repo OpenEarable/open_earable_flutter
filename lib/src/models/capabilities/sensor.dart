@@ -6,10 +6,15 @@ abstract class Sensor {
   final String shortChartTitle;
   final List<SensorConfiguration> relatedConfigurations;
 
+  /// The exponent of the timestamp value.
+  /// 0 for seconds, -3 for milliseconds, -6 for microseconds, etc.
+  final int timestampExponent;
+
   const Sensor({
     required this.sensorName,
     required this.chartTitle,
     required this.shortChartTitle,
+    this.timestampExponent = -3,
     this.relatedConfigurations = const [],
   });
 

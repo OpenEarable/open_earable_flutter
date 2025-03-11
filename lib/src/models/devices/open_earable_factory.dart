@@ -179,6 +179,7 @@ class _OpenEarableSensorV2 extends Sensor {
           sensorName: sensorName,
           chartTitle: chartTitle,
           shortChartTitle: shortChartTitle,
+          timestampExponent: -6,
           relatedConfigurations: relatedConfigurations,
         );
 
