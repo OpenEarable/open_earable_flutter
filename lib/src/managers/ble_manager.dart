@@ -187,7 +187,6 @@ class BleManager {
       onDisconnect();
     };
 
-
     UniversalBle.connect(device.id);
 
     return completer.future;
@@ -224,8 +223,7 @@ class BleManager {
     // }
 
     final streamController = StreamController<List<int>>();
-    String streamIdentifier =
-        _getCharacteristicKey(deviceId, characteristicId);
+    String streamIdentifier = _getCharacteristicKey(deviceId, characteristicId);
     if (!_streamControllers.containsKey(streamIdentifier)) {
       UniversalBle.setNotifiable(
         deviceId,

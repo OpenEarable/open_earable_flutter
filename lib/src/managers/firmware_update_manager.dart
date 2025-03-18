@@ -1,9 +1,14 @@
+import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
+import 'package:logger/logger.dart';
 import 'package:universal_ble/universal_ble.dart';
 import 'package:cbor/cbor.dart';
 import 'package:open_earable_flutter/src/constants.dart';
 import 'package:flutter/services.dart' show rootBundle;
+
+Logger logger = Logger(printer: SimplePrinter());
 
 // Constants for the firmware image structure
 const int IMAGE_TLV_INFO_SIZE = 4; // Size of the TLV info header
@@ -11,31 +16,60 @@ const int IMAGE_TLV_ENTRY_MIN_SIZE = 4; // Minimum size of a TLV entry
 
 const int IMAGE_TLV_SHA256 = 0x10; // SHA-256 hash type
 
+enum FirmwareUpdateStatus { idle, uploading, confirming, rebooting, success }
+
 class FirmwareUpdateManager {
-  FirmwareUpdateManager();
+  int lastAcknowledgedOffset = 0;
   bool chunkAcknowledged = false;
+
+  var _progressController = StreamController<double>.broadcast();
+  var _statusController = StreamController<FirmwareUpdateStatus>.broadcast();
+
+  Stream<double> get progressStream => _progressController.stream;
+  Stream<FirmwareUpdateStatus> get statusStream => _statusController.stream;
+
+  void updateProgress(double value) {
+    logger.d("Upload Progress: $value");
+    _progressController.add(value < 1 ? value : 1);
+  }
+
+  void updateStatus(FirmwareUpdateStatus status) {
+    logger.d("Upload Status: $status");
+    _statusController.add(status);
+  }
+
   Future<Uint8List> loadFirmwareFromAssets(String filePath) async {
     ByteData byteData = await rootBundle.load(filePath);
     return byteData.buffer.asUint8List();
   }
 
-  Future<void> sendFirmwareData(
-    String deviceId,
-    String assetPath, {
-    int mtu = 20,
-  }) async {
+  Future<void> updateFirmware(String deviceId, String assetPath) async {
+    updateStatus(FirmwareUpdateStatus.idle);
+    updateProgress(0.0);
+
     await enableNotifications(deviceId);
     setupListener(deviceId);
     Uint8List firmwareData = await loadFirmwareFromAssets(assetPath);
 
-    print('Firmware data loaded. Size: ${firmwareData.length} bytes');
+    logger.d('Firmware data loaded. Size: ${firmwareData.length} bytes');
 
     // Determine the SHA256 hash of the firmware
     var sha256Hash = extractHashFromTlv(firmwareData);
+    await sendFirmwareData(deviceId, firmwareData, sha256Hash);
+    await confirmUpdate(deviceId, sha256Hash);
+    await rebootDevice(deviceId);
+  }
 
+  Future<void> sendFirmwareData(
+    String deviceId,
+    Uint8List firmwareData,
+    Uint8List sha256Hash, {
+    int mtu = 20,
+  }) async {
+    updateStatus(FirmwareUpdateStatus.uploading);
     var mtu = await UniversalBle.requestMtu(deviceId, 247);
 
-    print("MTU size: $mtu");
+    logger.d("MTU size: $mtu");
     int chunkSize = mtu - 100;
 
     int offset = 0;
@@ -53,7 +87,7 @@ class FirmwareUpdateManager {
         sha256: offset == 0 ? sha256Hash : null,
       );
       Uint8List header = buildSmpHeader(0, 2, 0, payload.length, 1, seq, 1);
-      print("header generated: $header, payloadLen: ${payload.length}");
+      logger.d("header generated: $header, payloadLen: ${payload.length}");
 
       Uint8List packet = Uint8List(header.length + payload.length);
       if (packet.length > mtu) {
@@ -62,47 +96,56 @@ class FirmwareUpdateManager {
       packet.setAll(0, header);
       packet.setAll(header.length, payload);
 
-      print("payload length: ${packet.length}");
+      logger.d("packet length: ${packet.length}");
 
-      int maxRetries = 3;
-      bool success = false;
-      int attempt = 0;
-      while (!success && attempt < maxRetries) {
-        print("Offset $offset");
-        attempt++;
-        try {
-          print("seqence: $seq");
-          chunkAcknowledged = false;
-          await UniversalBle.writeValue(
-            deviceId,
-            smpServiceUuid,
-            smpCharacteristic,
-            packet,
-            BleOutputProperty.withoutResponse,
-          );
-          var a = 0;
-          while (!chunkAcknowledged) {
-            a += 1;
-            await Future.delayed(const Duration(milliseconds: 10));
-          }
-          print("took $a cycles to acknowledge");
-          success = true;
-          seq += 1;
-          print(
-              "Chunk sent successfully after $attempt attempts. Offset: $offset");
-        } catch (e) {
-          print(
-              "Error sending chunk at offset $offset on attempt $attempt: $e");
-          await Future.delayed(const Duration(milliseconds: 100));
-          if (attempt >= maxRetries) {
-            print("Failed to send chunk after $maxRetries attempts. Aborting.");
-            return;
-          }
-        }
-      }
+      await sendPacket(deviceId, packet, offset: offset, seq: seq);
+      updateProgress(
+          lastAcknowledgedOffset / (firmwareData.length - chunkSize));
+      seq += 1;
       offset += currentChunkSize;
     }
-    await applyUpdate(deviceId, sha256Hash);
+  }
+
+  Future<void> sendPacket(
+    String deviceId,
+    Uint8List packet, {
+    offset = 0,
+    seq = 0,
+  }) async {
+    int maxRetries = 3;
+    bool success = false;
+    int attempt = 0;
+    while (!success && attempt < maxRetries) {
+      attempt++;
+      try {
+        chunkAcknowledged = false;
+        await UniversalBle.writeValue(
+          deviceId,
+          smpServiceUuid,
+          smpCharacteristic,
+          packet,
+          BleOutputProperty.withoutResponse,
+        );
+        var a = 0;
+        while (!chunkAcknowledged) {
+          a += 1;
+          await Future.delayed(const Duration(milliseconds: 10));
+        }
+        logger.d(
+          "Chunk $seq at offset $offset sent successfully after $attempt attempts and $a cycles.",
+        );
+        success = true;
+      } catch (e) {
+        logger
+            .e("Error sending chunk at offset $offset on attempt $attempt: $e");
+        await Future.delayed(const Duration(milliseconds: 100));
+        if (attempt >= maxRetries) {
+          logger
+              .e("Failed to send chunk after $maxRetries attempts. Aborting.");
+          return;
+        }
+      }
+    }
   }
 
   Uint8List buildSmpHeader(
@@ -138,14 +181,15 @@ class FirmwareUpdateManager {
       smpCharacteristic,
       BleInputProperty.notification,
     ).then((_) {
-      print("Notifications enabled successfully.");
+      logger.d("Notifications enabled successfully.");
     }).catchError((error) {
-      print("Failed to enable notifications: $error");
+      logger.e("Failed to enable notifications: $error");
     });
   }
 
-  Future<void> applyUpdate(String deviceId, Uint8List hash) async {
-    print(hash);
+  Future<void> confirmUpdate(String deviceId, Uint8List hash) async {
+    updateStatus(FirmwareUpdateStatus.confirming);
+    logger.d("Confirming update...");
     final confirmPayload = Uint8List.fromList(
       cbor.encode(
         CborMap({
@@ -162,92 +206,50 @@ class FirmwareUpdateManager {
     packet.setAll(0, header);
     packet.setAll(header.length, confirmPayload);
 
-    int maxRetries = 3;
-    bool success = false;
-    int attempt = 0;
+    await sendPacket(deviceId, packet);
+  }
 
-    while (!success && attempt < maxRetries) {
-      attempt++;
-      try {
-        await UniversalBle.writeValue(
-          deviceId,
-          smpServiceUuid,
-          smpCharacteristic,
-          packet,
-          BleOutputProperty.withoutResponse,
-        );
-        success = true;
-        print("Firmware confirmed after $attempt attempts");
-      } catch (e) {
-        print("Error sending chunk on attempt $attempt: $e");
-        await Future.delayed(const Duration(milliseconds: 100));
-        if (attempt >= maxRetries) {
-          print("Failed to send chunk after $maxRetries attempts. Aborting.");
-          return;
-        }
-      }
-    }
-    await Future.delayed(const Duration(seconds: 5));
-    final resetPayload = Uint8List.fromList(
-      cbor.encode(
-        CborMap({}),
-      ),
-    );
-    final resetHeader = buildSmpHeader(0, 2, 0, resetPayload.length, 0, 0, 5);
-
-    Uint8List resetPacket = Uint8List(resetHeader.length + resetPayload.length);
-    packet.setAll(0, resetHeader);
-    packet.setAll(resetHeader.length, resetPacket);
-
-    success = false;
-    attempt = 0;
-    while (!success && attempt < maxRetries) {
-      attempt++;
-      try {
-        await UniversalBle.writeValue(
-          deviceId,
-          smpServiceUuid,
-          smpCharacteristic,
-          Uint8List.fromList(resetPacket),
-          BleOutputProperty.withoutResponse,
-        );
-        success = true;
-        print("Device rebooting after $attempt attempts");
-      } catch (e) {
-        print("Error sending chunk on attempt $attempt: $e");
-        await Future.delayed(const Duration(milliseconds: 100));
-        if (attempt >= maxRetries) {
-          print("Failed to send chunk after $maxRetries attempts. Aborting.");
-          return;
-        }
-      }
-    }
-    print("Device rebooting...");
+  Future<void> rebootDevice(String deviceId) async {
+    updateStatus(FirmwareUpdateStatus.rebooting);
+    logger.d("Device rebooting...");
+    final resetPacket = buildSmpHeader(0, 2, 0, 0, 0, 0, 5);
+    await sendPacket(deviceId, resetPacket);
   }
 
   void setupListener(deviceId) {
-    print("Setup liestener");
+    logger.d("Setup listener");
     UniversalBle.onValueChange = (
       String receivedDeviceId,
       String characteristicUuid,
       Uint8List value,
     ) {
-      print("got notification");
-      print('Received notification: $value');
       int headerLength = 8;
       // Remove the header
       Uint8List cborData = value.sublist(headerLength);
       try {
         final decoded = cbor.decode(cborData);
-        print('Received notification: $decoded');
-
+        logger.d('Received notification');
+        logger.d("  Raw value: $value");
+        logger.d("  Decoded value: $decoded");
+        if (decoded is CborMap) {
+          // Access the value for the key 'off'
+          var offValue = decoded[CborString('off')];
+          if (offValue is CborSmallInt) {
+            // Convert CborSmallInt to Dart int
+            lastAcknowledgedOffset = offValue.value;
+          } else {
+            logger.d('Decoded data is not a CborSmallInt');
+          }
+        } else {
+          logger.d('Decoded data is not a CborMap');
+        }
         // Check if the notification is an acknowledgment
         if (true) {
           //decoded.containsKey('off')) {
           chunkAcknowledged = true; // Set the acknowledgment flag
         }
       } catch (e) {
-        print('Error decoding CBOR: $e');
+        logger.e('Error decoding CBOR: $e');
       }
     };
   }
@@ -294,20 +296,6 @@ class FirmwareUpdateManager {
     return smpService;
   }
 
-  Future<BleCharacteristic> findSmpCharacteristic(
-    String deviceId,
-    BleService smpService,
-  ) async {
-    final smpCharacteristic = smpService.characteristics.firstWhere(
-      (characteristic) =>
-          characteristic.uuid == "da2e7828-fbce-4e01-ae9e-261174997c48",
-      orElse: () => throw Exception(
-        "SMP characteristic not found. Cannot proceed with firmware update.",
-      ),
-    );
-    return smpCharacteristic;
-  }
-
   // Parse the firmware image and compute the hash
   Uint8List extractHashFromTlv(Uint8List firmwareData) {
     try {
@@ -341,8 +329,8 @@ class FirmwareUpdateManager {
             tlvEntryOffset + 4,
             tlvEntryOffset + 4 + tlvLength,
           );
-          print(
-            'Stored Hash: ${hashValue.map((byte) => byte.toRadixString(16).padLeft(2, '0')).toList().join()}',
+          logger.d(
+            'Hash stored in TLV: ${hashValue.map((byte) => byte.toRadixString(16).padLeft(2, '0')).toList().join()}',
           );
           return hashValue;
         }
@@ -351,8 +339,13 @@ class FirmwareUpdateManager {
         tlvEntryOffset += 4 + tlvLength;
       }
     } catch (e) {
-      print('Error parsing firmware image: $e');
+      logger.e('Error parsing firmware image: $e');
     }
     throw Exception('Hash not found in TLV trailer.');
+  }
+
+  void dispose() {
+    _progressController.close();
+    _statusController.close();
   }
 }

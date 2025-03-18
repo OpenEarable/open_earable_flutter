@@ -2,6 +2,7 @@ library open_earable_flutter;
 
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:logger/logger.dart';
 import 'package:open_earable_flutter/src/models/devices/cosinuss_one_factory.dart';
 import 'package:open_earable_flutter/src/models/devices/devkit_factory.dart';
@@ -11,6 +12,7 @@ import 'package:open_earable_flutter/src/models/wearable_factory.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 import 'src/managers/ble_manager.dart';
+import 'src/managers/firmware_update_manager.dart';
 import 'src/managers/notifier.dart';
 import 'src/models/devices/discovered_device.dart';
 import 'src/models/devices/wearable.dart';
@@ -42,6 +44,15 @@ class WearableManager {
   static final WearableManager _instance = WearableManager._internal();
 
   late final BleManager _bleManager;
+  late final FirmwareUpdateManager _firmwareUpdateManager;
+
+  Stream<DiscoveredDevice> get scanStream => _bleManager.scanStream;
+  Stream<double> get updateProgressStream =>
+      _firmwareUpdateManager.progressStream;
+  Stream<FirmwareUpdateStatus> get updateStatusStream =>
+      _firmwareUpdateManager.statusStream;
+
+  Notifier disconnectNotifier = Notifier();
 
   final List<WearableFactory> _wearableFactories = [
     OpenEarableFactory(),
@@ -56,6 +67,8 @@ class WearableManager {
 
   WearableManager._internal() {
     _bleManager = BleManager();
+    _firmwareUpdateManager = FirmwareUpdateManager();
+
     _init();
   }
 
@@ -71,10 +84,7 @@ class WearableManager {
     return _bleManager.startScan();
   }
 
-  Stream<DiscoveredDevice> get scanStream => _bleManager.scanStream;
-
   Future<Wearable> connectToDevice(DiscoveredDevice device) async {
-    Notifier disconnectNotifier = Notifier();
     (bool, List<BleService>) connectionResult =
         await _bleManager.connectToDevice(
       device,
@@ -95,6 +105,29 @@ class WearableManager {
       throw Exception('Device is currently not supported');
     } else {
       throw Exception('Failed to connect to device');
+    }
+  }
+
+  void updateFirmware(DiscoveredDevice device, String assetPath) async {
+    await _firmwareUpdateManager.updateFirmware(device.id, assetPath);
+
+    // Wait for device to reboot
+    await Future.delayed(
+      const Duration(seconds: 5),
+    );
+
+    // Reconnect to device
+    try {
+      await connectToDevice(
+        device,
+      );
+
+      // Update the status stream to success
+      if (_bleManager.isConnected(device.id)) {
+        _firmwareUpdateManager.updateStatus(FirmwareUpdateStatus.success);
+      }
+    } catch (e) {
+      logger.e("Failed to reconnect after firmware update: $e");
     }
   }
 }

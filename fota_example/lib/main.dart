@@ -13,7 +13,9 @@ import 'widgets/storage_path_audio_player_widget.dart';
 import 'widgets/grouped_box.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    const MyApp(),
+  );
 }
 
 class MyApp extends StatefulWidget {
@@ -30,8 +32,6 @@ class MyAppState extends State<MyApp> {
 
   DiscoveredDevice? _connectingDevice;
   Wearable? _connectedDevice;
-
-  final _updateManager = FirmwareUpdateManager();
 
   @override
   Widget build(BuildContext context) {
@@ -121,66 +121,132 @@ class MyAppState extends State<MyApp> {
                   child: const Text('Restart Scan'),
                 ),
               ),
-              if (_connectedDevice != null)
-                GroupedBox(
-                  title: "Device Info",
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (wearableIconPath != null)
-                        SvgPicture.asset(
-                          wearableIconPath,
-                          width: 100,
-                          height: 100,
-                        ),
-                      SelectableText(
-                        "Name:                    ${_connectedDevice?.name}",
+              GroupedBox(
+                title: "Device Info",
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (wearableIconPath != null)
+                      SvgPicture.asset(
+                        wearableIconPath,
+                        width: 100,
+                        height: 100,
                       ),
-                      if (_connectedDevice is DeviceIdentifier)
-                        FutureBuilder<String?>(
-                          future: (_connectedDevice as DeviceIdentifier)
-                              .readDeviceIdentifier(),
+                    SelectableText(
+                      "Name:                    ${_connectedDevice?.name}",
+                    ),
+                    if (_connectedDevice is DeviceIdentifier)
+                      FutureBuilder<String?>(
+                        future: (_connectedDevice as DeviceIdentifier)
+                            .readDeviceIdentifier(),
+                        builder: (context, snapshot) {
+                          return SelectableText(
+                            "Device Identifier:   ${snapshot.data}",
+                          );
+                        },
+                      ),
+                    if (_connectedDevice is DeviceFirmwareVersion)
+                      FutureBuilder<String?>(
+                        future: (_connectedDevice as DeviceFirmwareVersion)
+                            .readDeviceFirmwareVersion(),
+                        builder: (context, snapshot) {
+                          return SelectableText(
+                            "Firmware Version:  ${snapshot.data}",
+                          );
+                        },
+                      ),
+                    if (_connectedDevice is DeviceHardwareVersion)
+                      FutureBuilder<String?>(
+                        future: (_connectedDevice as DeviceHardwareVersion)
+                            .readDeviceHardwareVersion(),
+                        builder: (context, snapshot) {
+                          return SelectableText(
+                            "Hardware Version: ${snapshot.data}",
+                          );
+                        },
+                      ),
+                    Row(children: [
+                      ElevatedButton(
+                          onPressed: () => _wearableManager.updateFirmware(
+                              discoveredDevices.firstWhere((device) =>
+                                  device.id == _connectedDevice!.deviceId),
+                              'assets/app_update_on.bin'),
+                          child: const Text("On")),
+                      ElevatedButton(
+                          onPressed: () => _wearableManager.updateFirmware(
+                              discoveredDevices.firstWhere((device) =>
+                                  device.id == _connectedDevice!.deviceId),
+                              'assets/app_update_off.bin'),
+                          child: const Text("Off")),
+                    ]),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        StreamBuilder<double>(
+                          stream: _wearableManager.updateProgressStream,
+                          initialData: 0.0,
                           builder: (context, snapshot) {
-                            return SelectableText(
-                              "Device Identifier:   ${snapshot.data}",
-                            );
+                            var progress = snapshot.data ?? 0.0;
+                            var progressPercentage = progress * 100;
+                            return progress > 0
+                                ? Row(children: [
+                                    SizedBox(
+                                      width: 32,
+                                      height: 32,
+                                      child: progress < 1
+                                          ? CircularProgressIndicator(
+                                              padding: const EdgeInsets.all(8),
+                                              value: progress,
+                                              strokeWidth: 5,
+                                              backgroundColor: Colors.grey[300],
+                                              valueColor:
+                                                  const AlwaysStoppedAnimation<
+                                                      Color>(Colors.blue),
+                                            )
+                                          : const Icon(
+                                              Icons
+                                                  .check_circle, // Checkmark icon
+                                              color: Colors.green,
+                                              size: 32,
+                                            ),
+                                    ),
+                                    Text(
+                                        "Uploading firmware... (${progressPercentage.toStringAsFixed(progressPercentage.truncateToDouble() == progressPercentage ? 0 : 2)}%)")
+                                  ])
+                                : const SizedBox();
                           },
                         ),
-                      if (_connectedDevice is DeviceFirmwareVersion)
-                        FutureBuilder<String?>(
-                          future: (_connectedDevice as DeviceFirmwareVersion)
-                              .readDeviceFirmwareVersion(),
+                        StreamBuilder<FirmwareUpdateStatus>(
+                          stream: _wearableManager.updateStatusStream,
+                          initialData: FirmwareUpdateStatus.idle,
                           builder: (context, snapshot) {
-                            return SelectableText(
-                              "Firmware Version:  ${snapshot.data}",
-                            );
+                            var status =
+                                snapshot.data ?? FirmwareUpdateStatus.idle;
+                            switch (status) {
+                              case FirmwareUpdateStatus.rebooting:
+                                return const Row(children: [
+                                  SizedBox(width: 32, height: 32),
+                                  Text("Rebooting device...")
+                                ]);
+                              case FirmwareUpdateStatus.success:
+                                return const Row(children: [
+                                  Icon(
+                                    Icons.check_circle, // Checkmark icon
+                                    color: Colors.green,
+                                    size: 32,
+                                  ),
+                                  Text("Successfully updated device firmware")
+                                ]);
+                              default:
+                                return const SizedBox();
+                            }
                           },
                         ),
-                      if (_connectedDevice is DeviceHardwareVersion)
-                        FutureBuilder<String?>(
-                          future: (_connectedDevice as DeviceHardwareVersion)
-                              .readDeviceHardwareVersion(),
-                          builder: (context, snapshot) {
-                            return SelectableText(
-                              "Hardware Version: ${snapshot.data}",
-                            );
-                          },
-                        ),
-                      Row(children: [
-                        ElevatedButton(
-                            onPressed: () => _updateManager.sendFirmwareData(
-                                _connectedDevice!.deviceId,
-                                'assets/app_update_on.bin'),
-                            child: const Text("On")),
-                        ElevatedButton(
-                            onPressed: () => _updateManager.sendFirmwareData(
-                                _connectedDevice!.deviceId,
-                                'assets/app_update_off.bin'),
-                            child: const Text("Off")),
-                      ])
-                    ],
-                  ),
+                      ],
+                    )
+                  ],
                 ),
+              ),
               if (_connectedDevice is RgbLed)
                 GroupedBox(
                   title: "RGB LED",
