@@ -82,14 +82,9 @@ class CosinussOne extends Wearable implements SensorManager, BatteryLevelService
       ),
     );
     _sensors.add(
-      _CosinussOneSensor(
+      _CosinussOneHeartRateSensor(
         discoveredDevice: _discoveredDevice,
         bleManager: _bleManager,
-        sensorName: 'HR',
-        chartTitle: 'Heart Rate',
-        shortChartTitle: 'HR',
-        axisNames: ['Heart Rate'],
-        axisUnits: ["BPM"],
       ),
     );
   }
@@ -347,8 +342,36 @@ class _CosinussOneSensor extends Sensor {
     return streamController.stream;
   }
 
-  Stream<SensorValue> _createHeartRateStream() {
-    StreamController<SensorValue> streamController = StreamController();
+  @override
+  Stream<SensorValue> get sensorStream {
+    switch (sensorName) {
+      case "ACC":
+        return _createAccStream();
+      case "PPG":
+        return _createPpgStream();
+      case "TEMP":
+        return _createTempStream();
+      default:
+        throw UnimplementedError();
+    }
+  }
+}
+
+// Based on https://github.com/teco-kit/cosinuss-flutter
+class _CosinussOneHeartRateSensor extends HeartRateSensor {
+  final BleManager _bleManager;
+  final DiscoveredDevice _discoveredDevice;
+
+  _CosinussOneHeartRateSensor({
+    required BleManager bleManager,
+    required DiscoveredDevice discoveredDevice,
+  })  : _bleManager = bleManager,
+        _discoveredDevice = discoveredDevice,
+        super();
+
+  @override
+  Stream<HeartRateSensorValue> get sensorStream {
+    StreamController<HeartRateSensorValue> streamController = StreamController();
 
     int startTime = DateTime.now().millisecondsSinceEpoch;
 
@@ -368,8 +391,8 @@ class _CosinussOneSensor extends Sensor {
       }
 
       streamController.add(
-        SensorDoubleValue(
-          values: [bpm.toDouble()],
+        HeartRateSensorValue(
+          heartRateBpm: bpm,
           timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
         ),
       );
@@ -381,21 +404,5 @@ class _CosinussOneSensor extends Sensor {
     };
 
     return streamController.stream;
-  }
-
-  @override
-  Stream<SensorValue> get sensorStream {
-    switch (sensorName) {
-      case "ACC":
-        return _createAccStream();
-      case "PPG":
-        return _createPpgStream();
-      case "TEMP":
-        return _createTempStream();
-      case "HR":
-        return _createHeartRateStream();
-      default:
-        throw UnimplementedError();
-    }
   }
 }

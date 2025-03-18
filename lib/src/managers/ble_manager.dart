@@ -71,7 +71,7 @@ class BleManager {
   }
 
   /// Initiates the BLE device scan to discover nearby Bluetooth devices.
-  Future<void> startScan() async {
+  Future<void> startScan({bool filterByServices = false}) async {
     _init();
 
     // The example code does not await this function before getting `scanStream`.
@@ -126,7 +126,13 @@ class BleManager {
           );
         };
 
-        UniversalBle.getSystemDevices().then((devices) {
+        UniversalBle.getSystemDevices(
+          // This filter is required on Apple platforms
+          withServices:
+              (filterByServices || kIsWeb || Platform.isIOS || Platform.isMacOS)
+                  ? allServiceUuids
+                  : null,
+        ).then((devices) {
           for (var bleDevice in devices) {
             _scanStreamController?.add(
               DiscoveredDevice(
@@ -144,7 +150,7 @@ class BleManager {
         await UniversalBle.startScan(
           scanFilter: ScanFilter(
             // Needs to be passed for web, can be empty for the rest
-            withServices: kIsWeb ? allServiceUuids : [],
+            withServices: (kIsWeb || filterByServices) ? allServiceUuids : [],
           ),
         );
       }
@@ -167,7 +173,7 @@ class BleManager {
     _connectionCompleters[device.id] = completer;
 
     _connectCallbacks[device.id] = () async {
-      if (!kIsWeb) {
+      if (!kIsWeb && !Platform.isLinux) {
         UniversalBle.requestMtu(device.id, mtu);
       }
       bool connectionResult = false;

@@ -29,7 +29,10 @@ export 'src/models/capabilities/battery_energy_status.dart';
 export 'src/models/capabilities/rgb_led.dart';
 export 'src/models/capabilities/status_led.dart';
 export 'src/models/capabilities/sensor.dart';
+export 'src/models/capabilities/sensor_specializations/heart_rate_sensor.dart';
+export 'src/models/capabilities/sensor_specializations/heart_rate_variability_sensor.dart';
 export 'src/models/capabilities/sensor_configuration.dart';
+export 'src/models/capabilities/sensor_configuration_specializations/sensor_frequency_configuration.dart';
 export 'src/models/capabilities/sensor_manager.dart';
 export 'src/models/capabilities/sensor_configuration_manager.dart';
 export 'src/models/capabilities/frequency_player.dart';
@@ -37,6 +40,9 @@ export 'src/models/capabilities/jingle_player.dart';
 export 'src/models/capabilities/audio_player_controls.dart';
 export 'src/models/capabilities/storage_path_audio_player.dart';
 export 'src/managers/firmware_update_manager.dart';
+
+export 'src/models/capabilities/sensor_config_capabilities/recordable_sensor_config.dart';
+export 'src/models/capabilities/sensor_config_capabilities/streamable_sensor_configuration.dart';
 
 Logger logger = Logger();
 
@@ -73,15 +79,17 @@ class WearableManager {
   }
 
   void _init() {
-    print('WearableManager initialized');
+    logger.i('WearableManager initialized');
   }
 
   void addWearableFactory(WearableFactory factory) {
     _wearableFactories.add(factory);
   }
 
-  Future<void> startScan() {
-    return _bleManager.startScan();
+  Future<void> startScan({
+    bool excludeUnsupported = false,
+  }) {
+    return _bleManager.startScan(filterByServices: excludeUnsupported);
   }
 
   Future<Wearable> connectToDevice(DiscoveredDevice device) async {

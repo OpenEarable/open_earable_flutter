@@ -87,10 +87,25 @@ class OpenEarableV1 extends Wearable
   }
 
   void _initSensors() {
-    OpenEarableSensorManager sensorManager = OpenEarableSensorManager(
+    OpenEarableSensorHandler sensorManager = OpenEarableSensorHandler(
       bleManager: _bleManager,
       deviceId: _discoveredDevice.id,
     );
+
+    final imuSensorConfig = _ImuSensorConfiguration(
+      sensorManager: sensorManager,
+    );
+    _sensorConfigurations.add(imuSensorConfig);
+
+    final barometerSensorConfig = _BarometerSensorConfiguration(
+      sensorManager: sensorManager,
+    );
+    _sensorConfigurations.add(barometerSensorConfig);
+
+    final microphoneSensorConfig = _MicrophoneSensorConfiguration(
+      sensorManager: sensorManager,
+    );
+    _sensorConfigurations.add(microphoneSensorConfig);
 
     _sensors.add(
       _OpenEarableSensor(
@@ -100,6 +115,7 @@ class OpenEarableV1 extends Wearable
         shortChartTitle: 'Acc.',
         axisNames: ['X', 'Y', 'Z'],
         axisUnits: ["m/s\u00B2", "m/s\u00B2", "m/s\u00B2"],
+        relatedConfigurations: [imuSensorConfig],
       ),
     );
     _sensors.add(
@@ -110,6 +126,7 @@ class OpenEarableV1 extends Wearable
         shortChartTitle: 'Gyro.',
         axisNames: ['X', 'Y', 'Z'],
         axisUnits: ["°/s", "°/s", "°/s"],
+        relatedConfigurations: [imuSensorConfig],
       ),
     );
     _sensors.add(
@@ -120,6 +137,7 @@ class OpenEarableV1 extends Wearable
         shortChartTitle: 'Magn.',
         axisNames: ['X', 'Y', 'Z'],
         axisUnits: ["µT", "µT", "µT"],
+        relatedConfigurations: [imuSensorConfig],
       ),
     );
     _sensors.add(
@@ -130,6 +148,7 @@ class OpenEarableV1 extends Wearable
         shortChartTitle: 'Press.',
         axisNames: ['Pressure'],
         axisUnits: ["Pa"],
+        relatedConfigurations: [barometerSensorConfig],
       ),
     );
     _sensors.add(
@@ -140,22 +159,7 @@ class OpenEarableV1 extends Wearable
         shortChartTitle: 'Temp. (A.)',
         axisNames: ['Temperature'],
         axisUnits: ["°C"],
-      ),
-    );
-
-    _sensorConfigurations.add(
-      _ImuSensorConfiguration(
-        sensorManager: sensorManager,
-      ),
-    );
-    _sensorConfigurations.add(
-      _BarometerSensorConfiguration(
-        sensorManager: sensorManager,
-      ),
-    );
-    _sensorConfigurations.add(
-      _MicrophoneSensorConfiguration(
-        sensorManager: sensorManager,
+        relatedConfigurations: [barometerSensorConfig],
       ),
     );
   }
@@ -371,7 +375,7 @@ class OpenEarableV1 extends Wearable
       byteData: data,
     );
   }
-  
+
   @override
   Stream<int> get batteryPercentageStream {
     StreamController<int> controller = StreamController();
@@ -398,7 +402,7 @@ class OpenEarableV1 extends Wearable
 
     return controller.stream;
   }
-  
+
   @override
   Future<int> readBatteryPercentage() async {
     List<int> batteryLevelList = await _bleManager.read(
@@ -410,7 +414,9 @@ class OpenEarableV1 extends Wearable
     logger.t("Battery level bytes: $batteryLevelList");
 
     if (batteryLevelList.length != 1) {
-      throw StateError('Battery level characteristic expected 1 value, but got ${batteryLevelList.length}');
+      throw StateError(
+        'Battery level characteristic expected 1 value, but got ${batteryLevelList.length}',
+      );
     }
 
     return batteryLevelList[0];
@@ -420,7 +426,7 @@ class OpenEarableV1 extends Wearable
 class _OpenEarableSensor extends Sensor {
   final List<String> _axisNames;
   final List<String> _axisUnits;
-  final OpenEarableSensorManager _sensorManager;
+  final OpenEarableSensorHandler _sensorManager;
 
   _OpenEarableSensor({
     required String sensorName,
@@ -428,7 +434,8 @@ class _OpenEarableSensor extends Sensor {
     required String shortChartTitle,
     required List<String> axisNames,
     required List<String> axisUnits,
-    required OpenEarableSensorManager sensorManager,
+    required OpenEarableSensorHandler sensorManager,
+    required List<SensorConfiguration> relatedConfigurations,
   })  : _axisNames = axisNames,
         _axisUnits = axisUnits,
         _sensorManager = sensorManager,
@@ -436,6 +443,7 @@ class _OpenEarableSensor extends Sensor {
           sensorName: sensorName,
           chartTitle: chartTitle,
           shortChartTitle: shortChartTitle,
+          relatedConfigurations: relatedConfigurations,
         );
 
   @override
@@ -529,20 +537,20 @@ class _OpenEarableSensor extends Sensor {
   }
 }
 
-class _ImuSensorConfiguration extends SensorConfiguration {
-  final OpenEarableSensorManager _sensorManager;
+class _ImuSensorConfiguration extends SensorFrequencyConfiguration {
+  final OpenEarableSensorHandler _sensorManager;
 
   _ImuSensorConfiguration({
-    required OpenEarableSensorManager sensorManager,
+    required OpenEarableSensorHandler sensorManager,
   })  : _sensorManager = sensorManager,
         super(
           name: 'IMU',
           unit: 'Hz',
-          values: const [
-            SensorConfigurationValue(key: '0'),
-            SensorConfigurationValue(key: '10'),
-            SensorConfigurationValue(key: '20'),
-            SensorConfigurationValue(key: '30'),
+          values: [
+            SensorFrequencyConfigurationValue(frequency: 0),
+            SensorFrequencyConfigurationValue(frequency: 10),
+            SensorFrequencyConfigurationValue(frequency: 20),
+            SensorFrequencyConfigurationValue(frequency: 30),
           ],
         );
 
@@ -563,20 +571,20 @@ class _ImuSensorConfiguration extends SensorConfiguration {
   }
 }
 
-class _BarometerSensorConfiguration extends SensorConfiguration {
-  final OpenEarableSensorManager _sensorManager;
+class _BarometerSensorConfiguration extends SensorFrequencyConfiguration {
+  final OpenEarableSensorHandler _sensorManager;
 
   _BarometerSensorConfiguration({
-    required OpenEarableSensorManager sensorManager,
+    required OpenEarableSensorHandler sensorManager,
   })  : _sensorManager = sensorManager,
         super(
           name: 'Barometer',
           unit: 'Hz',
-          values: const [
-            SensorConfigurationValue(key: '0'),
-            SensorConfigurationValue(key: '10'),
-            SensorConfigurationValue(key: '20'),
-            SensorConfigurationValue(key: '30'),
+          values: [
+            SensorFrequencyConfigurationValue(frequency: 0),
+            SensorFrequencyConfigurationValue(frequency: 10),
+            SensorFrequencyConfigurationValue(frequency: 20),
+            SensorFrequencyConfigurationValue(frequency: 30),
           ],
         );
 
@@ -597,26 +605,26 @@ class _BarometerSensorConfiguration extends SensorConfiguration {
   }
 }
 
-class _MicrophoneSensorConfiguration extends SensorConfiguration {
-  final OpenEarableSensorManager _sensorManager;
+class _MicrophoneSensorConfiguration extends SensorFrequencyConfiguration {
+  final OpenEarableSensorHandler _sensorManager;
 
   _MicrophoneSensorConfiguration({
-    required OpenEarableSensorManager sensorManager,
+    required OpenEarableSensorHandler sensorManager,
   })  : _sensorManager = sensorManager,
         super(
           name: 'Microphone',
           unit: 'Hz',
-          values: const [
-            SensorConfigurationValue(key: "0"),
-            SensorConfigurationValue(key: "16000"),
-            SensorConfigurationValue(key: "20000"),
-            SensorConfigurationValue(key: "25000"),
-            SensorConfigurationValue(key: "31250"),
-            SensorConfigurationValue(key: "33333"),
-            SensorConfigurationValue(key: "40000"),
-            SensorConfigurationValue(key: "41667"),
-            SensorConfigurationValue(key: "50000"),
-            SensorConfigurationValue(key: "62500"),
+          values: [
+            SensorFrequencyConfigurationValue(frequency: 0),
+            SensorFrequencyConfigurationValue(frequency: 16000),
+            SensorFrequencyConfigurationValue(frequency: 20000),
+            SensorFrequencyConfigurationValue(frequency: 25000),
+            SensorFrequencyConfigurationValue(frequency: 31250),
+            SensorFrequencyConfigurationValue(frequency: 33333),
+            SensorFrequencyConfigurationValue(frequency: 40000),
+            SensorFrequencyConfigurationValue(frequency: 41667),
+            SensorFrequencyConfigurationValue(frequency: 50000),
+            SensorFrequencyConfigurationValue(frequency: 62500),
           ],
         );
 

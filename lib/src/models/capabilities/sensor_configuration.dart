@@ -1,7 +1,7 @@
-abstract class SensorConfiguration {
+abstract class SensorConfiguration<SCV extends SensorConfigurationValue> {
   // Name of the configuration
   final String name;
-  final List<SensorConfigurationValue> values;
+  final List<SCV> values;
 
   final String? unit;
 
@@ -11,7 +11,7 @@ abstract class SensorConfiguration {
     this.unit,
   });
 
-  void setConfiguration(SensorConfigurationValue configuration);
+  void setConfiguration(SCV configuration);
 
   @override
   String toString() {
@@ -22,7 +22,7 @@ abstract class SensorConfiguration {
 class SensorConfigurationValue {
   final String key;
 
-  const SensorConfigurationValue({
+  SensorConfigurationValue({
     required this.key,
   });
 
