@@ -28,6 +28,9 @@ class FirmwareUpdateManager {
   Stream<double> get progressStream => _progressController.stream;
   Stream<FirmwareUpdateStatus> get statusStream => _statusController.stream;
 
+  Completer<void>? _acknowledgmentCompleter;
+  Completer<List<int>>? _responseCompleter;
+
   void updateProgress(double value) {
     logger.d("Upload Progress: $value");
     _progressController.add(value < 1 ? value : 1);
@@ -55,6 +58,11 @@ class FirmwareUpdateManager {
 
     // Determine the SHA256 hash of the firmware
     var sha256Hash = extractHashFromTlv(firmwareData);
+
+    List<int> bufferInfo = await getBufferSize(deviceId);
+    int bufferSize = bufferInfo[0];
+    int bufferCount = bufferInfo[1];
+    logger.d('Device buffer size: $bufferSize, buffer count: $bufferCount');
     await sendFirmwareData(deviceId, firmwareData, sha256Hash);
     await confirmUpdate(deviceId, sha256Hash);
     await rebootDevice(deviceId);
@@ -86,7 +94,15 @@ class FirmwareUpdateManager {
         totalSize: offset == 0 ? firmwareData.length : null,
         sha256: offset == 0 ? sha256Hash : null,
       );
-      Uint8List header = buildSmpHeader(0, 2, 0, payload.length, 1, seq, 1);
+      Uint8List header = SmpHeader(
+        version: 0,
+        op: 2,
+        flags: 0,
+        dataLen: payload.length,
+        group: 1,
+        seq: seq,
+        cmdId: 1,
+      ).toBytes();
       logger.d("header generated: $header, payloadLen: ${payload.length}");
 
       Uint8List packet = Uint8List(header.length + payload.length);
@@ -100,7 +116,8 @@ class FirmwareUpdateManager {
 
       await sendPacket(deviceId, packet, offset: offset, seq: seq);
       updateProgress(
-          lastAcknowledgedOffset / (firmwareData.length - chunkSize));
+        lastAcknowledgedOffset / (firmwareData.length - chunkSize),
+      );
       seq += 1;
       offset += currentChunkSize;
     }
@@ -118,6 +135,7 @@ class FirmwareUpdateManager {
     while (!success && attempt < maxRetries) {
       attempt++;
       try {
+        _acknowledgmentCompleter = Completer<void>();
         chunkAcknowledged = false;
         await UniversalBle.writeValue(
           deviceId,
@@ -126,13 +144,9 @@ class FirmwareUpdateManager {
           packet,
           BleOutputProperty.withoutResponse,
         );
-        var a = 0;
-        while (!chunkAcknowledged) {
-          a += 1;
-          await Future.delayed(const Duration(milliseconds: 10));
-        }
+        await _acknowledgmentCompleter?.future;
         logger.d(
-          "Chunk $seq at offset $offset sent successfully after $attempt attempts and $a cycles.",
+          "Chunk $seq at offset $offset sent successfully after $attempt attempts",
         );
         success = true;
       } catch (e) {
@@ -148,29 +162,21 @@ class FirmwareUpdateManager {
     }
   }
 
-  Uint8List buildSmpHeader(
-    int version,
-    int op,
-    int flags,
-    int dataLen,
-    int group,
-    int seq,
-    int cmdId,
-  ) {
-    // First Byte: 7 6 5     4 3      2 1 0
-    //             Reserved  Version  Op
-    int firstByte = ((version & 0x3) << 3) | (op & 0x3);
+  Future<List<int>> getBufferSize(String deviceId) async {
+    var bufferRequestHeader = SmpHeader(
+      version: 0,
+      op: 0,
+      flags: 0,
+      dataLen: 0,
+      group: 0,
+      seq: 0,
+      cmdId: 6,
+    ).toBytes();
 
-    return Uint8List.fromList([
-      firstByte,
-      flags, // Flags
-      (dataLen >> 8) & 0xFF, // Data Length (high byte)
-      dataLen & 0xFF, // Data Length (low byte)
-      (group >> 8) & 0xFF, // Group ID (high byte)
-      group & 0xFF, // Group ID (low byte)
-      seq & 0xFF, // Sequence number
-      cmdId & 0xFF // Command ID
-    ]);
+    _responseCompleter = Completer<List<int>>();
+    sendPacket(deviceId, bufferRequestHeader);
+    print("after send");
+    return await _responseCompleter!.future;
   }
 
   Future<void> enableNotifications(String deviceId) async {
@@ -199,8 +205,15 @@ class FirmwareUpdateManager {
         }),
       ),
     );
-
-    var header = buildSmpHeader(0, 2, 0, confirmPayload.length, 1, 0, 0);
+    var header = SmpHeader(
+      version: 0,
+      op: 2,
+      flags: 0,
+      dataLen: confirmPayload.length,
+      group: 1,
+      seq: 0,
+      cmdId: 0,
+    ).toBytes();
     Uint8List packet = Uint8List(header.length + confirmPayload.length);
 
     packet.setAll(0, header);
@@ -212,7 +225,15 @@ class FirmwareUpdateManager {
   Future<void> rebootDevice(String deviceId) async {
     updateStatus(FirmwareUpdateStatus.rebooting);
     logger.d("Device rebooting...");
-    final resetPacket = buildSmpHeader(0, 2, 0, 0, 0, 0, 5);
+    final resetPacket = SmpHeader(
+      version: 0,
+      op: 2,
+      flags: 0,
+      dataLen: 0,
+      group: 0,
+      seq: 0,
+      cmdId: 5,
+    ).toBytes();
     await sendPacket(deviceId, resetPacket);
   }
 
@@ -223,22 +244,57 @@ class FirmwareUpdateManager {
       String characteristicUuid,
       Uint8List value,
     ) {
-      int headerLength = 8;
+      print("got notification");
+      int smpHeaderLength = 8;
+      Uint8List smpHeaderBytes = value.sublist(0, smpHeaderLength);
+      SmpHeader smpHeader = SmpHeader.fromBytes(smpHeaderBytes);
       // Remove the header
-      Uint8List cborData = value.sublist(headerLength);
+      Uint8List cborData = value.sublist(smpHeaderLength);
       try {
         final decoded = cbor.decode(cborData);
         logger.d('Received notification');
         logger.d("  Raw value: $value");
+        logger.d("  SMP Header: ${smpHeader.toString()}");
         logger.d("  Decoded value: $decoded");
         if (decoded is CborMap) {
-          // Access the value for the key 'off'
-          var offValue = decoded[CborString('off')];
-          if (offValue is CborSmallInt) {
-            // Convert CborSmallInt to Dart int
-            lastAcknowledgedOffset = offValue.value;
-          } else {
-            logger.d('Decoded data is not a CborSmallInt');
+          // Image upload response
+          if (smpHeader.op == 3 &&
+              smpHeader.group == 1 &&
+              smpHeader.cmdId == 1) {
+            // Access the value for the key 'off'
+            var offValue = decoded[CborString('off')];
+            if (offValue is CborSmallInt) {
+              // Convert CborSmallInt to Dart int
+              lastAcknowledgedOffset = offValue.value;
+              _acknowledgmentCompleter?.complete();
+            } else {
+              logger.d('Decoded data is not a CborSmallInt');
+            }
+          }
+          // Buffer Size response
+          else if (smpHeader.op == 1 &&
+              smpHeader.group == 0 &&
+              smpHeader.cmdId == 6) {
+            _acknowledgmentCompleter?.complete();
+            var bufferSizeValue = decoded[CborString('buf_size')];
+            var bufferCountValue = decoded[CborString('buf_count')];
+            if (bufferSizeValue is CborSmallInt &&
+                bufferCountValue is CborSmallInt) {
+              _responseCompleter
+                  ?.complete([bufferSizeValue.value, bufferCountValue.value]);
+            }
+          }
+          // System reset response
+          else if (smpHeader.op == 3 &&
+              smpHeader.group == 0 &&
+              smpHeader.cmdId == 5) {
+            _acknowledgmentCompleter?.complete();
+          }
+          // State of image response
+          else if (smpHeader.op == 3 &&
+              smpHeader.group == 1 &&
+              smpHeader.cmdId == 0) {
+            _acknowledgmentCompleter?.complete();
           }
         } else {
           logger.d('Decoded data is not a CborMap');
@@ -347,5 +403,72 @@ class FirmwareUpdateManager {
   void dispose() {
     _progressController.close();
     _statusController.close();
+  }
+}
+
+class SmpHeader {
+  final int version;
+  final int op;
+  final int flags;
+  final int dataLen;
+  final int group;
+  final int seq;
+  final int cmdId;
+
+  SmpHeader({
+    required this.version,
+    required this.op,
+    required this.flags,
+    required this.dataLen,
+    required this.group,
+    required this.seq,
+    required this.cmdId,
+  });
+
+  factory SmpHeader.fromBytes(Uint8List bytes) {
+    if (bytes.length != 8) {
+      throw Exception(
+          'Invalid header length. Expected 8 bytes, got ${bytes.length}');
+    }
+
+    final firstByte = bytes[0];
+    final version = (firstByte >> 3) & 0x03;
+    final op = firstByte & 0x07;
+    final flags = bytes[1];
+    final dataLen = (bytes[2] << 8) | bytes[3];
+    final group = (bytes[4] << 8) | bytes[5];
+    final seq = bytes[6];
+    final cmdId = bytes[7];
+
+    return SmpHeader(
+      version: version,
+      op: op,
+      flags: flags,
+      dataLen: dataLen,
+      group: group,
+      seq: seq,
+      cmdId: cmdId,
+    );
+  }
+
+  Uint8List toBytes() {
+    // First Byte: 7 6 5     4 3      2 1 0
+    //             Reserved  Version  Op
+    int firstByte = ((version & 0x3) << 3) | (op & 0x7);
+    return Uint8List.fromList([
+      firstByte,
+      flags,
+      (dataLen >> 8) & 0xFF, // Data Length (high byte)
+      dataLen & 0xFF, // Data Length (low byte)
+      (group >> 8) & 0xFF, // Group ID (high byte)
+      group & 0xFF, // Group ID (low byte)
+      seq & 0xFF, // Sequence number
+      cmdId & 0xFF, // Command ID
+    ]);
+  }
+
+  @override
+  String toString() {
+    return 'SmpHeader(version: $version, op: $op, flags: $flags, dataLen: $dataLen, group: $group, seq: $seq, cmdId: $cmdId)';
   }
 }
