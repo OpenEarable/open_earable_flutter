@@ -38,6 +38,21 @@ class SensorConfigurationV2 extends SensorConfiguration<SensorConfigurationValue
     );
     _sensorHandler.writeSensorConfig(sensorConfig);
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is SensorConfigurationV2) {
+      return name == other.name &&
+          values == other.values &&
+          unit == other.unit &&
+          maxStreamingFreqIndex == other.maxStreamingFreqIndex;
+    }
+    return false;
+  }
+  
+  @override
+  int get hashCode => name.hashCode ^ values.hashCode ^ unit.hashCode ^ maxStreamingFreqIndex.hashCode;
 }
 
 class SensorConfigurationValueV2 extends SensorConfigurationValue {
