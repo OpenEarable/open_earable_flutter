@@ -8,9 +8,9 @@ class V2SensorValueParser extends SensorValueParser {
   Map<String, dynamic> parse(ByteData data, List<SensorScheme> sensorSchemes) {
     var byteIndex = 0;
     final sensorId = data.getUint8(byteIndex);
-    byteIndex += 2; // skip one byte because of size byte that is not used
+    byteIndex += 2;
     final timestamp = data.getUint64(byteIndex, Endian.little);
-    byteIndex += 4;
+    byteIndex += 8;
     Map<String, dynamic> parsedData = {};
     SensorScheme foundScheme = sensorSchemes.firstWhere(
       (scheme) => scheme.sensorId == sensorId,
