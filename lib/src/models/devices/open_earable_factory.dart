@@ -110,14 +110,14 @@ class OpenEarableFactory extends WearableFactory {
         );
       }
 
-      sensorConfigurations.add(
-        SensorConfigurationV2(
-          name: scheme.sensorName,
-          values: sensorConfigurationValues,
-          maxStreamingFreqIndex: scheme.options!.frequencies!.maxStreamingFreqIndex,
-          sensorHandler: sensorManager,
-        ),
+      SensorConfigurationV2 sensorConfiguration = SensorConfigurationV2(
+        name: scheme.sensorName,
+        values: sensorConfigurationValues,
+        maxStreamingFreqIndex: scheme.options!.frequencies!.maxStreamingFreqIndex,
+        sensorHandler: sensorManager,
       );
+
+      sensorConfigurations.add(sensorConfiguration);
 
       Map<String, List<Component>> sensorGroups = {};
       for (Component component in scheme.components) {
@@ -143,6 +143,7 @@ class OpenEarableFactory extends WearableFactory {
           axisNames: axisNames,
           axisUnits: axisUnits,
           sensorManager: sensorManager,
+          relatedConfigurations: [sensorConfiguration],
         );
 
         sensors.add(sensor);
