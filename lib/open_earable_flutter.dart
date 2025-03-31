@@ -47,6 +47,16 @@ class WearableManager {
 
   late final BleManager _bleManager;
 
+  late final StreamController<Wearable> _connectStreamController;
+  late final StreamController<DiscoveredDevice> _connectingStreamController;
+
+  final List<String> _connectedIds = [];
+
+  List<String> _autoConnectDeviceIds = [];
+  StreamSubscription<DiscoveredDevice>? _autoconnectScanSubscription;
+
+  bool? _scanExcludeUnsupported;
+
   final List<WearableFactory> _wearableFactories = [
     OpenEarableFactory(),
     CosinussOneFactory(),
@@ -58,6 +68,10 @@ class WearableManager {
   }
 
   WearableManager._internal() {
+    _connectStreamController = StreamController<Wearable>.broadcast();
+    _connectingStreamController =
+        StreamController<DiscoveredDevice>.broadcast();
+
     _bleManager = BleManager();
     _init();
   }
@@ -73,12 +87,20 @@ class WearableManager {
   Future<void> startScan({
     bool excludeUnsupported = false,
   }) {
+    _scanExcludeUnsupported = excludeUnsupported;
     return _bleManager.startScan(filterByServices: excludeUnsupported);
   }
 
   Stream<DiscoveredDevice> get scanStream => _bleManager.scanStream;
 
+  Stream<Wearable> get connectStream => _connectStreamController.stream;
+
+  Stream<DiscoveredDevice> get connectingStream =>
+      _connectingStreamController.stream;
+
   Future<Wearable> connectToDevice(DiscoveredDevice device) async {
+    _connectingStreamController.add(device);
+
     Notifier disconnectNotifier = Notifier();
     (bool, List<BleService>) connectionResult =
         await _bleManager.connectToDevice(
@@ -92,6 +114,13 @@ class WearableManager {
         logger.t("checking factory: $wearableFactory");
         if (await wearableFactory.matches(device, connectionResult.$2)) {
           Wearable wearable = await wearableFactory.createFromDevice(device);
+
+          _connectedIds.add(device.id);
+          wearable.addDisconnectListener(() {
+            _connectedIds.remove(device.id);
+          });
+
+          _connectStreamController.add(wearable);
           return wearable;
         } else {
           logger.d("'$wearableFactory' does not support '$device'");
@@ -101,5 +130,36 @@ class WearableManager {
     } else {
       throw Exception('Failed to connect to device');
     }
+  }
+
+  void setAutoConnect(List<String> deviceIds) {
+    _autoConnectDeviceIds = deviceIds;
+    if (deviceIds.isEmpty) {
+      _autoconnectScanSubscription?.cancel();
+      _autoconnectScanSubscription = null;
+    } else {
+      _autoconnectScanSubscription ??=
+          scanStream.listen((discoveredDevice) async {
+        if (_autoConnectDeviceIds.contains(discoveredDevice.id) &&
+            !_connectedIds.contains(discoveredDevice.id)) {
+          try {
+            await connectToDevice(discoveredDevice);
+          } catch (e) {
+            logger.e('Error auto connecting device ${discoveredDevice.id}: $e');
+          }
+        }
+      });
+
+      if (_scanExcludeUnsupported == null) {
+        startScan();
+      } else {
+        startScan(excludeUnsupported: _scanExcludeUnsupported!);
+      }
+    }
+  }
+
+  void dispose() {
+    _autoconnectScanSubscription?.cancel();
+    _bleManager.dispose();
   }
 }
