@@ -16,14 +16,12 @@ class BleManager {
   final Map<String, List<StreamController<List<int>>>> _streamControllers = {};
 
   /// A stream of discovered devices during scanning.
-  Stream<DiscoveredDevice> get scanStream => _scanStream;
-  late Stream<DiscoveredDevice> _scanStream;
   StreamController<DiscoveredDevice>? _scanStreamController;
+
+  Stream<DiscoveredDevice> get scanStream => _scanStreamController!.stream;
 
   String _getCharacteristicKey(String deviceId, String characteristicId) =>
       "$deviceId||$characteristicId";
-
-  bool _inited = false;
 
   final Map<String, Completer> _connectionCompleters = {};
   final Map<String, VoidCallback> _connectCallbacks = {};
@@ -31,15 +29,16 @@ class BleManager {
 
   final List<String> _connectedDevicesIds = [];
 
+  BleManager() {
+    _init();
+  }
+
   bool isConnected(String deviceId) {
     return _connectedDevicesIds.contains(deviceId);
   }
 
   void _init() {
-    if (_inited) {
-      return;
-    }
-    _inited = true;
+    _scanStreamController = StreamController<DiscoveredDevice>.broadcast();
 
     UniversalBle.onConnectionChange = (String deviceId, bool isConnected) {
       logger.d("Connection change for $deviceId: $isConnected");
@@ -72,18 +71,6 @@ class BleManager {
 
   /// Initiates the BLE device scan to discover nearby Bluetooth devices.
   Future<void> startScan({bool filterByServices = false}) async {
-    _init();
-
-    // The example code does not await this function before getting `scanStream`.
-    // Because of this, we need to set the stream early for keeping the behavior
-    // before switching the bluetooth lib
-    StreamController<DiscoveredDevice>? oldController = _scanStreamController;
-    _scanStreamController = StreamController<DiscoveredDevice>();
-    _scanStream = _scanStreamController!.stream;
-    if (oldController != null) {
-      await oldController.close();
-    }
-
     bool permGranted = false;
     // Don't run `Platform.is*` on web
     if (!kIsWeb && Platform.isAndroid) {
@@ -101,31 +88,22 @@ class BleManager {
     }
 
     if (permGranted) {
-      for (int i = 0;
-          // Run this two times on MacOS if it's the first run.
-          // Needed on MacOS on an M1 Pro.
-          i < ((!kIsWeb && Platform.isMacOS && oldController == null) ? 2 : 1);
-          ++i) {
-        // Sleep before the second run
-        if (i == 1) {
-          await Future.delayed(const Duration(milliseconds: 200));
-        }
+      await UniversalBle.stopScan();
 
-        await UniversalBle.stopScan();
+      UniversalBle.onScanResult = (bleDevice) {
+        _scanStreamController?.add(
+          DiscoveredDevice(
+            id: bleDevice.deviceId,
+            name: bleDevice.name ?? "",
+            manufacturerData:
+                bleDevice.manufacturerData ?? Uint8List.fromList([]),
+            rssi: bleDevice.rssi ?? -1,
+            serviceUuids: bleDevice.services,
+          ),
+        );
+      };
 
-        UniversalBle.onScanResult = (bleDevice) {
-          _scanStreamController?.add(
-            DiscoveredDevice(
-              id: bleDevice.deviceId,
-              name: bleDevice.name ?? "",
-              manufacturerData:
-                  bleDevice.manufacturerData ?? Uint8List.fromList([]),
-              rssi: bleDevice.rssi ?? -1,
-              serviceUuids: bleDevice.services,
-            ),
-          );
-        };
-
+      if (!kIsWeb) {
         UniversalBle.getSystemDevices(
           // This filter is required on Apple platforms
           withServices:
@@ -146,14 +124,14 @@ class BleManager {
             );
           }
         });
-
-        await UniversalBle.startScan(
-          scanFilter: ScanFilter(
-            // Needs to be passed for web, can be empty for the rest
-            withServices: (kIsWeb || filterByServices) ? allServiceUuids : [],
-          ),
-        );
       }
+
+      await UniversalBle.startScan(
+        scanFilter: ScanFilter(
+          // Needs to be passed for web, can be empty for the rest
+          withServices: (kIsWeb || filterByServices) ? allServiceUuids : [],
+        ),
+      );
     }
   }
 
@@ -223,11 +201,6 @@ class BleManager {
     required String serviceId,
     required String characteristicId,
   }) {
-    _init();
-    // if (_connectedDevice == null) {
-    //   throw Exception("Subscribing failed because no Earable is connected");
-    // }
-
     final streamController = StreamController<List<int>>();
     String streamIdentifier = _getCharacteristicKey(deviceId, characteristicId);
     if (!_streamControllers.containsKey(streamIdentifier)) {
