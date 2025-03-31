@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:example/widgets/battery_info_widget.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:open_earable_flutter/open_earable_flutter.dart';
@@ -32,6 +33,50 @@ class MyAppState extends State<MyApp> {
 
   DiscoveredDevice? _connectingDevice;
   Wearable? _connectedDevice;
+
+  // Get devices for auto connect
+  static List<String> get _autoConnectDevices {
+    const devicesString = String.fromEnvironment("AUTO_CONNECT_DEVICES", defaultValue: "");
+    if (devicesString.isEmpty) return [];
+    return devicesString
+        .split(",")
+        .map((device) => device.trim())
+        .where((device) => device.isNotEmpty)
+        .toList();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Start scanning for devices if not in web
+    if (!kIsWeb) _startScanning();
+
+    // Start auto connecting to devices specified in _autoConnectDevices
+    _wearableManager.setAutoConnect(_autoConnectDevices);
+
+    // Deal with new connected devices
+    _wearableManager.connectStream.listen((wearable) {
+      setState(() {
+        _connectedDevice = wearable;
+        _connectingDevice = null;
+      });
+      wearable.addDisconnectListener(() {
+        if (_connectedDevice?.deviceId == wearable.deviceId) {
+          setState(() {
+            _connectedDevice = null;
+          });
+        }
+      });
+    });
+
+    // Deal with new connecting devices
+    _wearableManager.connectingStream.listen((device) {
+      setState(() {
+        _connectingDevice = device;
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -98,7 +143,7 @@ class MyAppState extends State<MyApp> {
                                 horizontal: -4, vertical: -4),
                             trailing: _buildTrailingWidget(device.id),
                             onTap: () {
-                              _connectToDevice(device);
+                              _wearableManager.connectToDevice(device);
                             },
                           ),
                           if (index != discoveredDevices.length - 1)
@@ -266,6 +311,8 @@ class MyAppState extends State<MyApp> {
   }
 
   void _startScanning() async {
+    discoveredDevices.clear();
+
     _wearableManager.startScan();
     _scanSubscription?.cancel();
     _scanSubscription = _wearableManager.scanStream.listen((incomingDevice) {
@@ -275,27 +322,6 @@ class MyAppState extends State<MyApp> {
           discoveredDevices.add(incomingDevice);
         });
       }
-    });
-  }
-
-  Future<void> _connectToDevice(device) async {
-    setState(() {
-      _connectingDevice = device;
-    });
-
-    _scanSubscription?.cancel();
-    Wearable wearable = await _wearableManager.connectToDevice(device);
-    wearable.addDisconnectListener(() {
-      if (_connectedDevice?.deviceId == wearable.deviceId) {
-        setState(() {
-          _connectedDevice = null;
-        });
-      }
-    });
-
-    setState(() {
-      _connectingDevice = null;
-      _connectedDevice = wearable;
     });
   }
 }
