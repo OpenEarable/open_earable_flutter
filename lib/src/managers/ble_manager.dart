@@ -29,6 +29,8 @@ class BleManager {
 
   final List<String> _connectedDevicesIds = [];
 
+  bool _firstScan = true;
+
   BleManager() {
     _init();
   }
@@ -88,50 +90,62 @@ class BleManager {
     }
 
     if (permGranted) {
-      await UniversalBle.stopScan();
+      // Workaround for iOS, otherwise we need to press the scan button twice for it
+      for (int i = 0;
+          i < ((!kIsWeb && Platform.isIOS && _firstScan) ? 2 : 1);
+          ++i) {
+        if (i == 1) {
+          await Future.delayed(const Duration(seconds: 1));
+        }
 
-      UniversalBle.onScanResult = (bleDevice) {
-        _scanStreamController?.add(
-          DiscoveredDevice(
-            id: bleDevice.deviceId,
-            name: bleDevice.name ?? "",
-            manufacturerData:
-                bleDevice.manufacturerData ?? Uint8List.fromList([]),
-            rssi: bleDevice.rssi ?? -1,
-            serviceUuids: bleDevice.services,
+        await UniversalBle.stopScan();
+
+        UniversalBle.onScanResult = (bleDevice) {
+          _scanStreamController?.add(
+            DiscoveredDevice(
+              id: bleDevice.deviceId,
+              name: bleDevice.name ?? "",
+              manufacturerData:
+                  bleDevice.manufacturerData ?? Uint8List.fromList([]),
+              rssi: bleDevice.rssi ?? -1,
+              serviceUuids: bleDevice.services,
+            ),
+          );
+        };
+
+        if (!kIsWeb) {
+          UniversalBle.getSystemDevices(
+            // This filter is required on Apple platforms
+            withServices: (filterByServices ||
+                    kIsWeb ||
+                    Platform.isIOS ||
+                    Platform.isMacOS)
+                ? allServiceUuids
+                : null,
+          ).then((devices) {
+            for (var bleDevice in devices) {
+              _scanStreamController?.add(
+                DiscoveredDevice(
+                  id: bleDevice.deviceId,
+                  name: bleDevice.name ?? "",
+                  manufacturerData:
+                      bleDevice.manufacturerData ?? Uint8List.fromList([]),
+                  rssi: bleDevice.rssi ?? -1,
+                  serviceUuids: bleDevice.services,
+                ),
+              );
+            }
+          });
+        }
+
+        await UniversalBle.startScan(
+          scanFilter: ScanFilter(
+            // Needs to be passed for web, can be empty for the rest
+            withServices: (kIsWeb || filterByServices) ? allServiceUuids : [],
           ),
         );
-      };
-
-      if (!kIsWeb) {
-        UniversalBle.getSystemDevices(
-          // This filter is required on Apple platforms
-          withServices:
-              (filterByServices || kIsWeb || Platform.isIOS || Platform.isMacOS)
-                  ? allServiceUuids
-                  : null,
-        ).then((devices) {
-          for (var bleDevice in devices) {
-            _scanStreamController?.add(
-              DiscoveredDevice(
-                id: bleDevice.deviceId,
-                name: bleDevice.name ?? "",
-                manufacturerData:
-                    bleDevice.manufacturerData ?? Uint8List.fromList([]),
-                rssi: bleDevice.rssi ?? -1,
-                serviceUuids: bleDevice.services,
-              ),
-            );
-          }
-        });
       }
-
-      await UniversalBle.startScan(
-        scanFilter: ScanFilter(
-          // Needs to be passed for web, can be empty for the rest
-          withServices: (kIsWeb || filterByServices) ? allServiceUuids : [],
-        ),
-      );
+      _firstScan = false;
     }
   }
 
