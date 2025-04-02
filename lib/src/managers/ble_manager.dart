@@ -42,7 +42,11 @@ class BleManager {
   void _init() {
     _scanStreamController = StreamController<DiscoveredDevice>.broadcast();
 
-    UniversalBle.onConnectionChange = (String deviceId, bool isConnected) {
+    UniversalBle.onConnectionChange = (
+      String deviceId,
+      bool isConnected,
+      String? error,
+    ) {
       logger.d("Connection change for $deviceId: $isConnected");
       if (isConnected) {
         _connectedDevicesIds.add(deviceId);
@@ -105,8 +109,10 @@ class BleManager {
             DiscoveredDevice(
               id: bleDevice.deviceId,
               name: bleDevice.name ?? "",
+              // TODO Might need some refactoring
               manufacturerData:
-                  bleDevice.manufacturerData ?? Uint8List.fromList([]),
+                  bleDevice.manufacturerDataList.firstOrNull?.toUint8List() ??
+                      Uint8List.fromList([]),
               rssi: bleDevice.rssi ?? -1,
               serviceUuids: bleDevice.services,
             ),
@@ -115,21 +121,19 @@ class BleManager {
 
         if (!kIsWeb) {
           UniversalBle.getSystemDevices(
-            // This filter is required on Apple platforms
-            withServices: (filterByServices ||
-                    kIsWeb ||
-                    Platform.isIOS ||
-                    Platform.isMacOS)
-                ? allServiceUuids
-                : null,
+            // This filter has several generic services by default as filter
+            // and is required on iOS/MacOS
+            withServices: allServiceUuids,
           ).then((devices) {
             for (var bleDevice in devices) {
               _scanStreamController?.add(
                 DiscoveredDevice(
                   id: bleDevice.deviceId,
                   name: bleDevice.name ?? "",
-                  manufacturerData:
-                      bleDevice.manufacturerData ?? Uint8List.fromList([]),
+                  // TODO Might need some refactoring
+                  manufacturerData: bleDevice.manufacturerDataList.firstOrNull
+                          ?.toUint8List() ??
+                      Uint8List.fromList([]),
                   rssi: bleDevice.rssi ?? -1,
                   serviceUuids: bleDevice.services,
                 ),
@@ -271,7 +275,11 @@ class BleManager {
 
   /// Cancel connection state subscription
   void dispose() {
-    UniversalBle.onConnectionChange = (String deviceId, bool isConnected) {};
+    UniversalBle.onConnectionChange = (
+      String deviceId,
+      bool isConnected,
+      String? error,
+    ) {};
     UniversalBle.stopScan();
     UniversalBle.onScanResult = (_) {};
     _scanStreamController?.close();
