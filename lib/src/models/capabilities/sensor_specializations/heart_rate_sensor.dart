@@ -1,6 +1,6 @@
 import '../sensor.dart';
 
-abstract class HeartRateSensor extends Sensor {
+abstract class HeartRateSensor extends Sensor<HeartRateSensorValue> {
   const HeartRateSensor({
     super.relatedConfigurations = const [],
   }) : super(

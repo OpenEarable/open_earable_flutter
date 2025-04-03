@@ -157,7 +157,7 @@ class OpenEarableFactory extends WearableFactory {
   }
 }
 
-class _OpenEarableSensorV2 extends Sensor {
+class _OpenEarableSensorV2 extends Sensor<SensorDoubleValue> {
   final int _sensorId;
   final List<String> _axisNames;
   final List<String> _axisUnits;
@@ -190,8 +190,8 @@ class _OpenEarableSensorV2 extends Sensor {
   @override
   List<String> get axisUnits => _axisUnits;
 
-  Stream<SensorValue> _createSingleDataSubscription(String componentName) {
-    StreamController<SensorValue> streamController = StreamController();
+  Stream<SensorDoubleValue> _createSingleDataSubscription(String componentName) {
+    StreamController<SensorDoubleValue> streamController = StreamController();
 
     StreamSubscription subscription = _sensorManager.subscribeToSensorData(_sensorId).listen((data) {
       int timestamp = data["timestamp"];
@@ -209,7 +209,7 @@ class _OpenEarableSensorV2 extends Sensor {
         values.add(entry.value.toDouble());
       }
 
-      SensorValue sensorValue = SensorDoubleValue(
+      SensorDoubleValue sensorValue = SensorDoubleValue(
         values: values,
         timestamp: timestamp,
       );
@@ -225,7 +225,7 @@ class _OpenEarableSensorV2 extends Sensor {
   }
 
   @override
-  Stream<SensorValue> get sensorStream {
+  Stream<SensorDoubleValue> get sensorStream {
     return _createSingleDataSubscription(sensorName);
   }
 }
