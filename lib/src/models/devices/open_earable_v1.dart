@@ -423,7 +423,7 @@ class OpenEarableV1 extends Wearable
   }
 }
 
-class _OpenEarableSensor extends Sensor {
+class _OpenEarableSensor extends Sensor<SensorDoubleValue> {
   final List<String> _axisNames;
   final List<String> _axisUnits;
   final OpenEarableSensorHandler _sensorManager;
@@ -452,8 +452,8 @@ class _OpenEarableSensor extends Sensor {
   @override
   List<String> get axisUnits => _axisUnits;
 
-  Stream<SensorValue> _getAccGyroMagStream() {
-    StreamController<SensorValue> streamController = StreamController();
+  Stream<SensorDoubleValue> _getAccGyroMagStream() {
+    StreamController<SensorDoubleValue> streamController = StreamController();
 
     final errorMeasure = {"ACC": 5.0, "GYRO": 10.0, "MAG": 25.0};
 
@@ -477,7 +477,7 @@ class _OpenEarableSensor extends Sensor {
         _sensorManager.subscribeToSensorData(0).listen((data) {
       int timestamp = data["timestamp"];
 
-      SensorValue sensorValue = SensorDoubleValue(
+      SensorDoubleValue sensorValue = SensorDoubleValue(
         values: [
           kalmanX.filtered(data[sensorName]["X"]),
           kalmanY.filtered(data[sensorName]["Y"]),
@@ -497,14 +497,14 @@ class _OpenEarableSensor extends Sensor {
     return streamController.stream;
   }
 
-  Stream<SensorValue> _createSingleDataSubscription(String componentName) {
-    StreamController<SensorValue> streamController = StreamController();
+  Stream<SensorDoubleValue> _createSingleDataSubscription(String componentName) {
+    StreamController<SensorDoubleValue> streamController = StreamController();
 
     StreamSubscription subscription =
         _sensorManager.subscribeToSensorData(1).listen((data) {
       int timestamp = data["timestamp"];
 
-      SensorValue sensorValue = SensorDoubleValue(
+      SensorDoubleValue sensorValue = SensorDoubleValue(
         values: [data[sensorName][componentName]],
         timestamp: timestamp,
       );
@@ -521,7 +521,7 @@ class _OpenEarableSensor extends Sensor {
   }
 
   @override
-  Stream<SensorValue> get sensorStream {
+  Stream<SensorDoubleValue> get sensorStream {
     switch (sensorName) {
       case "ACC":
       case "GYRO":

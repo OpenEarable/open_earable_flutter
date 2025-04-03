@@ -1,6 +1,6 @@
 import 'sensor_configuration.dart';
 
-abstract class Sensor {
+abstract class Sensor<SV extends SensorValue> {
   final String sensorName;
   final String chartTitle;
   final String shortChartTitle;
@@ -24,7 +24,7 @@ abstract class Sensor {
 
   int get axisCount => axisNames.length;
 
-  Stream<SensorValue> get sensorStream;
+  Stream<SV> get sensorStream;
 }
 
 class SensorValue {

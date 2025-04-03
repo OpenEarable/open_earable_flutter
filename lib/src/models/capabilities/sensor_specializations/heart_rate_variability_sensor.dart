@@ -3,7 +3,7 @@ import 'dart:math';
 
 import '../sensor.dart';
 
-class HeartRateVariabilitySensor extends Sensor {
+class HeartRateVariabilitySensor extends Sensor<HeartRateVariabilitySensorValue> {
   // Range to use for calculations
   static const int _hrvIntervalMs = 60000;
 
