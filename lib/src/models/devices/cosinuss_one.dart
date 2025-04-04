@@ -161,7 +161,7 @@ class CosinussOne extends Wearable implements SensorManager, BatteryLevelService
 }
 
 // Based on https://github.com/teco-kit/cosinuss-flutter
-class _CosinussOneSensor extends Sensor {
+class _CosinussOneSensor extends Sensor<SensorDoubleValue> {
   final List<String> _axisNames;
   final List<String> _axisUnits;
   final BleManager _bleManager;
@@ -199,8 +199,8 @@ class _CosinussOneSensor extends Sensor {
     return mantissa;
   }
 
-  Stream<SensorValue> _createAccStream() {
-    StreamController<SensorValue> streamController = StreamController();
+  Stream<SensorDoubleValue> _createAccStream() {
+    StreamController<SensorDoubleValue> streamController = StreamController();
 
     int startTime = DateTime.now().millisecondsSinceEpoch;
 
@@ -241,8 +241,8 @@ class _CosinussOneSensor extends Sensor {
     return streamController.stream;
   }
 
-  Stream<SensorValue> _createPpgStream() {
-    StreamController<SensorValue> streamController = StreamController();
+  Stream<SensorDoubleValue> _createPpgStream() {
+    StreamController<SensorDoubleValue> streamController = StreamController();
 
     int startTime = DateTime.now().millisecondsSinceEpoch;
 
@@ -302,8 +302,8 @@ class _CosinussOneSensor extends Sensor {
     return streamController.stream;
   }
 
-  Stream<SensorValue> _createTempStream() {
-    StreamController<SensorValue> streamController = StreamController();
+  Stream<SensorDoubleValue> _createTempStream() {
+    StreamController<SensorDoubleValue> streamController = StreamController();
 
     int startTime = DateTime.now().millisecondsSinceEpoch;
 
@@ -343,7 +343,7 @@ class _CosinussOneSensor extends Sensor {
   }
 
   @override
-  Stream<SensorValue> get sensorStream {
+  Stream<SensorDoubleValue> get sensorStream {
     switch (sensorName) {
       case "ACC":
         return _createAccStream();
