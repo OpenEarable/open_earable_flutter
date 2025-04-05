@@ -40,7 +40,7 @@ export 'src/models/capabilities/storage_path_audio_player.dart';
 export 'src/models/capabilities/sensor_config_capabilities/recordable_sensor_config.dart';
 export 'src/models/capabilities/sensor_config_capabilities/streamable_sensor_configuration.dart';
 
-Logger logger = Logger();
+Logger logger = Logger(level: Level.off);
 
 class WearableManager {
   static final WearableManager _instance = WearableManager._internal();
