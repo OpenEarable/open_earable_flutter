@@ -101,13 +101,47 @@ class OpenEarableFactory extends WearableFactory {
       //TODO: make sure the frequencies are specified
       for (int index = 0; index < scheme.options!.frequencies!.frequencies.length; index++) {
         double frequency = scheme.options!.frequencies!.frequencies[index];
+
+        if (index == 0) {
+          // One "off" option is enough
+          sensorConfigurationValues.add(
+            SensorConfigurationValueV2(
+              frequency: frequency,
+              frequencyIndex: index,
+              streamData: false,
+              recordData: false,
+            ),
+          );
+        }
+
         sensorConfigurationValues.add(
           SensorConfigurationValueV2(
-            sensorId: scheme.sensorId,
             frequency: frequency,
             frequencyIndex: index,
+            streamData: true,
+            recordData: false,
           ),
         );
+
+        if (index <= scheme.options!.frequencies!.maxStreamingFreqIndex) {
+          // Add stream options
+          sensorConfigurationValues.add(
+            SensorConfigurationValueV2(
+              frequency: frequency,
+              frequencyIndex: index,
+              streamData: false,
+              recordData: true,
+            ),
+          );
+          sensorConfigurationValues.add(
+            SensorConfigurationValueV2(
+              frequency: frequency,
+              frequencyIndex: index,
+              streamData: true,
+              recordData: true,
+            ),
+          );
+        }
       }
 
       SensorConfigurationV2 sensorConfiguration = SensorConfigurationV2(
@@ -115,6 +149,7 @@ class OpenEarableFactory extends WearableFactory {
         values: sensorConfigurationValues,
         maxStreamingFreqIndex: scheme.options!.frequencies!.maxStreamingFreqIndex,
         sensorHandler: sensorManager,
+        sensorId: scheme.sensorId,
       );
 
       sensorConfigurations.add(sensorConfiguration);
