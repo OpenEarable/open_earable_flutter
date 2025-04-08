@@ -1,6 +1,8 @@
 import '../sensor_configuration.dart';
 
-abstract class SensorFrequencyConfiguration extends SensorConfiguration {
+abstract class SensorFrequencyConfiguration<
+        SFC extends SensorFrequencyConfigurationValue>
+    extends SensorConfiguration<SensorFrequencyConfigurationValue> {
   const SensorFrequencyConfiguration({
     required String name,
     required List<SensorFrequencyConfigurationValue> values,
@@ -21,12 +23,10 @@ abstract class SensorFrequencyConfiguration extends SensorConfiguration {
       return;
     }
 
-    SensorFrequencyConfigurationValue maxFrequency =
-        (values.first as SensorFrequencyConfigurationValue);
+    SensorFrequencyConfigurationValue maxFrequency = values.first;
 
     for (final value in values) {
-      if ((value as SensorFrequencyConfigurationValue).frequency >
-          maxFrequency.frequency) {
+      if (value.frequency > maxFrequency.frequency) {
         maxFrequency = value;
       }
     }
@@ -36,7 +36,7 @@ abstract class SensorFrequencyConfiguration extends SensorConfiguration {
 }
 
 class SensorFrequencyConfigurationValue extends SensorConfigurationValue {
-  final int frequency;
+  final double frequency;
 
   SensorFrequencyConfigurationValue({
     required this.frequency,
