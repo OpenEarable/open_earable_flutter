@@ -1,40 +1,73 @@
-import 'package:open_earable_flutter/src/models/capabilities/sensor_config_capabilities/recordable_sensor_config.dart';
-import 'package:open_earable_flutter/src/models/capabilities/sensor_config_capabilities/streamable_sensor_configuration.dart';
-
 import '../../../managers/v2_sensor_handler.dart';
-import '../sensor_configuration.dart';
+import 'sensor_frequency_configuration.dart';
 
-class SensorConfigurationV2 extends SensorConfiguration<SensorConfigurationValueV2> implements StreamableSensorConfiguration, RecordableSensorConfig {
+class SensorConfigurationV2 extends SensorFrequencyConfiguration {
+  final int sensorId;
 
   final int maxStreamingFreqIndex;
   final V2SensorHandler _sensorHandler;
 
-  @override
-  bool recordData = false;
-  
-  @override
-  bool streamData = false;
-
   SensorConfigurationV2({
     required String name,
+    required this.sensorId,
     required List<SensorConfigurationValueV2> values,
     required this.maxStreamingFreqIndex,
     required V2SensorHandler sensorHandler,
     String? unit,
-  }) : _sensorHandler = sensorHandler, super(name: name, values: values, unit: unit);
+  })  : _sensorHandler = sensorHandler,
+        super(
+          name: name,
+          values: values,
+          unit: "Hz",
+        );
 
   @override
   String toString() {
     return 'SensorConfigurationV2(name: $name, values: $values, unit: $unit, maxStreamingFreqIndex: $maxStreamingFreqIndex)';
   }
-  
+
+  /// Sets the maximum frequency that supports streaming and recording
   @override
-  void setConfiguration(SensorConfigurationValueV2 configuration) {
+  void setMaximumFrequency({
+    bool streamData = true,
+    bool recordData = true,
+  }) {
+    if (values.isEmpty) {
+      return;
+    }
+
+    SensorConfigurationValueV2? maxFrequencyAllEnabled;
+
+    for (final value in values) {
+      SensorConfigurationValueV2 valueCasted =
+          value as SensorConfigurationValueV2;
+      if (valueCasted.streamData != streamData ||
+          valueCasted.recordData != recordData) {
+        continue;
+      }
+
+      maxFrequencyAllEnabled ??= valueCasted;
+      if (maxFrequencyAllEnabled.frequency < valueCasted.frequency) {
+        maxFrequencyAllEnabled = valueCasted;
+      }
+    }
+
+    if (maxFrequencyAllEnabled != null) {
+      setConfiguration(maxFrequencyAllEnabled);
+    }
+  }
+
+  @override
+  void setConfiguration(SensorFrequencyConfigurationValue configuration) {
+    if (configuration is! SensorConfigurationValueV2) {
+      throw ArgumentError("Expects SensorConfigurationValueV2");
+    }
+
     V2SensorConfig sensorConfig = V2SensorConfig(
-      sensorId: configuration.sensorId,
+      sensorId: sensorId,
       sampleRateIndex: configuration.frequencyIndex,
-      streamData: streamData,
-      storeData: recordData,
+      streamData: configuration.streamData,
+      storeData: configuration.recordData,
     );
     _sensorHandler.writeSensorConfig(sensorConfig);
   }
@@ -50,24 +83,38 @@ class SensorConfigurationV2 extends SensorConfiguration<SensorConfigurationValue
     }
     return false;
   }
-  
+
   @override
-  int get hashCode => name.hashCode ^ values.hashCode ^ unit.hashCode ^ maxStreamingFreqIndex.hashCode;
+  int get hashCode =>
+      name.hashCode ^
+      values.hashCode ^
+      unit.hashCode ^
+      maxStreamingFreqIndex.hashCode;
 }
 
-class SensorConfigurationValueV2 extends SensorConfigurationValue {
-  final int sensorId;
-  final double frequency;
+class SensorConfigurationValueV2 extends SensorFrequencyConfigurationValue {
   final int frequencyIndex;
+  final bool streamData;
+  final bool recordData;
 
   SensorConfigurationValueV2({
-    required this.sensorId,
-    required this.frequency,
+    required double frequency,
     required this.frequencyIndex,
-  }) : super(key: frequency.toStringAsPrecision(4));
+    required this.streamData,
+    required this.recordData,
+  }) : super(frequency: frequency);
 
   @override
   String toString() {
-    return key;
+    String trailer = "off";
+    if (streamData && recordData) {
+      trailer = "stream&record";
+    } else if (streamData) {
+      trailer = "stream";
+    } else if (recordData) {
+      trailer = "record";
+    }
+
+    return "${frequency.toStringAsPrecision(4)} $trailer";
   }
 }
