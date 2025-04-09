@@ -88,7 +88,7 @@ class SensorConfigurationV2 extends SensorFrequencyConfiguration {
         }
       }
 
-      if (value.frequencyHz > targetFrequencyHz) {
+      if (value.frequencyHz >= targetFrequencyHz) {
         nextBigger ??= value;
         if (value.frequencyHz < nextBigger.frequencyHz) {
           nextBigger = value;
