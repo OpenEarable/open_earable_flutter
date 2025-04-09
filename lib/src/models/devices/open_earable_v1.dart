@@ -545,12 +545,11 @@ class _ImuSensorConfiguration extends SensorFrequencyConfiguration {
   })  : _sensorManager = sensorManager,
         super(
           name: 'IMU',
-          unit: 'Hz',
           values: [
-            SensorFrequencyConfigurationValue(frequency: 0),
-            SensorFrequencyConfigurationValue(frequency: 10),
-            SensorFrequencyConfigurationValue(frequency: 20),
-            SensorFrequencyConfigurationValue(frequency: 30),
+            SensorFrequencyConfigurationValue(frequencyHz: 0),
+            SensorFrequencyConfigurationValue(frequencyHz: 10),
+            SensorFrequencyConfigurationValue(frequencyHz: 20),
+            SensorFrequencyConfigurationValue(frequencyHz: 30),
           ],
         );
 
@@ -579,12 +578,11 @@ class _BarometerSensorConfiguration extends SensorFrequencyConfiguration {
   })  : _sensorManager = sensorManager,
         super(
           name: 'Barometer',
-          unit: 'Hz',
           values: [
-            SensorFrequencyConfigurationValue(frequency: 0),
-            SensorFrequencyConfigurationValue(frequency: 10),
-            SensorFrequencyConfigurationValue(frequency: 20),
-            SensorFrequencyConfigurationValue(frequency: 30),
+            SensorFrequencyConfigurationValue(frequencyHz: 0),
+            SensorFrequencyConfigurationValue(frequencyHz: 10),
+            SensorFrequencyConfigurationValue(frequencyHz: 20),
+            SensorFrequencyConfigurationValue(frequencyHz: 30),
           ],
         );
 
@@ -613,18 +611,17 @@ class _MicrophoneSensorConfiguration extends SensorFrequencyConfiguration {
   })  : _sensorManager = sensorManager,
         super(
           name: 'Microphone',
-          unit: 'Hz',
           values: [
-            SensorFrequencyConfigurationValue(frequency: 0),
-            SensorFrequencyConfigurationValue(frequency: 16000),
-            SensorFrequencyConfigurationValue(frequency: 20000),
-            SensorFrequencyConfigurationValue(frequency: 25000),
-            SensorFrequencyConfigurationValue(frequency: 31250),
-            SensorFrequencyConfigurationValue(frequency: 33333),
-            SensorFrequencyConfigurationValue(frequency: 40000),
-            SensorFrequencyConfigurationValue(frequency: 41667),
-            SensorFrequencyConfigurationValue(frequency: 50000),
-            SensorFrequencyConfigurationValue(frequency: 62500),
+            SensorFrequencyConfigurationValue(frequencyHz: 0),
+            SensorFrequencyConfigurationValue(frequencyHz: 16000),
+            SensorFrequencyConfigurationValue(frequencyHz: 20000),
+            SensorFrequencyConfigurationValue(frequencyHz: 25000),
+            SensorFrequencyConfigurationValue(frequencyHz: 31250),
+            SensorFrequencyConfigurationValue(frequencyHz: 33333),
+            SensorFrequencyConfigurationValue(frequencyHz: 40000),
+            SensorFrequencyConfigurationValue(frequencyHz: 41667),
+            SensorFrequencyConfigurationValue(frequencyHz: 50000),
+            SensorFrequencyConfigurationValue(frequencyHz: 62500),
           ],
         );
 

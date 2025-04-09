@@ -6,11 +6,10 @@ abstract class SensorFrequencyConfiguration<
   const SensorFrequencyConfiguration({
     required String name,
     required List<SensorFrequencyConfigurationValue> values,
-    required String unit,
   }) : super(
           name: name,
           values: values,
-          unit: unit,
+          unit: "Hz",
         );
 
   @override
@@ -26,7 +25,7 @@ abstract class SensorFrequencyConfiguration<
     SensorFrequencyConfigurationValue maxFrequency = values.first;
 
     for (final value in values) {
-      if (value.frequency > maxFrequency.frequency) {
+      if (value.frequencyHz > maxFrequency.frequencyHz) {
         maxFrequency = value;
       }
     }
@@ -36,11 +35,11 @@ abstract class SensorFrequencyConfiguration<
 }
 
 class SensorFrequencyConfigurationValue extends SensorConfigurationValue {
-  final double frequency;
+  final double frequencyHz;
 
   SensorFrequencyConfigurationValue({
-    required this.frequency,
-  }) : super(key: frequency.toString());
+    required this.frequencyHz,
+  }) : super(key: frequencyHz.toString());
 
   @override
   String toString() {

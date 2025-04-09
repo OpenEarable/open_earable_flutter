@@ -106,7 +106,7 @@ class OpenEarableFactory extends WearableFactory {
           // One "off" option is enough
           sensorConfigurationValues.add(
             SensorConfigurationValueV2(
-              frequency: frequency,
+              frequencyHz: frequency,
               frequencyIndex: index,
               streamData: false,
               recordData: false,
@@ -116,7 +116,7 @@ class OpenEarableFactory extends WearableFactory {
 
         sensorConfigurationValues.add(
           SensorConfigurationValueV2(
-            frequency: frequency,
+            frequencyHz: frequency,
             frequencyIndex: index,
             streamData: true,
             recordData: false,
@@ -127,7 +127,7 @@ class OpenEarableFactory extends WearableFactory {
           // Add stream options
           sensorConfigurationValues.add(
             SensorConfigurationValueV2(
-              frequency: frequency,
+              frequencyHz: frequency,
               frequencyIndex: index,
               streamData: false,
               recordData: true,
@@ -135,7 +135,7 @@ class OpenEarableFactory extends WearableFactory {
           );
           sensorConfigurationValues.add(
             SensorConfigurationValueV2(
-              frequency: frequency,
+              frequencyHz: frequency,
               frequencyIndex: index,
               streamData: true,
               recordData: true,

@@ -18,7 +18,6 @@ class SensorConfigurationV2 extends SensorFrequencyConfiguration {
         super(
           name: name,
           values: values,
-          unit: "Hz",
         );
 
   @override
@@ -47,7 +46,7 @@ class SensorConfigurationV2 extends SensorFrequencyConfiguration {
       }
 
       maxFrequencyAllEnabled ??= valueCasted;
-      if (maxFrequencyAllEnabled.frequency < valueCasted.frequency) {
+      if (maxFrequencyAllEnabled.frequencyHz < valueCasted.frequencyHz) {
         maxFrequencyAllEnabled = valueCasted;
       }
     }
@@ -98,11 +97,11 @@ class SensorConfigurationValueV2 extends SensorFrequencyConfigurationValue {
   final bool recordData;
 
   SensorConfigurationValueV2({
-    required double frequency,
+    required double frequencyHz,
     required this.frequencyIndex,
     required this.streamData,
     required this.recordData,
-  }) : super(frequency: frequency);
+  }) : super(frequencyHz: frequencyHz);
 
   @override
   String toString() {
@@ -115,6 +114,6 @@ class SensorConfigurationValueV2 extends SensorFrequencyConfigurationValue {
       trailer = "record";
     }
 
-    return "${frequency.toStringAsPrecision(4)} $trailer";
+    return "${frequencyHz.toStringAsPrecision(4)} $trailer";
   }
 }
