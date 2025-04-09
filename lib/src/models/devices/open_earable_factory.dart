@@ -118,8 +118,8 @@ class OpenEarableFactory extends WearableFactory {
           SensorConfigurationValueV2(
             frequencyHz: frequency,
             frequencyIndex: index,
-            streamData: true,
-            recordData: false,
+            streamData: false,
+            recordData: true,
           ),
         );
 
@@ -129,8 +129,8 @@ class OpenEarableFactory extends WearableFactory {
             SensorConfigurationValueV2(
               frequencyHz: frequency,
               frequencyIndex: index,
-              streamData: false,
-              recordData: true,
+              streamData: true,
+              recordData: false,
             ),
           );
           sensorConfigurationValues.add(
