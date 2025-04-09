@@ -25,14 +25,16 @@ class SensorConfigurationV2 extends SensorFrequencyConfiguration {
     return 'SensorConfigurationV2(name: $name, values: $values, unit: $unit, maxStreamingFreqIndex: $maxStreamingFreqIndex)';
   }
 
-  /// Sets the maximum frequency that supports the specified flags
+  /// Sets the maximum frequency that supports the specified flags.
+  ///
+  /// Returns the value set or null.
   @override
-  void setMaximumFrequency({
+  SensorConfigurationValueV2? setMaximumFrequency({
     bool streamData = true,
     bool recordData = true,
   }) {
     if (values.isEmpty) {
-      return;
+      return null;
     }
 
     SensorConfigurationValueV2? maxFrequencyAllEnabled;
@@ -54,13 +56,16 @@ class SensorConfigurationV2 extends SensorFrequencyConfiguration {
     if (maxFrequencyAllEnabled != null) {
       setConfiguration(maxFrequencyAllEnabled);
     }
+    return maxFrequencyAllEnabled;
   }
 
   /// Sets the frequency close to [targetFrequencyHz] that supports the
   /// specified flags.
   /// Either the next biggest or the maximum frequency.
+  ///
+  /// Returns the value set or null.
   @override
-  void setFrequencyBestEffort(
+  SensorFrequencyConfigurationValue? setFrequencyBestEffort(
     int targetFrequencyHz, {
     bool streamData = true,
     bool recordData = true,
@@ -95,6 +100,7 @@ class SensorConfigurationV2 extends SensorFrequencyConfiguration {
     if (newValue != null) {
       setConfiguration(newValue);
     }
+    return newValue;
   }
 
   @override
