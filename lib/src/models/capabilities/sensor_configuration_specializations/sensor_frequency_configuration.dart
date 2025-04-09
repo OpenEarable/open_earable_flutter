@@ -19,7 +19,11 @@ abstract class SensorFrequencyConfiguration<
 
   /// Sets the frequency close to [targetFrequencyHz].
   /// Either the next biggest or the maximum frequency.
-  void setFrequencyBestEffort(int targetFrequencyHz) {
+  ///
+  /// Returns the value set or null.
+  SensorFrequencyConfigurationValue? setFrequencyBestEffort(
+    int targetFrequencyHz,
+  ) {
     SensorFrequencyConfigurationValue? nextSmaller;
     SensorFrequencyConfigurationValue? nextBigger;
 
@@ -43,12 +47,15 @@ abstract class SensorFrequencyConfiguration<
     if (newValue != null) {
       setConfiguration(newValue);
     }
+    return newValue;
   }
 
-  /// Sets the maximum frequency
-  void setMaximumFrequency() {
+  /// Sets the maximum frequency.
+  ///
+  /// Returns the value set or null.
+  SensorFrequencyConfigurationValue? setMaximumFrequency() {
     if (values.isEmpty) {
-      return;
+      return null;
     }
 
     SensorFrequencyConfigurationValue maxFrequency = values.first;
@@ -60,6 +67,8 @@ abstract class SensorFrequencyConfiguration<
     }
 
     setConfiguration(maxFrequency);
+
+    return maxFrequency;
   }
 }
 
