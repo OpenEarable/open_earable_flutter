@@ -25,7 +25,7 @@ class SensorConfigurationV2 extends SensorFrequencyConfiguration {
     return 'SensorConfigurationV2(name: $name, values: $values, unit: $unit, maxStreamingFreqIndex: $maxStreamingFreqIndex)';
   }
 
-  /// Sets the maximum frequency that supports streaming and recording
+  /// Sets the maximum frequency that supports the specified flags
   @override
   void setMaximumFrequency({
     bool streamData = true,
@@ -53,6 +53,47 @@ class SensorConfigurationV2 extends SensorFrequencyConfiguration {
 
     if (maxFrequencyAllEnabled != null) {
       setConfiguration(maxFrequencyAllEnabled);
+    }
+  }
+
+  /// Sets the frequency close to [targetFrequencyHz] that supports the
+  /// specified flags.
+  /// Either the next biggest or the maximum frequency.
+  @override
+  void setFrequencyBestEffort(
+    int targetFrequencyHz, {
+    bool streamData = true,
+    bool recordData = true,
+  }) {
+    SensorFrequencyConfigurationValue? nextSmaller;
+    SensorFrequencyConfigurationValue? nextBigger;
+
+    for (final value in values) {
+      SensorConfigurationValueV2 valueCasted =
+          value as SensorConfigurationValueV2;
+      if (valueCasted.streamData != streamData ||
+          valueCasted.recordData != recordData) {
+        continue;
+      }
+
+      if (value.frequencyHz < targetFrequencyHz) {
+        nextSmaller ??= value;
+        if (value.frequencyHz > nextSmaller.frequencyHz) {
+          nextSmaller = value;
+        }
+      }
+
+      if (value.frequencyHz > targetFrequencyHz) {
+        nextBigger ??= value;
+        if (value.frequencyHz < nextBigger.frequencyHz) {
+          nextBigger = value;
+        }
+      }
+    }
+
+    SensorFrequencyConfigurationValue? newValue = nextBigger ?? nextSmaller;
+    if (newValue != null) {
+      setConfiguration(newValue);
     }
   }
 

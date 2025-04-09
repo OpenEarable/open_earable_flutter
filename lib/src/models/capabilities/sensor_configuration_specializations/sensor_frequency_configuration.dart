@@ -17,6 +17,35 @@ abstract class SensorFrequencyConfiguration<
     return 'SensorFrequencyConfiguration(name: $name, values: $values, unit: $unit)';
   }
 
+  /// Sets the frequency close to [targetFrequencyHz].
+  /// Either the next biggest or the maximum frequency.
+  void setFrequencyBestEffort(int targetFrequencyHz) {
+    SensorFrequencyConfigurationValue? nextSmaller;
+    SensorFrequencyConfigurationValue? nextBigger;
+
+    for (final value in values) {
+      if (value.frequencyHz < targetFrequencyHz) {
+        nextSmaller ??= value;
+        if (value.frequencyHz > nextSmaller.frequencyHz) {
+          nextSmaller = value;
+        }
+      }
+
+      if (value.frequencyHz > targetFrequencyHz) {
+        nextBigger ??= value;
+        if (value.frequencyHz < nextBigger.frequencyHz) {
+          nextBigger = value;
+        }
+      }
+    }
+
+    SensorFrequencyConfigurationValue? newValue = nextBigger ?? nextSmaller;
+    if (newValue != null) {
+      setConfiguration(newValue);
+    }
+  }
+
+  /// Sets the maximum frequency
   void setMaximumFrequency() {
     if (values.isEmpty) {
       return;
