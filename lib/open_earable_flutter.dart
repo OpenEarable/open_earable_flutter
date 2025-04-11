@@ -16,6 +16,11 @@ import 'src/models/devices/wearable.dart';
 
 export 'src/models/devices/discovered_device.dart';
 export 'src/models/devices/wearable.dart';
+export 'src/models/devices/cosinuss_one.dart';
+export 'src/models/devices/open_earable_v1.dart';
+export 'src/models/devices/open_earable_v2.dart';
+export 'src/models/devices/polar.dart';
+
 export 'src/models/capabilities/device_firmware_version.dart';
 export 'src/models/capabilities/device_hardware_version.dart';
 export 'src/models/capabilities/device_identifier.dart';
