@@ -1,16 +1,16 @@
 import '../../../managers/v2_sensor_handler.dart';
 import 'sensor_frequency_configuration.dart';
 
-class SensorConfigurationV2 extends SensorFrequencyConfiguration {
+class SensorConfigurationOpenEarableV2 extends SensorFrequencyConfiguration {
   final int sensorId;
 
   final int maxStreamingFreqIndex;
   final V2SensorHandler _sensorHandler;
 
-  SensorConfigurationV2({
+  SensorConfigurationOpenEarableV2({
     required String name,
     required this.sensorId,
-    required List<SensorConfigurationValueV2> values,
+    required List<SensorConfigurationOpenEarableV2Value> values,
     required this.maxStreamingFreqIndex,
     required V2SensorHandler sensorHandler,
     String? unit,
@@ -29,7 +29,7 @@ class SensorConfigurationV2 extends SensorFrequencyConfiguration {
   ///
   /// Returns the value set or null.
   @override
-  SensorConfigurationValueV2? setMaximumFrequency({
+  SensorConfigurationOpenEarableV2Value? setMaximumFrequency({
     bool streamData = true,
     bool recordData = true,
   }) {
@@ -37,11 +37,11 @@ class SensorConfigurationV2 extends SensorFrequencyConfiguration {
       return null;
     }
 
-    SensorConfigurationValueV2? maxFrequencyAllEnabled;
+    SensorConfigurationOpenEarableV2Value? maxFrequencyAllEnabled;
 
     for (final value in values) {
-      SensorConfigurationValueV2 valueCasted =
-          value as SensorConfigurationValueV2;
+      SensorConfigurationOpenEarableV2Value valueCasted =
+          value as SensorConfigurationOpenEarableV2Value;
       if (valueCasted.streamData != streamData ||
           valueCasted.recordData != recordData) {
         continue;
@@ -74,8 +74,8 @@ class SensorConfigurationV2 extends SensorFrequencyConfiguration {
     SensorFrequencyConfigurationValue? nextBigger;
 
     for (final value in values) {
-      SensorConfigurationValueV2 valueCasted =
-          value as SensorConfigurationValueV2;
+      SensorConfigurationOpenEarableV2Value valueCasted =
+          value as SensorConfigurationOpenEarableV2Value;
       if (valueCasted.streamData != streamData ||
           valueCasted.recordData != recordData) {
         continue;
@@ -105,7 +105,7 @@ class SensorConfigurationV2 extends SensorFrequencyConfiguration {
 
   @override
   void setConfiguration(SensorFrequencyConfigurationValue configuration) {
-    if (configuration is! SensorConfigurationValueV2) {
+    if (configuration is! SensorConfigurationOpenEarableV2Value) {
       throw ArgumentError("Expects SensorConfigurationValueV2");
     }
 
@@ -121,7 +121,7 @@ class SensorConfigurationV2 extends SensorFrequencyConfiguration {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    if (other is SensorConfigurationV2) {
+    if (other is SensorConfigurationOpenEarableV2) {
       return name == other.name &&
           values == other.values &&
           unit == other.unit &&
@@ -138,12 +138,13 @@ class SensorConfigurationV2 extends SensorFrequencyConfiguration {
       maxStreamingFreqIndex.hashCode;
 }
 
-class SensorConfigurationValueV2 extends SensorFrequencyConfigurationValue {
+class SensorConfigurationOpenEarableV2Value
+    extends SensorFrequencyConfigurationValue {
   final int frequencyIndex;
   final bool streamData;
   final bool recordData;
 
-  SensorConfigurationValueV2({
+  SensorConfigurationOpenEarableV2Value({
     required double frequencyHz,
     required this.frequencyIndex,
     required this.streamData,

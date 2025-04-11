@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:open_earable_flutter/open_earable_flutter.dart';
 import 'package:open_earable_flutter/src/managers/sensor_handler.dart';
-import 'package:open_earable_flutter/src/models/capabilities/sensor_configuration_specializations/sensor_configuration_v2.dart';
 import 'package:open_earable_flutter/src/models/wearable_factory.dart';
 import 'package:open_earable_flutter/src/utils/sensor_scheme_parser/sensor_scheme_reader.dart';
 import 'package:open_earable_flutter/src/utils/sensor_scheme_parser/v2_sensor_scheme_reader.dart';
@@ -20,7 +19,10 @@ class OpenEarableFactory extends WearableFactory {
   final _v2Regex = RegExp(r'^2\.\d+\.\d+$');
 
   @override
-  Future<bool> matches(DiscoveredDevice device, List<BleService> services) async {
+  Future<bool> matches(
+    DiscoveredDevice device,
+    List<BleService> services,
+  ) async {
     if (!services.any((service) => service.uuid == _deviceInfoServiceUuid)) {
       logger.d("'$device' has no service matching '$_deviceInfoServiceUuid'");
       return false;
@@ -30,19 +32,21 @@ class OpenEarableFactory extends WearableFactory {
 
     logger.t("matches V2: ${_v2Regex.hasMatch(firmwareVersion)}");
 
-    return _v1Regex.hasMatch(firmwareVersion) || _v2Regex.hasMatch(firmwareVersion);
+    return _v1Regex.hasMatch(firmwareVersion) ||
+        _v2Regex.hasMatch(firmwareVersion);
   }
-  
+
   @override
   Future<Wearable> createFromDevice(DiscoveredDevice device) async {
     if (bleManager == null) {
       throw Exception("bleManager needs to be set before using the factory");
     }
     if (disconnectNotifier == null) {
-      throw Exception("disconnectNotifier needs to be set before using the factory");
+      throw Exception(
+        "disconnectNotifier needs to be set before using the factory",
+      );
     }
     String firmwareVersion = await _getFirmwareVersion(device);
-
 
     if (_v1Regex.hasMatch(firmwareVersion)) {
       return OpenEarableV1(
@@ -52,7 +56,8 @@ class OpenEarableFactory extends WearableFactory {
         discoveredDevice: device,
       );
     } else if (_v2Regex.hasMatch(firmwareVersion)) {
-      (List<Sensor>, List<SensorConfiguration>) sensorInfo = await _initSensors(device);
+      (List<Sensor>, List<SensorConfiguration>) sensorInfo =
+          await _initSensors(device);
       return OpenEarableV2(
         name: device.name,
         disconnectNotifier: disconnectNotifier!,
@@ -75,15 +80,19 @@ class OpenEarableFactory extends WearableFactory {
     logger.d("Raw Firmware Version: $softwareGenerationBytes");
     int firstZeroIndex = softwareGenerationBytes.indexOf(0);
     if (firstZeroIndex != -1) {
-      softwareGenerationBytes = softwareGenerationBytes.sublist(0, firstZeroIndex);
+      softwareGenerationBytes =
+          softwareGenerationBytes.sublist(0, firstZeroIndex);
     }
     return String.fromCharCodes(softwareGenerationBytes);
   }
 
-  Future<(List<Sensor>, List<SensorConfiguration>)> _initSensors(DiscoveredDevice device) async {
+  Future<(List<Sensor>, List<SensorConfiguration>)> _initSensors(
+    DiscoveredDevice device,
+  ) async {
     List<Sensor> sensors = [];
     List<SensorConfiguration> sensorConfigurations = [];
-    SensorSchemeReader schemeParser = V2SensorSchemeReader(bleManager!, device.id);
+    SensorSchemeReader schemeParser =
+        V2SensorSchemeReader(bleManager!, device.id);
 
     V2SensorHandler sensorManager = V2SensorHandler(
       bleManager: bleManager!,
@@ -95,15 +104,18 @@ class OpenEarableFactory extends WearableFactory {
     List<SensorScheme> sensorSchemes = await schemeParser.readSensorSchemes();
 
     for (SensorScheme scheme in sensorSchemes) {
-      List<SensorConfigurationValueV2> sensorConfigurationValues = [];
+      List<SensorConfigurationOpenEarableV2Value> sensorConfigurationValues =
+          [];
       //TODO: make sure the frequencies are specified
-      for (int index = 0; index < scheme.options!.frequencies!.frequencies.length; index++) {
+      for (int index = 0;
+          index < scheme.options!.frequencies!.frequencies.length;
+          index++) {
         double frequency = scheme.options!.frequencies!.frequencies[index];
 
         if (index == 0) {
           // One "off" option is enough
           sensorConfigurationValues.add(
-            SensorConfigurationValueV2(
+            SensorConfigurationOpenEarableV2Value(
               frequencyHz: frequency,
               frequencyIndex: index,
               streamData: false,
@@ -113,7 +125,7 @@ class OpenEarableFactory extends WearableFactory {
         }
 
         sensorConfigurationValues.add(
-          SensorConfigurationValueV2(
+          SensorConfigurationOpenEarableV2Value(
             frequencyHz: frequency,
             frequencyIndex: index,
             streamData: false,
@@ -124,7 +136,7 @@ class OpenEarableFactory extends WearableFactory {
         if (index <= scheme.options!.frequencies!.maxStreamingFreqIndex) {
           // Add stream options
           sensorConfigurationValues.add(
-            SensorConfigurationValueV2(
+            SensorConfigurationOpenEarableV2Value(
               frequencyHz: frequency,
               frequencyIndex: index,
               streamData: true,
@@ -132,7 +144,7 @@ class OpenEarableFactory extends WearableFactory {
             ),
           );
           sensorConfigurationValues.add(
-            SensorConfigurationValueV2(
+            SensorConfigurationOpenEarableV2Value(
               frequencyHz: frequency,
               frequencyIndex: index,
               streamData: true,
@@ -142,10 +154,12 @@ class OpenEarableFactory extends WearableFactory {
         }
       }
 
-      SensorConfigurationV2 sensorConfiguration = SensorConfigurationV2(
+      SensorConfigurationOpenEarableV2 sensorConfiguration =
+          SensorConfigurationOpenEarableV2(
         name: scheme.sensorName,
         values: sensorConfigurationValues,
-        maxStreamingFreqIndex: scheme.options!.frequencies!.maxStreamingFreqIndex,
+        maxStreamingFreqIndex:
+            scheme.options!.frequencies!.maxStreamingFreqIndex,
         sensorHandler: sensorManager,
         sensorId: scheme.sensorId,
       );
@@ -223,10 +237,13 @@ class _OpenEarableSensorV2 extends Sensor<SensorDoubleValue> {
   @override
   List<String> get axisUnits => _axisUnits;
 
-  Stream<SensorDoubleValue> _createSingleDataSubscription(String componentName) {
+  Stream<SensorDoubleValue> _createSingleDataSubscription(
+    String componentName,
+  ) {
     StreamController<SensorDoubleValue> streamController = StreamController();
 
-    StreamSubscription subscription = _sensorManager.subscribeToSensorData(_sensorId).listen((data) {
+    StreamSubscription subscription =
+        _sensorManager.subscribeToSensorData(_sensorId).listen((data) {
       int timestamp = data["timestamp"];
       logger.t("SensorData: $data");
 
