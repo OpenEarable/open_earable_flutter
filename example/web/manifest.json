@@ -1,6 +1,6 @@
 {
-    "name": "example",
-    "short_name": "example",
+    "name": "michaelexample",
+    "short_name": "michaelexample",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
