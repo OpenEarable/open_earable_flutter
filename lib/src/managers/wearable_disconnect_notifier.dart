@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-class Notifier {
+class WearableDisconnectNotifier {
   final List<VoidCallback> _listeners = [];
 
   void addListener(VoidCallback listener) {

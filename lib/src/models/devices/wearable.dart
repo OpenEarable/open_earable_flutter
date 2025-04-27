@@ -1,13 +1,13 @@
 import 'dart:ui';
 
-import '../../managers/notifier.dart';
+import '../../managers/wearable_disconnect_notifier.dart';
 
 abstract class Wearable {
   final String name;
 
   Wearable({
     required this.name,
-    required Notifier disconnectNotifier,
+    required WearableDisconnectNotifier disconnectNotifier,
   }) {
     disconnectNotifier.addListener(_notifyDisconnectListeners);
   }

@@ -10,7 +10,7 @@ import 'package:open_earable_flutter/src/models/wearable_factory.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 import 'src/managers/ble_manager.dart';
-import 'src/managers/notifier.dart';
+import 'src/managers/wearable_disconnect_notifier.dart';
 import 'src/models/devices/discovered_device.dart';
 import 'src/models/devices/wearable.dart';
 
@@ -20,6 +20,8 @@ export 'src/models/devices/cosinuss_one.dart';
 export 'src/models/devices/open_earable_v1.dart';
 export 'src/models/devices/open_earable_v2.dart';
 export 'src/models/devices/polar.dart';
+
+export 'src/managers/wearable_disconnect_notifier.dart';
 
 export 'src/models/capabilities/device_firmware_version.dart';
 export 'src/models/capabilities/device_hardware_version.dart';
@@ -109,7 +111,8 @@ class WearableManager {
   Future<Wearable> connectToDevice(DiscoveredDevice device) async {
     _connectingStreamController.add(device);
 
-    Notifier disconnectNotifier = Notifier();
+    WearableDisconnectNotifier disconnectNotifier =
+        WearableDisconnectNotifier();
     (bool, List<BleService>) connectionResult =
         await _bleManager.connectToDevice(
       device,
