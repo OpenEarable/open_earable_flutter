@@ -166,4 +166,8 @@ class WearableManager {
     _autoconnectScanSubscription?.cancel();
     _bleManager.dispose();
   }
+
+  static Future<bool> checkAndRequestPermissions() {
+    return BleManager.checkAndRequestPermissions();
+  }
 }
