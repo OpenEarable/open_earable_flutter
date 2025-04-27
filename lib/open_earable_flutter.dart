@@ -90,9 +90,13 @@ class WearableManager {
 
   Future<void> startScan({
     bool excludeUnsupported = false,
+    bool checkAndRequestPermissions = true,
   }) {
     _scanExcludeUnsupported = excludeUnsupported;
-    return _bleManager.startScan(filterByServices: excludeUnsupported);
+    return _bleManager.startScan(
+      filterByServices: excludeUnsupported,
+      checkAndRequestPermissions: checkAndRequestPermissions,
+    );
   }
 
   Stream<DiscoveredDevice> get scanStream => _bleManager.scanStream;
@@ -165,5 +169,9 @@ class WearableManager {
   void dispose() {
     _autoconnectScanSubscription?.cancel();
     _bleManager.dispose();
+  }
+
+  static Future<bool> checkAndRequestPermissions() {
+    return BleManager.checkAndRequestPermissions();
   }
 }

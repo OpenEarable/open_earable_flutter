@@ -75,9 +75,9 @@ class BleManager {
     };
   }
 
-  /// Initiates the BLE device scan to discover nearby Bluetooth devices.
-  Future<void> startScan({bool filterByServices = false}) async {
+  static Future<bool> checkAndRequestPermissions() async {
     bool permGranted = false;
+
     // Don't run `Platform.is*` on web
     if (!kIsWeb && Platform.isAndroid) {
       Map<Permission, PermissionStatus> statuses = await [
@@ -93,7 +93,21 @@ class BleManager {
       permGranted = true;
     }
 
-    if (permGranted) {
+    return permGranted;
+  }
+
+  /// Initiates the BLE device scan to discover nearby Bluetooth devices.
+  Future<void> startScan({
+    bool filterByServices = false,
+    bool checkAndRequestPermissions = true,
+  }) async {
+    bool? permGranted;
+
+    if (checkAndRequestPermissions) {
+      permGranted = await BleManager.checkAndRequestPermissions();
+    }
+
+    if (permGranted == true || !checkAndRequestPermissions) {
       // Workaround for iOS, otherwise we need to press the scan button twice for it
       for (int i = 0;
           i < ((!kIsWeb && Platform.isIOS && _firstScan) ? 2 : 1);
