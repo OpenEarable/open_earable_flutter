@@ -36,8 +36,16 @@ class PolarFactory extends WearableFactory {
       ),
     ];
 
-    if (device.name.contains(" H9") || device.name.contains(" H10")) {
-      // Chest straps support HRV
+    bool isWatch = device.name.contains("Unite") ||
+        device.name.contains("Ignite") ||
+        device.name.contains("Vantage") ||
+        device.name.contains("Pacer");
+
+    if (device.name.contains(" H9") ||
+        device.name.contains(" H10") ||
+        isWatch) {
+      // Chest straps support HRV, watches with connected strap too.
+      // TODO Do strap detection on for Polar watches
       sensors.add(
         _PolarHeartRateVariabilitySensor(
           bleManager: bleManager!,
