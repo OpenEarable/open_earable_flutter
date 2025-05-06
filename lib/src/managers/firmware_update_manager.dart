@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
@@ -62,8 +63,31 @@ class FirmwareUpdateManager {
     List<int> bufferInfo = await getBufferSize(deviceId);
     int bufferSize = bufferInfo[0];
     int bufferCount = bufferInfo[1];
+
+    int mtu = 20;
+    if (!kIsWeb && !Platform.isLinux) {
+      mtu = await UniversalBle.requestMtu(deviceId, mtu); // Mobile/desktop
+    }
+    logger.d("MTU size: $mtu");
+
+    const int WRITE_VALUE_BUFFER_SIZE = 10; // for iOS
+    if (bufferSize / mtu > WRITE_VALUE_BUFFER_SIZE) {
+      final newSize = mtu * WRITE_VALUE_BUFFER_SIZE;
+      bufferSize = newSize;
+      logger.d(
+        'Lowered Reassembly Buffer Size to $newSize due to low MTU (too many Bluetooth API writes per buffer).',
+      );
+    }
+    if (bufferSize > 65535) {
+      bufferSize = 65535;
+    }
+    var configuration = FirmwareUpgradeConfiguration(
+        pipelineDepth: bufferCount - 1,
+        reassemblyBufferSize: bufferSize,
+        byteAlignment: 4);
     logger.d('Device buffer size: $bufferSize, buffer count: $bufferCount');
-    await sendFirmwareData(deviceId, firmwareData, sha256Hash);
+    await sendFirmwareData(
+        deviceId, firmwareData, sha256Hash, configuration, mtu);
     await confirmUpdate(deviceId, sha256Hash);
     await rebootDevice(deviceId);
   }
@@ -71,13 +95,12 @@ class FirmwareUpdateManager {
   Future<void> sendFirmwareData(
     String deviceId,
     Uint8List firmwareData,
-    Uint8List sha256Hash, {
-    int mtu = 20,
-  }) async {
+    Uint8List sha256Hash,
+    FirmwareUpgradeConfiguration configuration,
+    int mtu,
+  ) async {
     updateStatus(FirmwareUpdateStatus.uploading);
-    var mtu = await UniversalBle.requestMtu(deviceId, 247);
 
-    logger.d("MTU size: $mtu");
     int chunkSize = mtu - 100;
 
     int offset = 0;
@@ -471,4 +494,33 @@ class SmpHeader {
   String toString() {
     return 'SmpHeader(version: $version, op: $op, flags: $flags, dataLen: $dataLen, group: $group, seq: $seq, cmdId: $cmdId)';
   }
+}
+
+class FirmwareUpgradeConfiguration {
+  /// Estimated time required for swapping images, in seconds.
+  final double estimatedSwapTime;
+
+  /// If enabled, sends an Erase App Settings Command before test/confirm/reset.
+  final bool eraseAppSettings;
+
+  /// Enables SMP Pipelining when >1 (multiple packets sent before awaiting response).
+  final int pipelineDepth;
+
+  /// Predicts offset jumps when pipelining is enabled.
+  final int byteAlignment;
+
+  /// Used instead of MTU for larger packet sizes (max 65535).
+  final int reassemblyBufferSize;
+
+  /// Returns true if SMP Pipelining is enabled (pipelineDepth > 1).
+  bool get pipeliningEnabled => pipelineDepth > 1;
+
+  FirmwareUpgradeConfiguration({
+    this.estimatedSwapTime = 0.0,
+    this.eraseAppSettings = false,
+    this.pipelineDepth = 1,
+    this.byteAlignment = 0,
+    this.reassemblyBufferSize = 0,
+  }) : assert(
+            reassemblyBufferSize <= 65535, 'Cannot exceed UInt16.max (65535)');
 }

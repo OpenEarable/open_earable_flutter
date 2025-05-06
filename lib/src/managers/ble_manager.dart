@@ -100,32 +100,35 @@ class BleManager {
       permGranted = true;
     }
 
-    if (permGranted) {
-      for (int i = 0;
-          // Run this two times on MacOS if it's the first run.
-          // Needed on MacOS on an M1 Pro.
-          i < ((!kIsWeb && Platform.isMacOS && oldController == null) ? 2 : 1);
-          ++i) {
-        // Sleep before the second run
-        if (i == 1) {
-          await Future.delayed(const Duration(milliseconds: 200));
-        }
+    if (!permGranted) return;
 
-        await UniversalBle.stopScan();
+    for (int i = 0;
+        // Run this two times on MacOS if it's the first run.
+        // Needed on MacOS on an M1 Pro.
+        i < ((!kIsWeb && Platform.isMacOS && oldController == null) ? 2 : 1);
+        ++i) {
+      // Sleep before the second run
+      if (i == 1) {
+        await Future.delayed(const Duration(milliseconds: 200));
+      }
 
-        UniversalBle.onScanResult = (bleDevice) {
-          _scanStreamController?.add(
-            DiscoveredDevice(
-              id: bleDevice.deviceId,
-              name: bleDevice.name ?? "",
-              manufacturerData:
-                  bleDevice.manufacturerData ?? Uint8List.fromList([]),
-              rssi: bleDevice.rssi ?? -1,
-              serviceUuids: bleDevice.services,
-            ),
-          );
-        };
+      await UniversalBle.stopScan();
 
+      UniversalBle.onScanResult = (bleDevice) {
+        _scanStreamController?.add(
+          DiscoveredDevice(
+            id: bleDevice.deviceId,
+            name: bleDevice.name ?? "",
+            manufacturerData:
+                bleDevice.manufacturerData ?? Uint8List.fromList([]),
+            rssi: bleDevice.rssi ?? -1,
+            serviceUuids: bleDevice.services,
+          ),
+        );
+      };
+
+      if (!kIsWeb) {
+        // Not implemented on web
         UniversalBle.getSystemDevices(
           // This filter is required on Apple platforms
           withServices:
@@ -146,14 +149,19 @@ class BleManager {
             );
           }
         });
-
-        await UniversalBle.startScan(
-          scanFilter: ScanFilter(
-            // Needs to be passed for web, can be empty for the rest
-            withServices: (kIsWeb || filterByServices) ? allServiceUuids : [],
-          ),
-        );
       }
+
+      await UniversalBle.startScan(
+        scanFilter: ScanFilter(
+          // Needs to be passed for web, can be empty for the rest
+          withServices: [],
+        ),
+        platformConfig: PlatformConfig(
+          web: WebConfig(
+            optionalServices: allServiceUuids,
+          ),
+        ),
+      );
     }
   }
 
