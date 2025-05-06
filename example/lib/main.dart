@@ -51,10 +51,7 @@ class MyAppState extends State<MyApp> {
               appBar: AppBar(
                 title: const Text('Bluetooth Devices'),
               ),
-              body: Column(children: [
-                Expanded(child: _materialApp(context)),
-                FirmwareUpdateWidget()
-              ]),
+              body: _materialApp(context),
             )));
   }
 
@@ -172,7 +169,18 @@ class MyAppState extends State<MyApp> {
                           ),
                           Spacer(),
                           ElevatedButton(
-                              onPressed: () => print("update"),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => Scaffold(
+                                      appBar: AppBar(
+                                          title: Text("Update Firmware")),
+                                      body: FirmwareUpdateWidget(),
+                                    ),
+                                  ),
+                                );
+                              },
                               child: Text("Update Firmware"))
                         ]);
                       },

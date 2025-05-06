@@ -17,13 +17,14 @@ class FirmwareUpdateWidget extends StatefulWidget {
 }
 
 class _FirmwareUpdateWidget extends State<FirmwareUpdateWidget> {
+  late FirmwareUpdateRequestProvider provider;
   @override
   Widget build(BuildContext context) {
+    provider = context.watch<FirmwareUpdateRequestProvider>();
     return _body(context);
   }
 
   Widget _body(BuildContext context) {
-    final provider = context.watch<FirmwareUpdateRequestProvider>();
     return Stepper(
       connectorColor: WidgetStateProperty.resolveWith<Color>(
         (states) {
@@ -111,5 +112,12 @@ class _FirmwareUpdateWidget extends State<FirmwareUpdateWidget> {
       default:
         throw Exception('Unknown step');
     }
+  }
+
+  @override
+  void dispose() {
+    // Reset the state when this widget is disposed (e.g. popped)
+    provider.reset();
+    super.dispose();
   }
 }
