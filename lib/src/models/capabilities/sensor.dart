@@ -1,12 +1,21 @@
-abstract class Sensor {
+import 'sensor_configuration.dart';
+
+abstract class Sensor<SV extends SensorValue> {
   final String sensorName;
   final String chartTitle;
   final String shortChartTitle;
+  final List<SensorConfiguration> relatedConfigurations;
+
+  /// The exponent of the timestamp value.
+  /// 0 for seconds, -3 for milliseconds, -6 for microseconds, etc.
+  final int timestampExponent;
 
   const Sensor({
     required this.sensorName,
     required this.chartTitle,
     required this.shortChartTitle,
+    this.timestampExponent = -3,
+    this.relatedConfigurations = const [],
   });
 
   List<String> get axisNames;
@@ -15,11 +24,12 @@ abstract class Sensor {
 
   int get axisCount => axisNames.length;
 
-  Stream<SensorValue> get sensorStream;
+  Stream<SV> get sensorStream;
 }
 
 class SensorValue {
   final List<String> _valuesStrings;
+  //TODO: adjust for v2 that uses uint64 timestamp
   final int timestamp;
 
   int get dimensions => _valuesStrings.length;

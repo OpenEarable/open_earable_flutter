@@ -2,23 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:open_earable_flutter/open_earable_flutter.dart';
+
 import '../../managers/open_earable_sensor_manager.dart';
 import '../../utils/simple_kalman.dart';
-import '../capabilities/audio_player_controls.dart';
-import '../capabilities/device_firmware_version.dart';
-import '../capabilities/device_hardware_version.dart';
-import '../capabilities/device_identifier.dart';
-import '../capabilities/frequency_player.dart';
-import '../capabilities/jingle_player.dart';
-import '../capabilities/rgb_led.dart';
-import '../capabilities/sensor.dart';
-import '../capabilities/sensor_configuration.dart';
-import '../capabilities/sensor_configuration_manager.dart';
-import '../capabilities/sensor_manager.dart';
 import '../../managers/ble_manager.dart';
-import '../capabilities/storage_path_audio_player.dart';
-import 'discovered_device.dart';
-import 'wearable.dart';
 
 const String _ledSetStateCharacteristic =
     "81040e7a-4819-11ee-be56-0242ac120002";
@@ -34,6 +22,8 @@ const String _audioSourceCharacteristic =
     "566916a8-476d-11ee-be56-0242ac120002";
 const String _audioStateCharacteristic = "566916a9-476d-11ee-be56-0242ac120002";
 
+const String _batteryLevelCharacteristicUuid = "2A19";
+
 class OpenEarableV1 extends Wearable
     implements
         SensorManager,
@@ -45,15 +35,19 @@ class OpenEarableV1 extends Wearable
         FrequencyPlayer,
         JinglePlayer,
         AudioPlayerControls,
-        StoragePathAudioPlayer {
+        StoragePathAudioPlayer,
+        BatteryLevelService {
   static const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
   static const String deviceInfoServiceUuid =
       "45622510-6468-465a-b141-0b9b0f96b468";
   static const String audioPlayerServiceUuid =
       "5669146e-476d-11ee-be56-0242ac120002";
-  static const String sensorServiceUuid = "34c2e3bb-34aa-11eb-adc1-0242ac120002";
-  static const String parseInfoServiceUuid = "caa25cb7-7e1b-44f2-adc9-e8c06c9ced43";
-  static const String buttonServiceUuid = "29c10bdc-4773-11ee-be56-0242ac120002";
+  static const String sensorServiceUuid =
+      "34c2e3bb-34aa-11eb-adc1-0242ac120002";
+  static const String parseInfoServiceUuid =
+      "caa25cb7-7e1b-44f2-adc9-e8c06c9ced43";
+  static const String buttonServiceUuid =
+      "29c10bdc-4773-11ee-be56-0242ac120002";
   static const String batteryServiceUuid = "180F";
 
   final List<Sensor> _sensors;
@@ -93,10 +87,25 @@ class OpenEarableV1 extends Wearable
   }
 
   void _initSensors() {
-    OpenEarableSensorManager sensorManager = OpenEarableSensorManager(
+    OpenEarableSensorHandler sensorManager = OpenEarableSensorHandler(
       bleManager: _bleManager,
       deviceId: _discoveredDevice.id,
     );
+
+    final imuSensorConfig = _ImuSensorConfiguration(
+      sensorManager: sensorManager,
+    );
+    _sensorConfigurations.add(imuSensorConfig);
+
+    final barometerSensorConfig = _BarometerSensorConfiguration(
+      sensorManager: sensorManager,
+    );
+    _sensorConfigurations.add(barometerSensorConfig);
+
+    final microphoneSensorConfig = _MicrophoneSensorConfiguration(
+      sensorManager: sensorManager,
+    );
+    _sensorConfigurations.add(microphoneSensorConfig);
 
     _sensors.add(
       _OpenEarableSensor(
@@ -106,6 +115,7 @@ class OpenEarableV1 extends Wearable
         shortChartTitle: 'Acc.',
         axisNames: ['X', 'Y', 'Z'],
         axisUnits: ["m/s\u00B2", "m/s\u00B2", "m/s\u00B2"],
+        relatedConfigurations: [imuSensorConfig],
       ),
     );
     _sensors.add(
@@ -116,6 +126,7 @@ class OpenEarableV1 extends Wearable
         shortChartTitle: 'Gyro.',
         axisNames: ['X', 'Y', 'Z'],
         axisUnits: ["°/s", "°/s", "°/s"],
+        relatedConfigurations: [imuSensorConfig],
       ),
     );
     _sensors.add(
@@ -126,6 +137,7 @@ class OpenEarableV1 extends Wearable
         shortChartTitle: 'Magn.',
         axisNames: ['X', 'Y', 'Z'],
         axisUnits: ["µT", "µT", "µT"],
+        relatedConfigurations: [imuSensorConfig],
       ),
     );
     _sensors.add(
@@ -136,6 +148,7 @@ class OpenEarableV1 extends Wearable
         shortChartTitle: 'Press.',
         axisNames: ['Pressure'],
         axisUnits: ["Pa"],
+        relatedConfigurations: [barometerSensorConfig],
       ),
     );
     _sensors.add(
@@ -146,24 +159,21 @@ class OpenEarableV1 extends Wearable
         shortChartTitle: 'Temp. (A.)',
         axisNames: ['Temperature'],
         axisUnits: ["°C"],
+        relatedConfigurations: [barometerSensorConfig],
       ),
     );
+  }
 
-    _sensorConfigurations.add(
-      _ImuSensorConfiguration(
-        sensorManager: sensorManager,
-      ),
-    );
-    _sensorConfigurations.add(
-      _BarometerSensorConfiguration(
-        sensorManager: sensorManager,
-      ),
-    );
-    _sensorConfigurations.add(
-      _MicrophoneSensorConfiguration(
-        sensorManager: sensorManager,
-      ),
-    );
+  @override
+  String? getWearableIconPath({bool darkmode = false}) {
+    String basePath =
+        'packages/open_earable_flutter/assets/wearable_icons/open_earable_v1';
+
+    if (darkmode) {
+      return '$basePath/icon_no_text_white.svg';
+    }
+
+    return '$basePath/icon_no_text.svg';
   }
 
   @override
@@ -276,6 +286,7 @@ class OpenEarableV1 extends Wearable
     data.setAll(6, loudnessBytes.buffer.asUint8List());
 
     await _bleManager.write(
+      deviceId: _discoveredDevice.id,
       serviceId: audioPlayerServiceUuid,
       characteristicId: _audioSourceCharacteristic,
       byteData: data,
@@ -301,6 +312,7 @@ class OpenEarableV1 extends Wearable
     data[0] = type;
     data[1] = jingleMap[jingle.key]!;
     await _bleManager.write(
+      deviceId: _discoveredDevice.id,
       serviceId: audioPlayerServiceUuid,
       characteristicId: _audioSourceCharacteristic,
       byteData: data,
@@ -315,6 +327,7 @@ class OpenEarableV1 extends Wearable
     Uint8List data = Uint8List(1);
     data[0] = 1;
     await _bleManager.write(
+      deviceId: _discoveredDevice.id,
       serviceId: audioPlayerServiceUuid,
       characteristicId: _audioStateCharacteristic,
       byteData: data,
@@ -326,6 +339,7 @@ class OpenEarableV1 extends Wearable
     Uint8List data = Uint8List(1);
     data[0] = 2;
     await _bleManager.write(
+      deviceId: _discoveredDevice.id,
       serviceId: audioPlayerServiceUuid,
       characteristicId: _audioStateCharacteristic,
       byteData: data,
@@ -337,6 +351,7 @@ class OpenEarableV1 extends Wearable
     Uint8List data = Uint8List(1);
     data[0] = 3;
     await _bleManager.write(
+      deviceId: _discoveredDevice.id,
       serviceId: audioPlayerServiceUuid,
       characteristicId: _audioStateCharacteristic,
       byteData: data,
@@ -354,19 +369,64 @@ class OpenEarableV1 extends Wearable
     data.setRange(2, 2 + nameBytes.length, nameBytes);
 
     await _bleManager.write(
+      deviceId: _discoveredDevice.id,
       serviceId: audioPlayerServiceUuid,
       characteristicId: _audioSourceCharacteristic,
       byteData: data,
     );
   }
+
+  @override
+  Stream<int> get batteryPercentageStream {
+    StreamController<int> controller = StreamController();
+    Timer? pollingTimer;
+
+    controller.onCancel = () {
+      pollingTimer?.cancel();
+    };
+
+    controller.onListen = () {
+      pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+        try {
+          int batteryPercentage = await readBatteryPercentage();
+          controller.add(batteryPercentage);
+        } catch (e) {
+          controller.addError(e);
+        }
+      });
+    };
+
+    readBatteryPercentage().then(controller.add).catchError((e) {
+      logger.e('Error reading battery percentage: $e');
+    });
+
+    return controller.stream;
+  }
+
+  @override
+  Future<int> readBatteryPercentage() async {
+    List<int> batteryLevelList = await _bleManager.read(
+      deviceId: _discoveredDevice.id,
+      serviceId: batteryServiceUuid,
+      characteristicId: _batteryLevelCharacteristicUuid,
+    );
+
+    logger.t("Battery level bytes: $batteryLevelList");
+
+    if (batteryLevelList.length != 1) {
+      throw StateError(
+        'Battery level characteristic expected 1 value, but got ${batteryLevelList.length}',
+      );
+    }
+
+    return batteryLevelList[0];
+  }
 }
 
-class _OpenEarableSensor extends Sensor {
+class _OpenEarableSensor extends Sensor<SensorDoubleValue> {
   final List<String> _axisNames;
   final List<String> _axisUnits;
-  final OpenEarableSensorManager _sensorManager;
-
-  StreamSubscription? _dataSubscription;
+  final OpenEarableSensorHandler _sensorManager;
 
   _OpenEarableSensor({
     required String sensorName,
@@ -374,7 +434,8 @@ class _OpenEarableSensor extends Sensor {
     required String shortChartTitle,
     required List<String> axisNames,
     required List<String> axisUnits,
-    required OpenEarableSensorManager sensorManager,
+    required OpenEarableSensorHandler sensorManager,
+    required List<SensorConfiguration> relatedConfigurations,
   })  : _axisNames = axisNames,
         _axisUnits = axisUnits,
         _sensorManager = sensorManager,
@@ -382,6 +443,7 @@ class _OpenEarableSensor extends Sensor {
           sensorName: sensorName,
           chartTitle: chartTitle,
           shortChartTitle: shortChartTitle,
+          relatedConfigurations: relatedConfigurations,
         );
 
   @override
@@ -390,8 +452,8 @@ class _OpenEarableSensor extends Sensor {
   @override
   List<String> get axisUnits => _axisUnits;
 
-  Stream<SensorValue> _getAccGyroMagStream() {
-    StreamController<SensorValue> streamController = StreamController();
+  Stream<SensorDoubleValue> _getAccGyroMagStream() {
+    StreamController<SensorDoubleValue> streamController = StreamController();
 
     final errorMeasure = {"ACC": 5.0, "GYRO": 10.0, "MAG": 25.0};
 
@@ -410,11 +472,12 @@ class _OpenEarableSensor extends Sensor {
       errorEstimate: errorMeasure[sensorName]!,
       q: 0.9,
     );
-    _dataSubscription?.cancel();
-    _dataSubscription = _sensorManager.subscribeToSensorData(0).listen((data) {
+
+    StreamSubscription subscription =
+        _sensorManager.subscribeToSensorData(0).listen((data) {
       int timestamp = data["timestamp"];
 
-      SensorValue sensorValue = SensorDoubleValue(
+      SensorDoubleValue sensorValue = SensorDoubleValue(
         values: [
           kalmanX.filtered(data[sensorName]["X"]),
           kalmanY.filtered(data[sensorName]["Y"]),
@@ -426,17 +489,22 @@ class _OpenEarableSensor extends Sensor {
       streamController.add(sensorValue);
     });
 
+    // Cancel BLE subscription when canceling stream
+    streamController.onCancel = () {
+      subscription.cancel();
+    };
+
     return streamController.stream;
   }
 
-  Stream<SensorValue> _createSingleDataSubscription(String componentName) {
-    StreamController<SensorValue> streamController = StreamController();
+  Stream<SensorDoubleValue> _createSingleDataSubscription(String componentName) {
+    StreamController<SensorDoubleValue> streamController = StreamController();
 
-    _dataSubscription?.cancel();
-    _dataSubscription = _sensorManager.subscribeToSensorData(1).listen((data) {
+    StreamSubscription subscription =
+        _sensorManager.subscribeToSensorData(1).listen((data) {
       int timestamp = data["timestamp"];
 
-      SensorValue sensorValue = SensorDoubleValue(
+      SensorDoubleValue sensorValue = SensorDoubleValue(
         values: [data[sensorName][componentName]],
         timestamp: timestamp,
       );
@@ -444,11 +512,16 @@ class _OpenEarableSensor extends Sensor {
       streamController.add(sensorValue);
     });
 
+    // Cancel BLE subscription when canceling stream
+    streamController.onCancel = () {
+      subscription.cancel();
+    };
+
     return streamController.stream;
   }
 
   @override
-  Stream<SensorValue> get sensorStream {
+  Stream<SensorDoubleValue> get sensorStream {
     switch (sensorName) {
       case "ACC":
       case "GYRO":
@@ -464,20 +537,19 @@ class _OpenEarableSensor extends Sensor {
   }
 }
 
-class _ImuSensorConfiguration extends SensorConfiguration {
-  final OpenEarableSensorManager _sensorManager;
+class _ImuSensorConfiguration extends SensorFrequencyConfiguration {
+  final OpenEarableSensorHandler _sensorManager;
 
   _ImuSensorConfiguration({
-    required OpenEarableSensorManager sensorManager,
+    required OpenEarableSensorHandler sensorManager,
   })  : _sensorManager = sensorManager,
         super(
           name: 'IMU',
-          unit: 'Hz',
-          values: const [
-            SensorConfigurationValue(key: '0'),
-            SensorConfigurationValue(key: '10'),
-            SensorConfigurationValue(key: '20'),
-            SensorConfigurationValue(key: '30'),
+          values: [
+            SensorFrequencyConfigurationValue(frequencyHz: 0),
+            SensorFrequencyConfigurationValue(frequencyHz: 10),
+            SensorFrequencyConfigurationValue(frequencyHz: 20),
+            SensorFrequencyConfigurationValue(frequencyHz: 30),
           ],
         );
 
@@ -498,20 +570,19 @@ class _ImuSensorConfiguration extends SensorConfiguration {
   }
 }
 
-class _BarometerSensorConfiguration extends SensorConfiguration {
-  final OpenEarableSensorManager _sensorManager;
+class _BarometerSensorConfiguration extends SensorFrequencyConfiguration {
+  final OpenEarableSensorHandler _sensorManager;
 
   _BarometerSensorConfiguration({
-    required OpenEarableSensorManager sensorManager,
+    required OpenEarableSensorHandler sensorManager,
   })  : _sensorManager = sensorManager,
         super(
           name: 'Barometer',
-          unit: 'Hz',
-          values: const [
-            SensorConfigurationValue(key: '0'),
-            SensorConfigurationValue(key: '10'),
-            SensorConfigurationValue(key: '20'),
-            SensorConfigurationValue(key: '30'),
+          values: [
+            SensorFrequencyConfigurationValue(frequencyHz: 0),
+            SensorFrequencyConfigurationValue(frequencyHz: 10),
+            SensorFrequencyConfigurationValue(frequencyHz: 20),
+            SensorFrequencyConfigurationValue(frequencyHz: 30),
           ],
         );
 
@@ -532,26 +603,25 @@ class _BarometerSensorConfiguration extends SensorConfiguration {
   }
 }
 
-class _MicrophoneSensorConfiguration extends SensorConfiguration {
-  final OpenEarableSensorManager _sensorManager;
+class _MicrophoneSensorConfiguration extends SensorFrequencyConfiguration {
+  final OpenEarableSensorHandler _sensorManager;
 
   _MicrophoneSensorConfiguration({
-    required OpenEarableSensorManager sensorManager,
+    required OpenEarableSensorHandler sensorManager,
   })  : _sensorManager = sensorManager,
         super(
           name: 'Microphone',
-          unit: 'Hz',
-          values: const [
-            SensorConfigurationValue(key: "0"),
-            SensorConfigurationValue(key: "16000"),
-            SensorConfigurationValue(key: "20000"),
-            SensorConfigurationValue(key: "25000"),
-            SensorConfigurationValue(key: "31250"),
-            SensorConfigurationValue(key: "33333"),
-            SensorConfigurationValue(key: "40000"),
-            SensorConfigurationValue(key: "41667"),
-            SensorConfigurationValue(key: "50000"),
-            SensorConfigurationValue(key: "62500"),
+          values: [
+            SensorFrequencyConfigurationValue(frequencyHz: 0),
+            SensorFrequencyConfigurationValue(frequencyHz: 16000),
+            SensorFrequencyConfigurationValue(frequencyHz: 20000),
+            SensorFrequencyConfigurationValue(frequencyHz: 25000),
+            SensorFrequencyConfigurationValue(frequencyHz: 31250),
+            SensorFrequencyConfigurationValue(frequencyHz: 33333),
+            SensorFrequencyConfigurationValue(frequencyHz: 40000),
+            SensorFrequencyConfigurationValue(frequencyHz: 41667),
+            SensorFrequencyConfigurationValue(frequencyHz: 50000),
+            SensorFrequencyConfigurationValue(frequencyHz: 62500),
           ],
         );
 

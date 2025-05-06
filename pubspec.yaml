@@ -20,9 +20,9 @@ dependencies:
     sdk: flutter
   typed_data: ^1.3.2
   convert: ^3.1.1
-  permission_handler: ^11.3.1
-  universal_ble: ^0.12.0
-  web: 1.1.0   # Needed for web compatibility with permission_handler
+  permission_handler: ^11.4.0
+  universal_ble: ^0.17.0
+  logger: ^2.5.0
 
 dev_dependencies:
   flutter_test:
@@ -34,6 +34,13 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  assets:
+    - assets/wearable_icons/open_earable_v1/
+    - assets/wearable_icons/open_earable_v2/
+    - assets/wearable_icons/cosinuss_one/
+    - assets/wearable_icons/polar/default/
+    - assets/wearable_icons/polar/watch/
+    - assets/wearable_icons/polar/strap_sensor/
 
   # To add assets to your package, add an assets section, like this:
   # assets:

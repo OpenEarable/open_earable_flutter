@@ -8,6 +8,10 @@ import 'package:example/global_theme.dart';
 import 'package:example/widgets/firmware_update_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:example/widgets/battery_info_widget.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:open_earable_flutter/open_earable_flutter.dart';
 import 'package:provider/provider.dart';
 
@@ -41,18 +45,59 @@ class MyAppState extends State<MyApp> {
   DiscoveredDevice? _connectingDevice;
   Wearable? _connectedDevice;
 
+  // Get devices for auto connect
+  static List<String> get _autoConnectDevices {
+    const devicesString =
+        String.fromEnvironment("AUTO_CONNECT_DEVICES", defaultValue: "");
+    if (devicesString.isEmpty) return [];
+    return devicesString
+        .split(",")
+        .map((device) => device.trim())
+        .where((device) => device.isNotEmpty)
+        .toList();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Start scanning for devices if not in web
+    if (!kIsWeb) _startScanning();
+
+    // Start auto connecting to devices specified in _autoConnectDevices
+    _wearableManager.setAutoConnect(_autoConnectDevices);
+
+    // Deal with new connected devices
+    _wearableManager.connectStream.listen((wearable) {
+      setState(() {
+        _connectedDevice = wearable;
+        _connectingDevice = null;
+      });
+      wearable.addDisconnectListener(() {
+        if (_connectedDevice?.deviceId == wearable.deviceId) {
+          setState(() {
+            _connectedDevice = null;
+          });
+        }
+      });
+    });
+
+    // Deal with new connecting devices
+    _wearableManager.connectingStream.listen((device) {
+      setState(() {
+        _connectingDevice = device;
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
         create: (context) => FirmwareUpdateRequestProvider(),
         builder: (context, child) => MaterialApp(
-            theme: materialTheme,
-            home: Scaffold(
-              appBar: AppBar(
-                title: const Text('Bluetooth Devices'),
-              ),
-              body: _materialApp(context),
-            )));
+              theme: materialTheme,
+              home: _materialApp(context),
+            ));
   }
 
   Widget _materialApp(BuildContext context) {
@@ -66,204 +111,213 @@ class MyAppState extends State<MyApp> {
       );
     }
 
-    return SingleChildScrollView(
-        child: Padding(
-      padding: const EdgeInsets.all(12.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(33, 16, 0, 0),
-            child: Text(
-              "SCANNED DEVICES",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12.0,
-              ),
-            ),
-          ),
-          Visibility(
-            visible: discoveredDevices.isNotEmpty,
-            child: Container(
-              margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: Colors.grey,
-                  width: 1.0,
+    String? wearableIconPath = _connectedDevice?.getWearableIconPath();
+
+    return Scaffold(
+        appBar: AppBar(
+          title: const Text('Bluetooth Devices'),
+        ),
+        body: SingleChildScrollView(
+            child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(33, 16, 0, 0),
+                child: Text(
+                  "SCANNED DEVICES",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12.0,
+                  ),
                 ),
-                borderRadius: BorderRadius.circular(8.0),
               ),
-              child: ListView.builder(
-                padding: EdgeInsets.zero,
-                physics: const NeverScrollableScrollPhysics(),
-                // Disable scrolling,
-                shrinkWrap: true,
-                itemCount: discoveredDevices.length,
-                itemBuilder: (BuildContext context, int index) {
-                  final device = discoveredDevices[index];
-                  return Column(
+              Visibility(
+                visible: discoveredDevices.isNotEmpty,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(
+                      color: Colors.grey,
+                      width: 1.0,
+                    ),
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  child: ListView.builder(
+                    padding: EdgeInsets.zero,
+                    physics: const NeverScrollableScrollPhysics(),
+                    // Disable scrolling,
+                    shrinkWrap: true,
+                    itemCount: discoveredDevices.length,
+                    itemBuilder: (BuildContext context, int index) {
+                      final device = discoveredDevices[index];
+                      return Column(
+                        children: [
+                          ListTile(
+                            textColor: Colors.black,
+                            selectedTileColor: Colors.grey,
+                            title: Text(device.name),
+                            titleTextStyle: const TextStyle(fontSize: 16),
+                            visualDensity: const VisualDensity(
+                                horizontal: -4, vertical: -4),
+                            trailing: _buildTrailingWidget(device.id),
+                            onTap: () {
+                              _wearableManager.connectToDevice(device);
+                              context
+                                  .read<FirmwareUpdateRequestProvider>()
+                                  .setPeripheral(SelectedPeripheral(
+                                      name: device.name,
+                                      identifier: device.id));
+                            },
+                          ),
+                          if (index != discoveredDevices.length - 1)
+                            const Divider(
+                              height: 1.0,
+                              thickness: 1.0,
+                              color: Colors.grey,
+                              indent: 16.0,
+                              endIndent: 0.0,
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
+              Center(
+                child: ElevatedButton(
+                  onPressed: _startScanning,
+                  child: const Text('Restart Scan'),
+                ),
+              ),
+              if (_connectedDevice != null)
+                GroupedBox(
+                  title: "Device Info",
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ListTile(
-                        title: Text(device.name),
-                        titleTextStyle: const TextStyle(fontSize: 16),
-                        visualDensity: const VisualDensity(
-                          horizontal: -4,
-                          vertical: -4,
-                        ),
-                        trailing: _buildTrailingWidget(device.id),
-                        onTap: () {
-                          _connectToDevice(device);
-                          context
-                              .read<FirmwareUpdateRequestProvider>()
-                              .setPeripheral(SelectedPeripheral(
-                                  name: device.name, identifier: device.id));
-                        },
+                      Text(
+                        "Name:                    ${_connectedDevice?.name}",
                       ),
-                      if (index != discoveredDevices.length - 1)
-                        const Divider(
-                          height: 1.0,
-                          thickness: 1.0,
-                          color: Colors.grey,
-                          indent: 16.0,
-                          endIndent: 0.0,
+                      if (_connectedDevice is DeviceIdentifier)
+                        FutureBuilder<String?>(
+                          future: (_connectedDevice as DeviceIdentifier)
+                              .readDeviceIdentifier(),
+                          builder: (context, snapshot) {
+                            return Text(
+                              "Device Identifier:   ${snapshot.data}",
+                            );
+                          },
+                        ),
+                      if (_connectedDevice is DeviceFirmwareVersion)
+                        FutureBuilder<String?>(
+                          future: (_connectedDevice as DeviceFirmwareVersion)
+                              .readDeviceFirmwareVersion(),
+                          builder: (context, snapshot) {
+                            return Row(children: [
+                              Text(
+                                "Firmware Version:  ${snapshot.data}",
+                              ),
+                              Spacer(),
+                              ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => Scaffold(
+                                          appBar: AppBar(
+                                              title: Text("Update Firmware")),
+                                          body: FirmwareUpdateWidget(),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: Text("Update Firmware"))
+                            ]);
+                          },
+                        ),
+                      if (_connectedDevice is DeviceHardwareVersion)
+                        FutureBuilder<String?>(
+                          future: (_connectedDevice as DeviceHardwareVersion)
+                              .readDeviceHardwareVersion(),
+                          builder: (context, snapshot) {
+                            return Text(
+                              "Hardware Version: ${snapshot.data}",
+                            );
+                          },
                         ),
                     ],
-                  );
-                },
-              ),
-            ),
-          ),
-          Center(
-            child: ElevatedButton(
-              onPressed: _startScanning,
-              child: const Text('Restart Scan'),
-            ),
-          ),
-          if (_connectedDevice != null)
-            GroupedBox(
-              title: "Device Info",
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Name:                    ${_connectedDevice?.name}",
                   ),
-                  if (_connectedDevice is DeviceIdentifier)
-                    FutureBuilder<String?>(
-                      future: (_connectedDevice as DeviceIdentifier)
-                          .readDeviceIdentifier(),
-                      builder: (context, snapshot) {
-                        return Text(
-                          "Device Identifier:   ${snapshot.data}",
-                        );
-                      },
-                    ),
-                  if (_connectedDevice is DeviceFirmwareVersion)
-                    FutureBuilder<String?>(
-                      future: (_connectedDevice as DeviceFirmwareVersion)
-                          .readDeviceFirmwareVersion(),
-                      builder: (context, snapshot) {
-                        return Row(children: [
-                          Text(
-                            "Firmware Version:  ${snapshot.data}",
-                          ),
-                          Spacer(),
-                          ElevatedButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => Scaffold(
-                                      appBar: AppBar(
-                                          title: Text("Update Firmware")),
-                                      body: FirmwareUpdateWidget(),
-                                    ),
-                                  ),
-                                );
-                              },
-                              child: Text("Update Firmware"))
-                        ]);
-                      },
-                    ),
-                  if (_connectedDevice is DeviceHardwareVersion)
-                    FutureBuilder<String?>(
-                      future: (_connectedDevice as DeviceHardwareVersion)
-                          .readDeviceHardwareVersion(),
-                      builder: (context, snapshot) {
-                        return Text(
-                          "Hardware Version: ${snapshot.data}",
-                        );
-                      },
-                    ),
-                ],
-              ),
-            ),
-          if (_connectedDevice is RgbLed)
-            GroupedBox(
-              title: "RGB LED",
-              child: RgbLedControlWidget(rgbLed: _connectedDevice as RgbLed),
-            ),
-          if (_connectedDevice is FrequencyPlayer)
-            GroupedBox(
-              title: "Frequency Player",
-              child: FrequencyPlayerWidget(
-                frequencyPlayer: _connectedDevice as FrequencyPlayer,
-              ),
-            ),
-          if (_connectedDevice is JinglePlayer)
-            GroupedBox(
-              title: "Jingle Player",
-              child: JinglePlayerWidget(
-                jinglePlayer: _connectedDevice as JinglePlayer,
-              ),
-            ),
-          if (_connectedDevice is StoragePathAudioPlayer)
-            GroupedBox(
-              title: "Storage Path Audio Player",
-              child: StoragePathAudioPlayerWidget(
-                audioPlayer: _connectedDevice as StoragePathAudioPlayer,
-              ),
-            ),
-          if (_connectedDevice is AudioPlayerControls)
-            GroupedBox(
-              title: "Audio Player Controls",
-              child: AudioPlayerControlWidget(
-                audioPlayerControls: _connectedDevice as AudioPlayerControls,
-              ),
-            ),
-          if (sensorConfigurationViews != null)
-            GroupedBox(
-              title: "Sensor Configurations",
-              child: Column(
-                children: sensorConfigurationViews,
-              ),
-            ),
-          if (sensorViews != null)
-            GroupedBox(
-              title: "Sensors",
-              child: Column(
-                children: sensorViews
-                    .map((e) => Padding(
-                          padding: const EdgeInsets.only(
-                            bottom: 6.0,
-                            top: 6.0,
-                          ),
-                          child: e,
-                        ))
-                    .toList(),
-              ),
-            ),
-        ]
-            .map((e) => Padding(
-                  padding: const EdgeInsets.only(
-                    bottom: 8.0,
-                    top: 8.0,
+                ),
+              if (_connectedDevice is RgbLed)
+                GroupedBox(
+                  title: "RGB LED",
+                  child:
+                      RgbLedControlWidget(rgbLed: _connectedDevice as RgbLed),
+                ),
+              if (_connectedDevice is FrequencyPlayer)
+                GroupedBox(
+                  title: "Frequency Player",
+                  child: FrequencyPlayerWidget(
+                    frequencyPlayer: _connectedDevice as FrequencyPlayer,
                   ),
-                  child: e,
-                ))
-            .toList(),
-      ),
-    ));
+                ),
+              if (_connectedDevice is JinglePlayer)
+                GroupedBox(
+                  title: "Jingle Player",
+                  child: JinglePlayerWidget(
+                    jinglePlayer: _connectedDevice as JinglePlayer,
+                  ),
+                ),
+              if (_connectedDevice is StoragePathAudioPlayer)
+                GroupedBox(
+                  title: "Storage Path Audio Player",
+                  child: StoragePathAudioPlayerWidget(
+                    audioPlayer: _connectedDevice as StoragePathAudioPlayer,
+                  ),
+                ),
+              if (_connectedDevice is AudioPlayerControls)
+                GroupedBox(
+                  title: "Audio Player Controls",
+                  child: AudioPlayerControlWidget(
+                    audioPlayerControls:
+                        _connectedDevice as AudioPlayerControls,
+                  ),
+                ),
+              if (sensorConfigurationViews != null)
+                GroupedBox(
+                  title: "Sensor Configurations",
+                  child: Column(
+                    children: sensorConfigurationViews,
+                  ),
+                ),
+              if (sensorViews != null)
+                GroupedBox(
+                  title: "Sensors",
+                  child: Column(
+                    children: sensorViews
+                        .map((e) => Padding(
+                              padding: const EdgeInsets.only(
+                                bottom: 6.0,
+                                top: 6.0,
+                              ),
+                              child: e,
+                            ))
+                        .toList(),
+                  ),
+                ),
+            ]
+                .map((e) => Padding(
+                      padding: const EdgeInsets.only(
+                        bottom: 8.0,
+                        top: 8.0,
+                      ),
+                      child: e,
+                    ))
+                .toList(),
+          ),
+        )));
   }
 
   Widget _buildTrailingWidget(String id) {
@@ -279,7 +333,9 @@ class MyAppState extends State<MyApp> {
     return const SizedBox.shrink();
   }
 
-  void _startScanning() {
+  void _startScanning() async {
+    discoveredDevices.clear();
+
     _wearableManager.startScan();
     _scanSubscription?.cancel();
     _scanSubscription = _wearableManager.scanStream.listen((incomingDevice) {
@@ -289,27 +345,6 @@ class MyAppState extends State<MyApp> {
           discoveredDevices.add(incomingDevice);
         });
       }
-    });
-  }
-
-  Future<void> _connectToDevice(device) async {
-    setState(() {
-      _connectingDevice = device;
-    });
-
-    _scanSubscription?.cancel();
-    Wearable wearable = await _wearableManager.connectToDevice(device);
-    wearable.addDisconnectListener(() {
-      if (_connectedDevice?.deviceId == wearable.deviceId) {
-        setState(() {
-          _connectedDevice = null;
-        });
-      }
-    });
-
-    setState(() {
-      _connectingDevice = null;
-      _connectedDevice = wearable;
     });
   }
 }

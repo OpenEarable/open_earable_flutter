@@ -1,11 +1,8 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import '../capabilities/sensor.dart';
-import '../capabilities/sensor_manager.dart';
+import '../../../open_earable_flutter.dart';
 import '../../managers/ble_manager.dart';
-import 'discovered_device.dart';
-import 'wearable.dart';
 
 // For activating PPG and ACC
 final List<int> _sensorBluetoothCharacteristics = [
@@ -27,10 +24,13 @@ final List<int> _sensorBluetoothCharacteristics = [
   0x35,
 ];
 
-class CosinussOne extends Wearable implements SensorManager {
+class CosinussOne extends Wearable implements SensorManager, BatteryLevelService {
   static const ppgAndAccServiceUuid = "0000a000-1212-efde-1523-785feabcd123";
   static const temperatureServiceUuid = "00001809-0000-1000-8000-00805f9b34fb";
   static const heartRateServiceUuid = "0000180d-0000-1000-8000-00805f9b34fb";
+
+  static const batteryServiceUuid = "180f";
+  static const _batteryLevelCharacteristicUuid = "02a19";
 
   final List<Sensor> _sensors;
   final BleManager _bleManager;
@@ -82,16 +82,23 @@ class CosinussOne extends Wearable implements SensorManager {
       ),
     );
     _sensors.add(
-      _CosinussOneSensor(
+      _CosinussOneHeartRateSensor(
         discoveredDevice: _discoveredDevice,
         bleManager: _bleManager,
-        sensorName: 'HR',
-        chartTitle: 'Heart Rate',
-        shortChartTitle: 'HR',
-        axisNames: ['Heart Rate'],
-        axisUnits: ["BPM"],
       ),
     );
+  }
+
+  @override
+  String? getWearableIconPath({bool darkmode = false}) {
+    String basePath =
+        'packages/open_earable_flutter/assets/wearable_icons/cosinuss_one';
+
+    if (darkmode) {
+      return '$basePath/icon_white.svg';
+    }
+
+    return '$basePath/icon.svg';
   }
 
   @override
@@ -104,16 +111,61 @@ class CosinussOne extends Wearable implements SensorManager {
 
   @override
   List<Sensor> get sensors => List.unmodifiable(_sensors);
+
+  @override
+  Stream<int> get batteryPercentageStream {
+    StreamController<int> streamController = StreamController();
+
+    StreamSubscription subscription = _bleManager
+        .subscribe(
+      deviceId: _discoveredDevice.id,
+      serviceId: batteryServiceUuid,
+      characteristicId: _batteryLevelCharacteristicUuid,
+    )
+        .listen((data) {
+      streamController.add(data[0]);
+    });
+
+    readBatteryPercentage().then((percentage) {
+      streamController.add(percentage);
+      streamController.close();
+    }).catchError((error) {
+      streamController.addError(error);
+      streamController.close();
+    });
+
+    // Cancel BLE subscription when canceling stream
+    streamController.onCancel = () {
+      subscription.cancel();
+    };
+
+    return streamController.stream;
+  }
+
+  @override
+  Future<int> readBatteryPercentage() async {
+    List<int> batteryLevelList = await _bleManager.read(
+      deviceId: _discoveredDevice.id,
+      serviceId: batteryServiceUuid,
+      characteristicId: _batteryLevelCharacteristicUuid,
+    );
+
+    logger.t("Battery level bytes: $batteryLevelList");
+
+    if (batteryLevelList.length != 1) {
+      throw StateError('Battery level characteristic expected 1 value, but got ${batteryLevelList.length}');
+    }
+
+    return batteryLevelList[0];
+  }
 }
 
 // Based on https://github.com/teco-kit/cosinuss-flutter
-class _CosinussOneSensor extends Sensor {
+class _CosinussOneSensor extends Sensor<SensorDoubleValue> {
   final List<String> _axisNames;
   final List<String> _axisUnits;
   final BleManager _bleManager;
   final DiscoveredDevice _discoveredDevice;
-
-  StreamSubscription? _dataSubscription;
 
   _CosinussOneSensor({
     required String sensorName,
@@ -147,8 +199,8 @@ class _CosinussOneSensor extends Sensor {
     return mantissa;
   }
 
-  Stream<SensorValue> _createAccStream() {
-    StreamController<SensorValue> streamController = StreamController();
+  Stream<SensorDoubleValue> _createAccStream() {
+    StreamController<SensorDoubleValue> streamController = StreamController();
 
     int startTime = DateTime.now().millisecondsSinceEpoch;
 
@@ -159,8 +211,7 @@ class _CosinussOneSensor extends Sensor {
       byteData: _sensorBluetoothCharacteristics,
     );
 
-    _dataSubscription?.cancel();
-    _dataSubscription = _bleManager
+    StreamSubscription subscription = _bleManager
         .subscribe(
       deviceId: _discoveredDevice.id,
       serviceId: CosinussOne.ppgAndAccServiceUuid,
@@ -182,11 +233,16 @@ class _CosinussOneSensor extends Sensor {
       );
     });
 
+    // Cancel BLE subscription when canceling stream
+    streamController.onCancel = () {
+      subscription.cancel();
+    };
+
     return streamController.stream;
   }
 
-  Stream<SensorValue> _createPpgStream() {
-    StreamController<SensorValue> streamController = StreamController();
+  Stream<SensorDoubleValue> _createPpgStream() {
+    StreamController<SensorDoubleValue> streamController = StreamController();
 
     int startTime = DateTime.now().millisecondsSinceEpoch;
 
@@ -197,8 +253,7 @@ class _CosinussOneSensor extends Sensor {
       byteData: _sensorBluetoothCharacteristics,
     );
 
-    _dataSubscription?.cancel();
-    _dataSubscription = _bleManager
+    StreamSubscription subscription = _bleManager
         .subscribe(
       deviceId: _discoveredDevice.id,
       serviceId: CosinussOne.ppgAndAccServiceUuid,
@@ -239,16 +294,20 @@ class _CosinussOneSensor extends Sensor {
       );
     });
 
+    // Cancel BLE subscription when canceling stream
+    streamController.onCancel = () {
+      subscription.cancel();
+    };
+
     return streamController.stream;
   }
 
-  Stream<SensorValue> _createTempStream() {
-    StreamController<SensorValue> streamController = StreamController();
+  Stream<SensorDoubleValue> _createTempStream() {
+    StreamController<SensorDoubleValue> streamController = StreamController();
 
     int startTime = DateTime.now().millisecondsSinceEpoch;
 
-    _dataSubscription?.cancel();
-    _dataSubscription = _bleManager
+    StreamSubscription subscription = _bleManager
         .subscribe(
       deviceId: _discoveredDevice.id,
       serviceId: CosinussOne.temperatureServiceUuid,
@@ -275,16 +334,48 @@ class _CosinussOneSensor extends Sensor {
       );
     });
 
+    // Cancel BLE subscription when canceling stream
+    streamController.onCancel = () {
+      subscription.cancel();
+    };
+
     return streamController.stream;
   }
 
-  Stream<SensorValue> _createHeartRateStream() {
-    StreamController<SensorValue> streamController = StreamController();
+  @override
+  Stream<SensorDoubleValue> get sensorStream {
+    switch (sensorName) {
+      case "ACC":
+        return _createAccStream();
+      case "PPG":
+        return _createPpgStream();
+      case "TEMP":
+        return _createTempStream();
+      default:
+        throw UnimplementedError();
+    }
+  }
+}
+
+// Based on https://github.com/teco-kit/cosinuss-flutter
+class _CosinussOneHeartRateSensor extends HeartRateSensor {
+  final BleManager _bleManager;
+  final DiscoveredDevice _discoveredDevice;
+
+  _CosinussOneHeartRateSensor({
+    required BleManager bleManager,
+    required DiscoveredDevice discoveredDevice,
+  })  : _bleManager = bleManager,
+        _discoveredDevice = discoveredDevice,
+        super();
+
+  @override
+  Stream<HeartRateSensorValue> get sensorStream {
+    StreamController<HeartRateSensorValue> streamController = StreamController();
 
     int startTime = DateTime.now().millisecondsSinceEpoch;
 
-    _dataSubscription?.cancel();
-    _dataSubscription = _bleManager
+    StreamSubscription subscription = _bleManager
         .subscribe(
       deviceId: _discoveredDevice.id,
       serviceId: CosinussOne.heartRateServiceUuid,
@@ -300,29 +391,18 @@ class _CosinussOneSensor extends Sensor {
       }
 
       streamController.add(
-        SensorDoubleValue(
-          values: [bpm.toDouble()],
+        HeartRateSensorValue(
+          heartRateBpm: bpm,
           timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
         ),
       );
     });
 
-    return streamController.stream;
-  }
+    // Cancel BLE subscription when canceling stream
+    streamController.onCancel = () {
+      subscription.cancel();
+    };
 
-  @override
-  Stream<SensorValue> get sensorStream {
-    switch (sensorName) {
-      case "ACC":
-        return _createAccStream();
-      case "PPG":
-        return _createPpgStream();
-      case "TEMP":
-        return _createTempStream();
-      case "HR":
-        return _createHeartRateStream();
-      default:
-        throw UnimplementedError();
-    }
+    return streamController.stream;
   }
 }

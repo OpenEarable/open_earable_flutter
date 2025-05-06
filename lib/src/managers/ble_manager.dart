@@ -16,46 +16,48 @@ class BleManager {
   final Map<String, List<StreamController<List<int>>>> _streamControllers = {};
 
   /// A stream of discovered devices during scanning.
-  Stream<DiscoveredDevice> get scanStream => _scanStream;
-  late Stream<DiscoveredDevice> _scanStream;
   StreamController<DiscoveredDevice>? _scanStreamController;
 
-  /// The device that is currently being connected to.
-  DiscoveredDevice? get connectingDevice => _connectingDevice;
-  DiscoveredDevice? _connectingDevice;
-
-  /// The currently connected device.
-  DiscoveredDevice? get connectedDevice => _connectedDevice;
-  DiscoveredDevice? _connectedDevice;
-
-  // Returns false if no device is connected
-  bool get connected => _connectedDevice != null;
-
-  /// The info of the currently connected device.
-  String? get deviceIdentifier => _deviceIdentifier;
-  String? _deviceIdentifier;
-
-  String? get deviceFirmwareVersion => _deviceFirmwareVersion;
-  String? _deviceFirmwareVersion;
-
-  String? get deviceHardwareVersion => _deviceHardwareVersion;
-  String? _deviceHardwareVersion;
-
-  final StreamController<bool> _connectionStateController =
-      StreamController<bool>.broadcast();
-
-  Stream<bool> get connectionStateStream => _connectionStateController.stream;
+  Stream<DiscoveredDevice> get scanStream => _scanStreamController!.stream;
 
   String _getCharacteristicKey(String deviceId, String characteristicId) =>
       "$deviceId||$characteristicId";
 
-  bool _inited = false;
+  final Map<String, Completer> _connectionCompleters = {};
+  final Map<String, VoidCallback> _connectCallbacks = {};
+  final Map<String, VoidCallback> _disconnectCallbacks = {};
+
+  final List<String> _connectedDevicesIds = [];
+
+  bool _firstScan = true;
+
+  BleManager() {
+    _init();
+  }
+
+  bool isConnected(String deviceId) {
+    return _connectedDevicesIds.contains(deviceId);
+  }
 
   void _init() {
-    if (_inited) {
-      return;
-    }
-    _inited = true;
+    _scanStreamController = StreamController<DiscoveredDevice>.broadcast();
+
+    UniversalBle.onConnectionChange = (
+      String deviceId,
+      bool isConnected,
+      String? error,
+    ) {
+      logger.d("Connection change for $deviceId: $isConnected");
+      if (isConnected) {
+        _connectedDevicesIds.add(deviceId);
+        _connectCallbacks[deviceId]?.call();
+        _connectCallbacks.remove(deviceId);
+      } else {
+        _connectedDevicesIds.remove(deviceId);
+        _disconnectCallbacks[deviceId]?.call();
+        _disconnectCallbacks.remove(deviceId);
+      }
+    };
 
     UniversalBle.onValueChange = (
       String deviceId,
@@ -73,21 +75,9 @@ class BleManager {
     };
   }
 
-  /// Initiates the BLE device scan to discover nearby Bluetooth devices.
-  Future<void> startScan() async {
-    _init();
-
-    // The example code does not await this function before getting `scanStream`.
-    // Because of this, we need to set the stream early for keeping the behavior
-    // before switching the bluetooth lib
-    StreamController<DiscoveredDevice>? oldController = _scanStreamController;
-    _scanStreamController = StreamController<DiscoveredDevice>();
-    _scanStream = _scanStreamController!.stream;
-    if (oldController != null) {
-      await oldController.close();
-    }
-
+  static Future<bool> checkAndRequestPermissions() async {
     bool permGranted = false;
+
     // Don't run `Platform.is*` on web
     if (!kIsWeb && Platform.isAndroid) {
       Map<Permission, PermissionStatus> statuses = await [
@@ -103,15 +93,27 @@ class BleManager {
       permGranted = true;
     }
 
-    if (permGranted) {
+    return permGranted;
+  }
+
+  /// Initiates the BLE device scan to discover nearby Bluetooth devices.
+  Future<void> startScan({
+    bool filterByServices = false,
+    bool checkAndRequestPermissions = true,
+  }) async {
+    bool? permGranted;
+
+    if (checkAndRequestPermissions) {
+      permGranted = await BleManager.checkAndRequestPermissions();
+    }
+
+    if (permGranted == true || !checkAndRequestPermissions) {
+      // Workaround for iOS, otherwise we need to press the scan button twice for it
       for (int i = 0;
-          // Run this two times on MacOS if it's the first run.
-          // Needed on MacOS on an M1 Pro.
-          i < ((!kIsWeb && Platform.isMacOS && oldController == null) ? 2 : 1);
+          i < ((!kIsWeb && Platform.isIOS && _firstScan) ? 2 : 1);
           ++i) {
-        // Sleep before the second run
         if (i == 1) {
-          await Future.delayed(const Duration(milliseconds: 200));
+          await Future.delayed(const Duration(seconds: 1));
         }
 
         await UniversalBle.stopScan();
@@ -121,21 +123,47 @@ class BleManager {
             DiscoveredDevice(
               id: bleDevice.deviceId,
               name: bleDevice.name ?? "",
+              // TODO Might need some refactoring
               manufacturerData:
-                  bleDevice.manufacturerData ?? Uint8List.fromList([]),
+                  bleDevice.manufacturerDataList.firstOrNull?.toUint8List() ??
+                      Uint8List.fromList([]),
               rssi: bleDevice.rssi ?? -1,
               serviceUuids: bleDevice.services,
             ),
           );
         };
 
+        if (!kIsWeb) {
+          UniversalBle.getSystemDevices(
+            // This filter has several generic services by default as filter
+            // and is required on iOS/MacOS
+            withServices: allServiceUuids,
+          ).then((devices) {
+            for (var bleDevice in devices) {
+              _scanStreamController?.add(
+                DiscoveredDevice(
+                  id: bleDevice.deviceId,
+                  name: bleDevice.name ?? "",
+                  // TODO Might need some refactoring
+                  manufacturerData: bleDevice.manufacturerDataList.firstOrNull
+                          ?.toUint8List() ??
+                      Uint8List.fromList([]),
+                  rssi: bleDevice.rssi ?? -1,
+                  serviceUuids: bleDevice.services,
+                ),
+              );
+            }
+          });
+        }
+
         await UniversalBle.startScan(
           scanFilter: ScanFilter(
             // Needs to be passed for web, can be empty for the rest
-            withServices: kIsWeb ? allServiceUuids : [],
+            withServices: (kIsWeb || filterByServices) ? allServiceUuids : [],
           ),
         );
       }
+      _firstScan = false;
     }
   }
 
@@ -149,48 +177,32 @@ class BleManager {
         e.close();
       }
     }
-    _connectingDevice = device;
 
-    UniversalBle.onConnectionChange = (String deviceId, bool isConnected) {};
-
-    return _retryConnection(2, device, onDisconnect);
-  }
-
-  Future<(bool, List<BleService>)> _retryConnection(
-    int retries,
-    DiscoveredDevice device,
-    VoidCallback onDisconnect,
-  ) async {
     Completer<(bool, List<BleService>)> completer =
         Completer<(bool, List<BleService>)>();
+    _connectionCompleters[device.id] = completer;
 
-    if (retries <= 0) {
-      _connectingDevice = null;
-      return (false, <BleService>[]);
-    }
-    UniversalBle.onConnectionChange =
-        (String deviceId, bool isConnected) async {
-      if (device.id != deviceId) {
-        return;
+    _connectCallbacks[device.id] = () async {
+      if (!kIsWeb && !Platform.isLinux) {
+        UniversalBle.requestMtu(device.id, mtu);
       }
-
       bool connectionResult = false;
       List<BleService> services = [];
-      try {
-        if (isConnected) {
-          _connectedDevice = device;
-          if (!kIsWeb) {
-            UniversalBle.requestMtu(device.id, mtu);
-          }
-          services = await UniversalBle.discoverServices(device.id);
-          connectionResult = true;
-        } else {
-          onDisconnect.call();
-        }
-      } finally {
-        completer.complete((connectionResult, services));
-      }
+
+      services = await UniversalBle.discoverServices(device.id);
+      connectionResult = true;
+
+      _connectionCompleters[device.id]?.complete((connectionResult, services));
+      _connectionCompleters.remove(device.id);
     };
+
+    _disconnectCallbacks[device.id] = () {
+      _connectionCompleters[device.id]?.complete((false, <BleService>[]));
+      _connectionCompleters.remove(device.id);
+
+      onDisconnect();
+    };
+
     UniversalBle.connect(device.id);
 
     return completer.future;
@@ -198,16 +210,16 @@ class BleManager {
 
   /// Writes byte data to a specific characteristic of the connected Earable device.
   Future<void> write({
-    String? deviceId,
+    required String deviceId,
     required String serviceId,
     required String characteristicId,
     required List<int> byteData,
   }) async {
-    if (_connectedDevice == null) {
+    if (!isConnected(deviceId)) {
       throw Exception("Write failed because no Earable is connected");
     }
     await UniversalBle.writeValue(
-      deviceId ?? _connectedDevice!.id,
+      deviceId,
       serviceId,
       characteristicId,
       Uint8List.fromList(byteData),
@@ -217,21 +229,15 @@ class BleManager {
 
   /// Subscribes to a specific characteristic of the connected Earable device.
   Stream<List<int>> subscribe({
-    String? deviceId,
+    required String deviceId,
     required String serviceId,
     required String characteristicId,
   }) {
-    _init();
-    // if (_connectedDevice == null) {
-    //   throw Exception("Subscribing failed because no Earable is connected");
-    // }
-
     final streamController = StreamController<List<int>>();
-    String streamIdentifier =
-        _getCharacteristicKey(_connectedDevice!.id, characteristicId);
+    String streamIdentifier = _getCharacteristicKey(deviceId, characteristicId);
     if (!_streamControllers.containsKey(streamIdentifier)) {
       UniversalBle.setNotifiable(
-        deviceId ?? _connectedDevice!.id,
+        deviceId,
         serviceId,
         characteristicId,
         BleInputProperty.notification,
@@ -246,7 +252,7 @@ class BleManager {
         _streamControllers[streamIdentifier]!.remove(streamController);
         if (_streamControllers[streamIdentifier]!.isEmpty) {
           UniversalBle.setNotifiable(
-            _connectedDevice!.id,
+            deviceId,
             serviceId,
             characteristicId,
             BleInputProperty.disabled,
@@ -261,16 +267,16 @@ class BleManager {
 
   /// Reads data from a specific characteristic of the connected Earable device.
   Future<List<int>> read({
-    String? deviceId,
+    required String deviceId,
     required String serviceId,
     required String characteristicId,
   }) async {
-    if (_connectedDevice == null) {
+    if (!isConnected(deviceId)) {
       throw Exception("Read failed because no Earable is connected");
     }
 
     final response = await UniversalBle.readValue(
-      deviceId ?? _connectedDevice!.id,
+      deviceId,
       serviceId,
       characteristicId,
     );
@@ -283,7 +289,11 @@ class BleManager {
 
   /// Cancel connection state subscription
   void dispose() {
-    UniversalBle.onConnectionChange = (String deviceId, bool isConnected) {};
+    UniversalBle.onConnectionChange = (
+      String deviceId,
+      bool isConnected,
+      String? error,
+    ) {};
     UniversalBle.stopScan();
     UniversalBle.onScanResult = (_) {};
     _scanStreamController?.close();
