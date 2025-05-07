@@ -22,7 +22,7 @@ abstract class SensorFrequencyConfiguration<
   ///
   /// Returns the value set or null.
   SensorFrequencyConfigurationValue? setFrequencyBestEffort(
-    int targetFrequencyHz,
+    double targetFrequencyHz,
   ) {
     SensorFrequencyConfigurationValue? nextSmaller;
     SensorFrequencyConfigurationValue? nextBigger;

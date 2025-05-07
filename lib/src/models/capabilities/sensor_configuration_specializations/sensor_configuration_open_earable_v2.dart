@@ -66,7 +66,7 @@ class SensorConfigurationOpenEarableV2 extends SensorFrequencyConfiguration {
   /// Returns the value set or null.
   @override
   SensorFrequencyConfigurationValue? setFrequencyBestEffort(
-    int targetFrequencyHz, {
+    double targetFrequencyHz, {
     bool streamData = true,
     bool recordData = true,
   }) {
