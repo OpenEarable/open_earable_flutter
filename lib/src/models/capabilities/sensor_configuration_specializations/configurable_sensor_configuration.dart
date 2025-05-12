@@ -1,14 +1,10 @@
-import 'package:flutter/material.dart';
-
 import '../sensor_configuration.dart';
 
 abstract class SensorConfigurationOption {
   final String name;
-  final IconData? iconPath;
 
   const SensorConfigurationOption({
     required this.name,
-    this.iconPath,
   });
 
   @override
@@ -16,11 +12,15 @@ abstract class SensorConfigurationOption {
     if (identical(this, other)) return true;
 
     return other is SensorConfigurationOption &&
-        other.name == name &&
-        other.iconPath == iconPath;
+        other.name == name;
   }
   @override
-  int get hashCode => name.hashCode ^ iconPath.hashCode;
+  int get hashCode => name.hashCode;
+
+  @override
+  String toString() {
+    return "$runtimeType: $name";
+  }
 }
 
 abstract class ConfigurableSensorConfiguration<SCV extends ConfigurableSensorConfigurationValue> extends SensorConfiguration<SCV> {
@@ -55,5 +55,4 @@ abstract class ConfigurableSensorConfigurationValue extends SensorConfigurationV
   
   @override
   int get hashCode => super.hashCode ^ options.hashCode;
-  
 }
