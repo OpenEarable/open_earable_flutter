@@ -41,4 +41,19 @@ abstract class ConfigurableSensorConfigurationValue extends SensorConfigurationV
   String toString() {
     return '${super.toString()} (options: $options)';
   }
+
+  ConfigurableSensorConfigurationValue withoutOptions();
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is ConfigurableSensorConfigurationValue &&
+        withoutOptions() == other.withoutOptions() &&
+        other.options == options;
+  }
+  
+  @override
+  int get hashCode => super.hashCode ^ options.hashCode;
+  
 }

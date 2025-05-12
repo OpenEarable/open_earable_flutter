@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import 'configurable_sensor_configuration.dart';
 import 'recordable_sensor_configuration.dart';
 import 'streamable_sensor_configuration.dart';
@@ -171,4 +173,25 @@ class SensorConfigurationOpenEarableV2Value
 
     return "${frequencyHz.toStringAsPrecision(4)} $trailer";
   }
+
+  @override
+  SensorConfigurationOpenEarableV2Value withoutOptions() {
+    return SensorConfigurationOpenEarableV2Value(
+      frequencyHz: frequencyHz,
+      frequencyIndex: frequencyIndex,
+      options: [],
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is SensorConfigurationOpenEarableV2Value &&
+        other.frequencyHz == frequencyHz &&
+        other.frequencyIndex == frequencyIndex &&
+        listEquals(other.options, options);
+  }
+  @override
+  int get hashCode => frequencyHz.hashCode ^ frequencyIndex.hashCode ^ options.hashCode;
 }
