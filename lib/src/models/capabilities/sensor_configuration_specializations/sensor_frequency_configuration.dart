@@ -83,4 +83,15 @@ class SensorFrequencyConfigurationValue extends SensorConfigurationValue {
   String toString() {
     return key;
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is SensorFrequencyConfigurationValue &&
+        other.frequencyHz == frequencyHz;
+  }
+
+  @override
+  int get hashCode => frequencyHz.hashCode;
 }
