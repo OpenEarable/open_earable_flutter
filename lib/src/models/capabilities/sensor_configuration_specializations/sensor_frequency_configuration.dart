@@ -2,10 +2,10 @@ import '../sensor_configuration.dart';
 
 abstract class SensorFrequencyConfiguration<
         SFC extends SensorFrequencyConfigurationValue>
-    extends SensorConfiguration<SensorFrequencyConfigurationValue> {
+    extends SensorConfiguration<SFC> {
   const SensorFrequencyConfiguration({
     required String name,
-    required List<SensorFrequencyConfigurationValue> values,
+    required List<SFC> values,
   }) : super(
           name: name,
           values: values,
@@ -21,11 +21,11 @@ abstract class SensorFrequencyConfiguration<
   /// Either the next biggest or the maximum frequency.
   ///
   /// Returns the value set or null.
-  SensorFrequencyConfigurationValue? setFrequencyBestEffort(
+  SFC? setFrequencyBestEffort(
     int targetFrequencyHz,
   ) {
-    SensorFrequencyConfigurationValue? nextSmaller;
-    SensorFrequencyConfigurationValue? nextBigger;
+    SFC? nextSmaller;
+    SFC? nextBigger;
 
     for (final value in values) {
       if (value.frequencyHz < targetFrequencyHz) {
@@ -43,7 +43,7 @@ abstract class SensorFrequencyConfiguration<
       }
     }
 
-    SensorFrequencyConfigurationValue? newValue = nextBigger ?? nextSmaller;
+    SFC? newValue = nextBigger ?? nextSmaller;
     if (newValue != null) {
       setConfiguration(newValue);
     }
@@ -53,12 +53,12 @@ abstract class SensorFrequencyConfiguration<
   /// Sets the maximum frequency.
   ///
   /// Returns the value set or null.
-  SensorFrequencyConfigurationValue? setMaximumFrequency() {
+  SFC? setMaximumFrequency() {
     if (values.isEmpty) {
       return null;
     }
 
-    SensorFrequencyConfigurationValue maxFrequency = values.first;
+    SFC maxFrequency = values.first;
 
     for (final value in values) {
       if (value.frequencyHz > maxFrequency.frequencyHz) {
