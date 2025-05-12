@@ -121,15 +121,12 @@ class OpenEarableFactory extends WearableFactory {
           index++) {
         double frequency = scheme.options!.frequencies!.frequencies[index];
 
-        if (index == 0) {
-          // One "off" option is enough
-          sensorConfigurationValues.add(
-            SensorConfigurationOpenEarableV2Value(
-              frequencyHz: frequency,
-              frequencyIndex: index,
-            ),
-          );
-        }
+        sensorConfigurationValues.add(
+          SensorConfigurationOpenEarableV2Value(
+            frequencyHz: frequency,
+            frequencyIndex: index,
+          ),
+        );
 
         sensorConfigurationValues.add(
           SensorConfigurationOpenEarableV2Value(
