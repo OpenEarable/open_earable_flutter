@@ -1,14 +1,23 @@
 import 'dart:async';
 
-import 'package:open_earable_flutter/open_earable_flutter.dart';
 import 'package:open_earable_flutter/src/managers/sensor_handler.dart';
 import 'package:open_earable_flutter/src/models/wearable_factory.dart';
 import 'package:open_earable_flutter/src/utils/sensor_scheme_parser/sensor_scheme_reader.dart';
 import 'package:open_earable_flutter/src/utils/sensor_scheme_parser/v2_sensor_scheme_reader.dart';
 import 'package:universal_ble/universal_ble.dart';
 
+import '../../../open_earable_flutter.dart' show logger;
 import '../../managers/v2_sensor_handler.dart';
 import '../../utils/sensor_value_parser/v2_sensor_value_parser.dart';
+import '../capabilities/sensor.dart';
+import '../capabilities/sensor_configuration.dart';
+import '../capabilities/sensor_configuration_specializations/recordable_sensor_configuration.dart';
+import '../capabilities/sensor_configuration_specializations/sensor_configuration_open_earable_v2.dart';
+import '../capabilities/sensor_configuration_specializations/streamable_sensor_configuration.dart';
+import 'discovered_device.dart';
+import 'open_earable_v1.dart';
+import 'open_earable_v2.dart';
+import 'wearable.dart';
 
 const String _deviceInfoServiceUuid = "45622510-6468-465a-b141-0b9b0f96b468";
 const String _deviceFirmwareVersionCharacteristicUuid =
@@ -112,24 +121,18 @@ class OpenEarableFactory extends WearableFactory {
           index++) {
         double frequency = scheme.options!.frequencies!.frequencies[index];
 
-        if (index == 0) {
-          // One "off" option is enough
-          sensorConfigurationValues.add(
-            SensorConfigurationOpenEarableV2Value(
-              frequencyHz: frequency,
-              frequencyIndex: index,
-              streamData: false,
-              recordData: false,
-            ),
-          );
-        }
+        sensorConfigurationValues.add(
+          SensorConfigurationOpenEarableV2Value(
+            frequencyHz: frequency,
+            frequencyIndex: index,
+          ),
+        );
 
         sensorConfigurationValues.add(
           SensorConfigurationOpenEarableV2Value(
             frequencyHz: frequency,
             frequencyIndex: index,
-            streamData: false,
-            recordData: true,
+            options: [const RecordSensorConfigOption()],
           ),
         );
 
@@ -139,16 +142,17 @@ class OpenEarableFactory extends WearableFactory {
             SensorConfigurationOpenEarableV2Value(
               frequencyHz: frequency,
               frequencyIndex: index,
-              streamData: true,
-              recordData: false,
+              options: [const StreamSensorConfigOption()],
             ),
           );
           sensorConfigurationValues.add(
             SensorConfigurationOpenEarableV2Value(
               frequencyHz: frequency,
               frequencyIndex: index,
-              streamData: true,
-              recordData: true,
+              options: [
+                const StreamSensorConfigOption(),
+                const RecordSensorConfigOption(),
+              ],
             ),
           );
         }

@@ -1,11 +1,22 @@
+import 'package:flutter/foundation.dart';
+
+import 'configurable_sensor_configuration.dart';
+import 'recordable_sensor_configuration.dart';
+import 'streamable_sensor_configuration.dart';
 import '../../../managers/v2_sensor_handler.dart';
 import 'sensor_frequency_configuration.dart';
 
-class SensorConfigurationOpenEarableV2 extends SensorFrequencyConfiguration {
+class SensorConfigurationOpenEarableV2 extends SensorFrequencyConfiguration<SensorConfigurationOpenEarableV2Value> implements ConfigurableSensorConfiguration<SensorConfigurationOpenEarableV2Value> {
   final int sensorId;
 
   final int maxStreamingFreqIndex;
   final V2SensorHandler _sensorHandler;
+
+  @override
+  final List<SensorConfigurationOption> availableOptions = [
+    const StreamSensorConfigOption(),
+    const RecordSensorConfigOption(),
+  ];
 
   SensorConfigurationOpenEarableV2({
     required String name,
@@ -40,16 +51,14 @@ class SensorConfigurationOpenEarableV2 extends SensorFrequencyConfiguration {
     SensorConfigurationOpenEarableV2Value? maxFrequencyAllEnabled;
 
     for (final value in values) {
-      SensorConfigurationOpenEarableV2Value valueCasted =
-          value as SensorConfigurationOpenEarableV2Value;
-      if (valueCasted.streamData != streamData ||
-          valueCasted.recordData != recordData) {
+      if (value.streamData != streamData ||
+          value.recordData != recordData) {
         continue;
       }
 
-      maxFrequencyAllEnabled ??= valueCasted;
-      if (maxFrequencyAllEnabled.frequencyHz < valueCasted.frequencyHz) {
-        maxFrequencyAllEnabled = valueCasted;
+      maxFrequencyAllEnabled ??= value;
+      if (maxFrequencyAllEnabled.frequencyHz < value.frequencyHz) {
+        maxFrequencyAllEnabled = value;
       }
     }
 
@@ -65,19 +74,17 @@ class SensorConfigurationOpenEarableV2 extends SensorFrequencyConfiguration {
   ///
   /// Returns the value set or null.
   @override
-  SensorFrequencyConfigurationValue? setFrequencyBestEffort(
+  SensorConfigurationOpenEarableV2Value? setFrequencyBestEffort(
     int targetFrequencyHz, {
     bool streamData = true,
     bool recordData = true,
   }) {
-    SensorFrequencyConfigurationValue? nextSmaller;
-    SensorFrequencyConfigurationValue? nextBigger;
+    SensorConfigurationOpenEarableV2Value? nextSmaller;
+    SensorConfigurationOpenEarableV2Value? nextBigger;
 
     for (final value in values) {
-      SensorConfigurationOpenEarableV2Value valueCasted =
-          value as SensorConfigurationOpenEarableV2Value;
-      if (valueCasted.streamData != streamData ||
-          valueCasted.recordData != recordData) {
+      if (value.streamData != streamData ||
+          value.recordData != recordData) {
         continue;
       }
 
@@ -96,7 +103,7 @@ class SensorConfigurationOpenEarableV2 extends SensorFrequencyConfiguration {
       }
     }
 
-    SensorFrequencyConfigurationValue? newValue = nextBigger ?? nextSmaller;
+    SensorConfigurationOpenEarableV2Value? newValue = nextBigger ?? nextSmaller;
     if (newValue != null) {
       setConfiguration(newValue);
     }
@@ -139,16 +146,18 @@ class SensorConfigurationOpenEarableV2 extends SensorFrequencyConfiguration {
 }
 
 class SensorConfigurationOpenEarableV2Value
-    extends SensorFrequencyConfigurationValue {
+    extends SensorFrequencyConfigurationValue implements ConfigurableSensorConfigurationValue {
   final int frequencyIndex;
-  final bool streamData;
-  final bool recordData;
+  bool get streamData => options.any((option) => option is StreamSensorConfigOption);
+  bool get recordData => options.any((option) => option is RecordSensorConfigOption);
+
+  @override
+  final List<SensorConfigurationOption> options;
 
   SensorConfigurationOpenEarableV2Value({
     required double frequencyHz,
     required this.frequencyIndex,
-    required this.streamData,
-    required this.recordData,
+    this.options = const [],
   }) : super(frequencyHz: frequencyHz);
 
   @override
@@ -164,4 +173,25 @@ class SensorConfigurationOpenEarableV2Value
 
     return "${frequencyHz.toStringAsPrecision(4)} $trailer";
   }
+
+  @override
+  SensorConfigurationOpenEarableV2Value withoutOptions() {
+    return SensorConfigurationOpenEarableV2Value(
+      frequencyHz: frequencyHz,
+      frequencyIndex: frequencyIndex,
+      options: [],
+    );
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is SensorConfigurationOpenEarableV2Value &&
+        other.frequencyHz == frequencyHz &&
+        other.frequencyIndex == frequencyIndex &&
+        listEquals(other.options, options);
+  }
+  @override
+  int get hashCode => frequencyHz.hashCode ^ frequencyIndex.hashCode ^ options.hashCode;
 }
