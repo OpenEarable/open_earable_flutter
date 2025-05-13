@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_archive/flutter_archive.dart';
+import 'package:mcumgr_flutter/models/firmware_upgrade_mode.dart';
 import '../../src/model/firmware_update_request.dart';
 import '../../src/model/manifest.dart';
 import '../../src/repository/firmware_image_repository.dart';
@@ -144,11 +145,16 @@ class FirmwareUpdater extends FirmwareUpdateHandler {
 
     if (request is SingleImageFirmwareUpdateRequest) {
       final fwImage = request.firmwareImage;
-      await updateManager.updateWithImageData(imageData: fwImage!);
+      await updateManager.updateWithImageData(
+          imageData: fwImage!,
+          configuration: FirmwareUpgradeConfiguration(
+              firmwareUpgradeMode: FirmwareUpgradeMode.testOnly));
       return updateManager;
     } else {
       final multiImageRequest = request as MultiImageFirmwareUpdateRequest;
-      updateManager.update(multiImageRequest.firmwareImages!);
+      updateManager.update(multiImageRequest.firmwareImages!,
+          configuration: FirmwareUpgradeConfiguration(
+              firmwareUpgradeMode: FirmwareUpgradeMode.testOnly));
     }
 
     return updateManager;
