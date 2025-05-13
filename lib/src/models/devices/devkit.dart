@@ -4,7 +4,8 @@ import 'dart:typed_data';
 import '../../../open_earable_flutter.dart';
 import '../../managers/ble_manager.dart';
 
-class DevKit extends Wearable {
+class DevKit extends Wearable
+    implements DeviceFirmwareVersion, DeviceHardwareVersion {
   final BleManager _bleManager;
   final DiscoveredDevice _discoveredDevice;
 
@@ -22,5 +23,15 @@ class DevKit extends Wearable {
   @override
   Future<void> disconnect() {
     return _bleManager.disconnect(_discoveredDevice.id);
+  }
+
+  @override
+  Future<String?> readDeviceFirmwareVersion() {
+    return Future(() => "not available");
+  }
+
+  @override
+  Future<String?> readDeviceHardwareVersion() {
+    return Future(() => "not available");
   }
 }
