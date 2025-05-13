@@ -137,7 +137,6 @@ class MyAppState extends State<MyApp> {
                 visible: discoveredDevices.isNotEmpty,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
                     border: Border.all(
                       color: Colors.grey,
                       width: 1.0,
@@ -155,8 +154,6 @@ class MyAppState extends State<MyApp> {
                       return Column(
                         children: [
                           ListTile(
-                            textColor: Colors.black,
-                            selectedTileColor: Colors.grey,
                             title: Text(device.name),
                             titleTextStyle: const TextStyle(fontSize: 16),
                             visualDensity: const VisualDensity(
