@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../sensor_configuration.dart';
 
 abstract class SensorConfigurationOption {
@@ -50,7 +52,7 @@ abstract class ConfigurableSensorConfigurationValue extends SensorConfigurationV
 
     return other is ConfigurableSensorConfigurationValue &&
         withoutOptions() == other.withoutOptions() &&
-        other.options == options;
+        listEquals(options, other.options);
   }
   
   @override
