@@ -14,9 +14,10 @@ class BatteryInfoWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (connectedDevice is BatteryLevelService)
+          if (connectedDevice is BatteryLevelStatus)
             StreamBuilder(
-              stream: (connectedDevice as BatteryLevelService).batteryPercentageStream,
+              stream: (connectedDevice as BatteryLevelStatus)
+                  .batteryPercentageStream,
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
                   return Text(
@@ -28,45 +29,47 @@ class BatteryInfoWidget extends StatelessWidget {
               },
             ),
           if (connectedDevice is BatteryLevelStatusService)
-          StreamBuilder(
-            stream: (connectedDevice as BatteryLevelStatusService).powerStatusStream,
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Battery connected: ${snapshot.data!.batteryPresent ? "✅" : "❌"}",
-                    ),
-                    Text(
-                      "Wired Power Connected: ${snapshot.data!.wiredExternalPowerSourceConnected}",
-                    ),
-                    Text(
-                      "Wireless Power Connected: ${snapshot.data!.wirelessExternalPowerSourceConnected}",
-                    ),
-                    Text(
-                      "Charge State: ${snapshot.data!.chargeState}",
-                    ),
-                    Text(
-                      "Charge Level: ${snapshot.data!.chargeLevel}",
-                    ),
-                    Text(
-                      "Charging Type: ${snapshot.data!.chargingType}",
-                    ),
-                    Text(
-                      "Charging Fault Reason: ${snapshot.data!.chargingFaultReason}",
-                    ),
-                  ],
-                );
-              } else {
-                return const CircularProgressIndicator();
-              }
-            },
-          ),
+            StreamBuilder(
+              stream: (connectedDevice as BatteryLevelStatusService)
+                  .powerStatusStream,
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Battery connected: ${snapshot.data!.batteryPresent ? "✅" : "❌"}",
+                      ),
+                      Text(
+                        "Wired Power Connected: ${snapshot.data!.wiredExternalPowerSourceConnected}",
+                      ),
+                      Text(
+                        "Wireless Power Connected: ${snapshot.data!.wirelessExternalPowerSourceConnected}",
+                      ),
+                      Text(
+                        "Charge State: ${snapshot.data!.chargeState}",
+                      ),
+                      Text(
+                        "Charge Level: ${snapshot.data!.chargeLevel}",
+                      ),
+                      Text(
+                        "Charging Type: ${snapshot.data!.chargingType}",
+                      ),
+                      Text(
+                        "Charging Fault Reason: ${snapshot.data!.chargingFaultReason}",
+                      ),
+                    ],
+                  );
+                } else {
+                  return const CircularProgressIndicator();
+                }
+              },
+            ),
           const Divider(),
           if (connectedDevice is BatteryHealthStatusService)
             StreamBuilder(
-              stream: (connectedDevice as BatteryHealthStatusService).healthStatusStream,
+              stream: (connectedDevice as BatteryHealthStatusService)
+                  .healthStatusStream,
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
                   return Column(
@@ -91,7 +94,8 @@ class BatteryInfoWidget extends StatelessWidget {
           const Divider(),
           if (connectedDevice is BatteryEnergyStatusService)
             StreamBuilder(
-              stream: (connectedDevice as BatteryEnergyStatusService).energyStatusStream,
+              stream: (connectedDevice as BatteryEnergyStatusService)
+                  .energyStatusStream,
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
                   return Column(

@@ -36,7 +36,7 @@ class OpenEarableV1 extends Wearable
         JinglePlayer,
         AudioPlayerControls,
         StoragePathAudioPlayer,
-        BatteryLevelService {
+        BatteryLevelStatus {
   static const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
   static const String deviceInfoServiceUuid =
       "45622510-6468-465a-b141-0b9b0f96b468";
@@ -497,7 +497,8 @@ class _OpenEarableSensor extends Sensor<SensorDoubleValue> {
     return streamController.stream;
   }
 
-  Stream<SensorDoubleValue> _createSingleDataSubscription(String componentName) {
+  Stream<SensorDoubleValue> _createSingleDataSubscription(
+      String componentName) {
     StreamController<SensorDoubleValue> streamController = StreamController();
 
     StreamSubscription subscription =

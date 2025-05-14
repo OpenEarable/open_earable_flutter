@@ -22,22 +22,21 @@ const String _deviceFirmwareVersionCharacteristicUuid =
 const String _deviceHardwareVersionCharacteristicUuid =
     "45622513-6468-465a-b141-0b9b0f96b468";
 
-
 class OpenEarableV2 extends Wearable
     implements
         SensorManager,
         SensorConfigurationManager,
         RgbLed,
         StatusLed,
-        BatteryLevelService,
+        BatteryLevelStatus,
         BatteryLevelStatusService,
         BatteryHealthStatusService,
         BatteryEnergyStatusService,
         DeviceIdentifier,
         DeviceFirmwareVersion,
         DeviceHardwareVersion {
-
-  static const String deviceInfoServiceUuid = "45622510-6468-465a-b141-0b9b0f96b468";
+  static const String deviceInfoServiceUuid =
+      "45622510-6468-465a-b141-0b9b0f96b468";
   static const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
   static const String batteryServiceUuid = "180F";
 
@@ -168,7 +167,8 @@ class OpenEarableV2 extends Wearable
     logger.t("Battery level bytes: $batteryLevelList");
 
     if (batteryLevelList.length != 1) {
-      throw StateError('Battery level characteristic expected 1 value, but got ${batteryLevelList.length}');
+      throw StateError(
+          'Battery level characteristic expected 1 value, but got ${batteryLevelList.length}');
     }
 
     return batteryLevelList[0];
@@ -185,7 +185,8 @@ class OpenEarableV2 extends Wearable
     logger.t("Battery energy status bytes: $energyStatusList");
 
     if (energyStatusList.length != 7) {
-      throw StateError('Battery energy status characteristic expected 7 values, but got ${energyStatusList.length}');
+      throw StateError(
+          'Battery energy status characteristic expected 7 values, but got ${energyStatusList.length}');
     }
 
     int rawVoltage = (energyStatusList[2] << 8) | energyStatusList[1];
@@ -231,7 +232,8 @@ class OpenEarableV2 extends Wearable
     logger.t("Battery health status bytes: $healthStatusList");
 
     if (healthStatusList.length != 5) {
-      throw StateError('Battery health status characteristic expected 5 values, but got ${healthStatusList.length}');
+      throw StateError(
+          'Battery health status characteristic expected 5 values, but got ${healthStatusList.length}');
     }
 
     int healthSummary = healthStatusList[1];
@@ -263,12 +265,14 @@ class OpenEarableV2 extends Wearable
     bool batteryPresent = powerState >> 15 & 0x1 != 0;
 
     int wiredExternalPowerSourceConnectedRaw = (powerState >> 13) & 0x3;
-    ExternalPowerSourceConnected wiredExternalPowerSourceConnected
-      = ExternalPowerSourceConnected.values[wiredExternalPowerSourceConnectedRaw];
+    ExternalPowerSourceConnected wiredExternalPowerSourceConnected =
+        ExternalPowerSourceConnected
+            .values[wiredExternalPowerSourceConnectedRaw];
 
     int wirelessExternalPowerSourceConnectedRaw = (powerState >> 11) & 0x3;
-    ExternalPowerSourceConnected wirelessExternalPowerSourceConnected
-      = ExternalPowerSourceConnected.values[wirelessExternalPowerSourceConnectedRaw];
+    ExternalPowerSourceConnected wirelessExternalPowerSourceConnected =
+        ExternalPowerSourceConnected
+            .values[wirelessExternalPowerSourceConnectedRaw];
 
     int chargeStateRaw = (powerState >> 9) & 0x3;
     ChargeState chargeState = ChargeState.values[chargeStateRaw];
@@ -277,7 +281,8 @@ class OpenEarableV2 extends Wearable
     BatteryChargeLevel chargeLevel = BatteryChargeLevel.values[chargeLevelRaw];
 
     int chargingTypeRaw = (powerState >> 5) & 0x7;
-    BatteryChargingType chargingType = BatteryChargingType.values[chargingTypeRaw];
+    BatteryChargingType chargingType =
+        BatteryChargingType.values[chargingTypeRaw];
 
     int chargingFaultReasonRaw = (powerState >> 2) & 0x5;
     List<ChargingFaultReason> chargingFaultReason = [];
@@ -294,7 +299,8 @@ class OpenEarableV2 extends Wearable
     BatteryPowerStatus batteryPowerStatus = BatteryPowerStatus(
       batteryPresent: batteryPresent,
       wiredExternalPowerSourceConnected: wiredExternalPowerSourceConnected,
-      wirelessExternalPowerSourceConnected: wirelessExternalPowerSourceConnected,
+      wirelessExternalPowerSourceConnected:
+          wirelessExternalPowerSourceConnected,
       chargeState: chargeState,
       chargeLevel: chargeLevel,
       chargingType: chargingType,
@@ -310,7 +316,7 @@ class OpenEarableV2 extends Wearable
   Stream<int> get batteryPercentageStream {
     StreamController<int> controller = StreamController<int>();
     Timer? batteryPollingTimer;
-    
+
     controller.onCancel = () {
       batteryPollingTimer?.cancel();
     };
@@ -336,7 +342,8 @@ class OpenEarableV2 extends Wearable
 
   @override
   Stream<BatteryPowerStatus> get powerStatusStream {
-    StreamController<BatteryPowerStatus> controller = StreamController<BatteryPowerStatus>();
+    StreamController<BatteryPowerStatus> controller =
+        StreamController<BatteryPowerStatus>();
     Timer? powerPollingTimer;
 
     controller.onCancel = () {
@@ -364,7 +371,8 @@ class OpenEarableV2 extends Wearable
 
   @override
   Stream<BatteryEnergyStatus> get energyStatusStream {
-    StreamController<BatteryEnergyStatus> controller = StreamController<BatteryEnergyStatus>();
+    StreamController<BatteryEnergyStatus> controller =
+        StreamController<BatteryEnergyStatus>();
     Timer? energyPollingTimer;
 
     controller.onCancel = () {
@@ -392,7 +400,8 @@ class OpenEarableV2 extends Wearable
 
   @override
   Stream<BatteryHealthStatus> get healthStatusStream {
-    StreamController<BatteryHealthStatus> controller = StreamController<BatteryHealthStatus>();
+    StreamController<BatteryHealthStatus> controller =
+        StreamController<BatteryHealthStatus>();
     Timer? healthPollingTimer;
 
     controller.onCancel = () {
