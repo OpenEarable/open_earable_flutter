@@ -113,26 +113,22 @@ class DevKit extends Wearable
   }
 
   @override
-  // TODO: implement relatedConfigurations
   List<SensorConfiguration<SensorConfigurationValue>>
       get relatedConfigurations {
     return [];
   }
 
   @override
-  // TODO: implement sensorConfigurations
   List<SensorConfiguration<SensorConfigurationValue>> get sensorConfigurations {
     return [];
   }
 
   @override
-  // TODO: implement sensorName
   String get sensorName {
     return "not implemented";
   }
 
   @override
-  // TODO: implement sensorStream
   Stream<SensorValue> get sensorStream {
     return const Stream.empty();
   }
