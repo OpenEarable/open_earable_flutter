@@ -41,7 +41,7 @@ class FirmwareList extends StatelessWidget {
             context.read<FirmwareUpdateRequestProvider>().setFirmware(fw);
             Navigator.pop(context);
           },
-          child: const Icon(Icons.add),
+          child: Icon(Icons.add, color: Theme.of(context).colorScheme.primary),
         ));
   }
 

@@ -35,14 +35,19 @@ class UpdateStepView extends StatelessWidget {
                 for (var state in state.history)
                   Row(
                     children: [
-                      _stateIcon(state),
+                      _stateIcon(
+                          state, Theme.of(context).colorScheme.secondary),
                       Text(state.stage),
                     ],
                   ),
                 if (state.currentState != null)
                   Row(
                     children: [
-                      CircularProgressIndicator(),
+                      const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, padding: EdgeInsets.all(4))),
                       _currentState(state),
                     ],
                   ),
@@ -74,11 +79,11 @@ class UpdateStepView extends StatelessWidget {
     );
   }
 
-  Icon _stateIcon(UpdateFirmware state) {
+  Icon _stateIcon(UpdateFirmware state, Color successColor) {
     if (state is UpdateCompleteFailure) {
-      return Icon(Icons.error_outline, color: Colors.red);
+      return const Icon(size: 24, Icons.error_outline, color: Colors.red);
     } else {
-      return Icon(Icons.check_circle_outline, color: Colors.green);
+      return Icon(size: 24, Icons.check_circle_outline, color: successColor);
     }
   }
 

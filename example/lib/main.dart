@@ -158,7 +158,8 @@ class MyAppState extends State<MyApp> {
                             titleTextStyle: const TextStyle(fontSize: 16),
                             visualDensity: const VisualDensity(
                                 horizontal: -4, vertical: -4),
-                            trailing: _buildTrailingWidget(device.id),
+                            trailing: _buildTrailingWidget(device.id,
+                                Theme.of(context).colorScheme.secondary),
                             onTap: () {
                               _wearableManager.connectToDevice(device);
                               context
@@ -317,9 +318,9 @@ class MyAppState extends State<MyApp> {
         )));
   }
 
-  Widget _buildTrailingWidget(String id) {
+  Widget _buildTrailingWidget(String id, Color successColor) {
     if (_connectedDevice?.deviceId == id) {
-      return const Icon(size: 24, Icons.check, color: Colors.green);
+      return Icon(size: 24, Icons.check, color: successColor);
     } else if (_connectingDevice?.id == id) {
       return const SizedBox(
         height: 24,

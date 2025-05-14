@@ -2,7 +2,6 @@ import 'package:example/fota/src/bloc/bloc/update_bloc.dart';
 import 'package:example/fota/src/model/firmware_update_request.dart';
 import 'package:example/fota/src/providers/firmware_update_request_provider.dart';
 import 'package:example/fota/src/view/stepper_view/firmware_select.dart';
-import 'package:example/fota/src/view/stepper_view/peripheral_select.dart';
 import 'package:example/fota/src/view/stepper_view/update_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -48,21 +47,18 @@ class _FirmwareUpdateWidget extends State<FirmwareUpdateWidget> {
       controlsBuilder: _controlBuilder,
       steps: [
         Step(
+          state:
+              provider.currentStep > 0 ? StepState.complete : StepState.indexed,
           title: Text('Select Firmware'),
           content: Center(child: FirmwareSelect()),
-          isActive: provider.currentStep == 0,
+          isActive: provider.currentStep >= 0,
         ),
-        /*
         Step(
-          title: Text('Select Device'),
-          content: Center(child: PeripheralSelect()),
-          isActive: provider.currentStep == 1,
-        ),
-        */
-        Step(
+          state:
+              provider.currentStep > 1 ? StepState.complete : StepState.indexed,
           title: Text('Update'),
           content: Text('Update'),
-          isActive: provider.currentStep == 1,
+          isActive: provider.currentStep >= 1,
         ),
       ],
     );
@@ -84,24 +80,6 @@ class _FirmwareUpdateWidget extends State<FirmwareUpdateWidget> {
             ),
           ],
         );
-      /*
-      case 1:
-        if (parameters.peripheral == null) {
-          return Container();
-        }
-        return Row(
-          children: [
-            TextButton(
-              onPressed: details.onStepCancel,
-              child: Text('Back'),
-            ),
-            ElevatedButton(
-              onPressed: details.onStepContinue,
-              child: Text('Next'),
-            ),
-          ],
-        );
-        */
       case 1:
         print("ID");
         print(parameters.peripheral!.identifier);
