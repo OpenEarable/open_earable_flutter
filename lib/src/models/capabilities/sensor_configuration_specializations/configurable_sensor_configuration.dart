@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../sensor_configuration.dart';
 
 abstract class SensorConfigurationOption {
@@ -24,17 +26,17 @@ abstract class SensorConfigurationOption {
 }
 
 abstract class ConfigurableSensorConfiguration<SCV extends ConfigurableSensorConfigurationValue> extends SensorConfiguration<SCV> {
-  final List<SensorConfigurationOption> availableOptions;
+  final Set<SensorConfigurationOption> availableOptions;
 
-  ConfigurableSensorConfiguration({required super.name, required super.values, this.availableOptions = const []});
+  ConfigurableSensorConfiguration({required super.name, required super.values, this.availableOptions = const {}});
 }
 
 abstract class ConfigurableSensorConfigurationValue extends SensorConfigurationValue {
-  final List<SensorConfigurationOption> options;
+  final Set<SensorConfigurationOption> options;
 
   ConfigurableSensorConfigurationValue({
     required super.key,
-    this.options = const [],
+    this.options = const {},
   });
 
   @override
@@ -50,7 +52,7 @@ abstract class ConfigurableSensorConfigurationValue extends SensorConfigurationV
 
     return other is ConfigurableSensorConfigurationValue &&
         withoutOptions() == other.withoutOptions() &&
-        other.options == options;
+        setEquals(options, other.options);
   }
   
   @override
