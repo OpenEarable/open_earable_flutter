@@ -13,10 +13,10 @@ class SensorConfigurationOpenEarableV2 extends SensorFrequencyConfiguration<Sens
   final V2SensorHandler _sensorHandler;
 
   @override
-  final List<SensorConfigurationOption> availableOptions = [
+  final Set<SensorConfigurationOption> availableOptions = {
     const StreamSensorConfigOption(),
     const RecordSensorConfigOption(),
-  ];
+  };
 
   SensorConfigurationOpenEarableV2({
     required String name,
@@ -152,12 +152,12 @@ class SensorConfigurationOpenEarableV2Value
   bool get recordData => options.any((option) => option is RecordSensorConfigOption);
 
   @override
-  final List<SensorConfigurationOption> options;
+  final Set<SensorConfigurationOption> options;
 
   SensorConfigurationOpenEarableV2Value({
     required double frequencyHz,
     required this.frequencyIndex,
-    this.options = const [],
+    this.options = const {},
   }) : super(frequencyHz: frequencyHz);
 
   @override
@@ -179,7 +179,7 @@ class SensorConfigurationOpenEarableV2Value
     return SensorConfigurationOpenEarableV2Value(
       frequencyHz: frequencyHz,
       frequencyIndex: frequencyIndex,
-      options: [],
+      options: {},
     );
   }
 
@@ -190,7 +190,7 @@ class SensorConfigurationOpenEarableV2Value
     return other is SensorConfigurationOpenEarableV2Value &&
         other.frequencyHz == frequencyHz &&
         other.frequencyIndex == frequencyIndex &&
-        listEquals(other.options, options);
+        setEquals(other.options, options);
   }
   @override
   int get hashCode => frequencyHz.hashCode ^ frequencyIndex.hashCode ^ options.hashCode;
