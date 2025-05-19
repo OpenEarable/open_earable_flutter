@@ -52,34 +52,34 @@ class DevKit extends Wearable
   }
 
   @override
-  double get availableCapacity => throw UnimplementedError();
+  double get availableCapacity => 0.0;
 
   @override
-  int get axisCount => throw UnimplementedError();
+  int get axisCount => 3;
 
   @override
-  List<String> get axisNames => throw UnimplementedError();
+  List<String> get axisNames => ["X", "Y", "Z"];
 
   @override
-  List<String> get axisUnits => throw UnimplementedError();
+  List<String> get axisUnits => ["m/s²", "m/s²", "m/s²"];
 
   @override
-  Stream<int> get batteryPercentageStream => throw UnimplementedError();
+  Stream<int> get batteryPercentageStream => const Stream.empty();
 
   @override
-  double get chargeRate => throw UnimplementedError();
+  double get chargeRate => 0.0;
 
   @override
-  String get chartTitle => throw UnimplementedError();
+  String get chartTitle => "not implemented";
 
   @override
-  int get currentTemperature => throw UnimplementedError();
+  int get currentTemperature => 20;
 
   @override
-  int get cycleCount => throw UnimplementedError();
+  int get cycleCount => 0;
 
   @override
-  int get healthSummary => throw UnimplementedError();
+  int get healthSummary => 0;
 
   @override
   Future<void> pauseAudio() {
