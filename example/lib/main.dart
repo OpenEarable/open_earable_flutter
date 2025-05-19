@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:open_earable_flutter/open_earable_flutter.dart';
+import 'package:example/global_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
@@ -83,6 +84,7 @@ class MyAppState extends State<MyApp> {
     return ChangeNotifierProvider(
         create: (context) => FirmwareUpdateRequestProvider(),
         builder: (context, child) => MaterialApp(
+              theme: materialTheme,
               home: _materialApp(context),
             ));
   }

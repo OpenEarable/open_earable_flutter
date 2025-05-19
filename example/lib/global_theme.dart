@@ -8,7 +8,7 @@ final ThemeData materialTheme = ThemeData(
     brightness: Brightness.dark,
     primary: Color.fromARGB(255, 54, 53, 59),
     onPrimary: Colors.white,
-    secondary: Color.fromARGB(255, 119, 242, 161),
+    secondary: Colors.green,
     onSecondary: Colors.white,
     error: Colors.red,
     onError: Colors.black,
@@ -18,8 +18,7 @@ final ThemeData materialTheme = ThemeData(
   elevatedButtonTheme: ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(
       foregroundColor: const Color.fromARGB(255, 54, 53, 59), // Text color
-      backgroundColor:
-          const Color.fromARGB(255, 119, 242, 161), // Background color
+      backgroundColor: Colors.green, // Background color
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
     ),
   ),
