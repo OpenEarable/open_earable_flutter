@@ -1,16 +1,10 @@
 import 'dart:async';
 
-import 'package:example/fota/model/firmware_update_request.dart';
-import 'package:example/fota/providers/firmware_update_request_provider.dart';
+import 'package:open_earable_flutter/open_earable_flutter.dart';
 import 'package:example/global_theme.dart';
 import 'package:example/widgets/firmware_update_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:example/widgets/battery_info_widget.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
-import 'package:open_earable_flutter/open_earable_flutter.dart';
 import 'package:provider/provider.dart';
 
 import 'widgets/frequency_player_widget.dart';
@@ -21,8 +15,6 @@ import 'widgets/audio_player_control_widget.dart';
 import 'widgets/sensor_view.dart';
 import 'widgets/storage_path_audio_player_widget.dart';
 import 'widgets/grouped_box.dart';
-
-import 'package:rxdart/rxdart.dart';
 
 void main() {
   runApp(const MyApp());
