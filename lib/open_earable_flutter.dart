@@ -48,6 +48,8 @@ export 'src/models/capabilities/jingle_player.dart';
 export 'src/models/capabilities/audio_player_controls.dart';
 export 'src/models/capabilities/storage_path_audio_player.dart';
 
+export 'src/fota/model/firmware_update_request.dart';
+export 'src/fota/providers/firmware_update_request_provider.dart';
 export 'src/fota/firmware_update.dart';
 
 @Deprecated(
