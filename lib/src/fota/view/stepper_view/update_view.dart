@@ -37,7 +37,7 @@ class UpdateStepView extends StatelessWidget {
                     children: [
                       _stateIcon(
                         state,
-                        const Color.fromARGB(255, 119, 242, 161),
+                        Colors.green,
                       ),
                       Text(state.stage),
                     ],
