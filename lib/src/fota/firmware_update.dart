@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:open_earable_flutter/open_earable_flutter.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
+
+import 'bloc/bloc/update_bloc.dart';
+import 'model/firmware_update_request.dart';
+import 'providers/firmware_update_request_provider.dart';
+import 'view/stepper_view/update_view.dart';
+import 'view/stepper_view/firmware_select.dart';
 
 class FirmwareUpdateWidget extends StatefulWidget {
   const FirmwareUpdateWidget({super.key});
