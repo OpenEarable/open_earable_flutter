@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 
-import '../../src/model/firmware_image.dart';
+import '../model/firmware_image.dart';
 
 class FirmwareImageRepository {
   static const String baseUrl =

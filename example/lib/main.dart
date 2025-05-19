@@ -1,9 +1,7 @@
 import 'dart:async';
 
-import 'package:example/fota/src/bloc/bloc/update_bloc.dart';
-import 'package:example/fota/src/model/firmware_update_request.dart';
-import 'package:example/fota/src/providers/firmware_update_request_provider.dart';
-import 'package:example/fota/src/view/stepper_view/update_view.dart';
+import 'package:example/fota/model/firmware_update_request.dart';
+import 'package:example/fota/providers/firmware_update_request_provider.dart';
 import 'package:example/global_theme.dart';
 import 'package:example/widgets/firmware_update_widget.dart';
 import 'package:flutter/material.dart';

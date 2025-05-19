@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../src/model/firmware_update_request.dart';
-import '../../../src/providers/firmware_update_request_provider.dart';
+import '../../model/firmware_update_request.dart';
+import '../../providers/firmware_update_request_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../firmware_select/firmware_list.dart';

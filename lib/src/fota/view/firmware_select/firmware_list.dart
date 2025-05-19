@@ -2,10 +2,10 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import '../../../src/model/firmware_image.dart';
-import '../../../src/model/firmware_update_request.dart';
-import '../../../src/providers/firmware_update_request_provider.dart';
-import '../../../src/repository/firmware_image_repository.dart';
+import '../../model/firmware_image.dart';
+import '../../model/firmware_update_request.dart';
+import '../../providers/firmware_update_request_provider.dart';
+import '../../repository/firmware_image_repository.dart';
 import 'package:provider/provider.dart';
 
 class FirmwareList extends StatelessWidget {

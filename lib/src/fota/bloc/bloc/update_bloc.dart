@@ -1,8 +1,8 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:mcumgr_flutter/mcumgr_flutter.dart';
-import '../../../src/handlers/firmware_update_handler.dart';
-import '../../../src/model/firmware_update_request.dart';
+import '../../handlers/firmware_update_handler.dart';
+import '../../model/firmware_update_request.dart';
 import 'package:meta/meta.dart';
 import 'package:rxdart/rxdart.dart' as rx;
 import 'package:tuple/tuple.dart';

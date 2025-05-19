@@ -30,18 +30,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  equatable: ^2.0.5
-  file_picker: ^8.1.7
-  flutter_archive: ^6.0.0
-  flutter_bloc: ^8.1.3
-  http: ^1.1.2
-  json_annotation: ^4.8.1
-  mcumgr_flutter: ^0.4.2
-  path_provider: ^2.1.1
-  provider: ^6.1.1
-  rxdart: ^0.27.7
-  tuple: ^2.0.2
-  uuid: ^4.2.1
+  
 
   open_earable_flutter:
     path: ../
@@ -55,7 +44,6 @@ dependencies:
   flutter_colorpicker: ^1.1.0
   meta: ^1.16.0
   bloc: ^8.1.4
-  flutter_blue_plus: ^1.35.0
   flutter_svg: ^2.0.17
 
 dev_dependencies:
