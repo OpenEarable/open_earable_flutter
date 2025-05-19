@@ -48,7 +48,13 @@ export 'src/models/capabilities/jingle_player.dart';
 export 'src/models/capabilities/audio_player_controls.dart';
 export 'src/models/capabilities/storage_path_audio_player.dart';
 
-@Deprecated('This export is deprecated and will be removed in a future release.')
+export 'src/fota/bloc/bloc/update_bloc.dart';
+export 'src/fota/model/firmware_update_request.dart';
+export 'src/fota/providers/firmware_update_request_provider.dart';
+export 'src/fota/view/stepper_view/update_view.dart';
+export 'src/fota/view/stepper_view/firmware_select.dart';
+@Deprecated(
+    'This export is deprecated and will be removed in a future release.')
 export 'src/models/capabilities/sensor_configuration_specializations/sensor_configuration_open_earable_v2.dart';
 
 Logger logger = Logger();
