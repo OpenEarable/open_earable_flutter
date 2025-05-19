@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../model/firmware_update_request.dart';
 import '../../providers/firmware_update_request_provider.dart';
-import '../../view/logger_screen/logger_screen.dart';
+import '../logger_screen/logger_screen.dart';
 
 import '../../bloc/bloc/update_bloc.dart';
 
@@ -36,7 +36,9 @@ class UpdateStepView extends StatelessWidget {
                   Row(
                     children: [
                       _stateIcon(
-                          state, Theme.of(context).colorScheme.secondary),
+                        state,
+                        const Color.fromARGB(255, 119, 242, 161),
+                      ),
                       Text(state.stage),
                     ],
                   ),

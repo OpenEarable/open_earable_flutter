@@ -28,7 +28,7 @@ class _FirmwareUpdateWidget extends State<FirmwareUpdateWidget> {
       connectorColor: WidgetStateProperty.resolveWith<Color>(
         (states) {
           if (states.contains(WidgetState.selected)) {
-            return Colors.green;
+            return const Color.fromARGB(255, 119, 242, 161);
           }
           return Colors.grey;
         },
