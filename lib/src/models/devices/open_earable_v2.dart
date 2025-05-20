@@ -2,10 +2,8 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:open_earable_flutter/open_earable_flutter.dart';
+import '../../../open_earable_flutter.dart';
 import '../../managers/ble_manager.dart';
-import '../capabilities/audio_mode_manager.dart';
-import '../capabilities/microphone_manager.dart';
 
 const String _batteryLevelCharacteristicUuid = "2A19";
 const String _batteryLevelStatusCharacteristicUuid = "2BED";
