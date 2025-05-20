@@ -9,6 +9,7 @@ import 'package:universal_ble/universal_ble.dart';
 import '../../../open_earable_flutter.dart' show logger;
 import '../../managers/v2_sensor_handler.dart';
 import '../../utils/sensor_value_parser/v2_sensor_value_parser.dart';
+import '../capabilities/audio_mode_manager.dart';
 import '../capabilities/sensor.dart';
 import '../capabilities/sensor_configuration.dart';
 import '../capabilities/sensor_configuration_specializations/recordable_sensor_configuration.dart';
@@ -74,6 +75,14 @@ class OpenEarableFactory extends WearableFactory {
         sensorConfigurations: sensorInfo.$2,
         bleManager: bleManager!,
         discoveredDevice: device,
+        availableMicrophones: {
+          const OpenEarableV2Mic(id: 0, key: "Outer Microphone"),
+          const OpenEarableV2Mic(id: 1, key: "Inner Microphone"),
+        },
+        availableAudioModes: {
+          const NormalMode(),
+          const TransparencyMode(),
+        },
       );
     } else {
       throw Exception('OpenEarable version is not supported');

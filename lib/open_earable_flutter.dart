@@ -46,6 +46,8 @@ export 'src/models/capabilities/frequency_player.dart';
 export 'src/models/capabilities/jingle_player.dart';
 export 'src/models/capabilities/audio_player_controls.dart';
 export 'src/models/capabilities/storage_path_audio_player.dart';
+export 'src/models/capabilities/audio_mode_manager.dart';
+export 'src/models/capabilities/microphone_manager.dart';
 
 @Deprecated('This export is deprecated and will be removed in a future release.')
 export 'src/models/capabilities/sensor_configuration_specializations/sensor_configuration_open_earable_v2.dart';
