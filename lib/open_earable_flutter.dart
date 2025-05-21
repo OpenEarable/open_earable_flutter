@@ -50,8 +50,7 @@ export 'src/models/capabilities/storage_path_audio_player.dart';
 export 'src/models/capabilities/audio_mode_manager.dart';
 export 'src/models/capabilities/microphone_manager.dart';
 
-export 'src/fota/model/firmware_update_request.dart';
-export 'src/fota/providers/firmware_update_request_provider.dart';
+export 'src/fota/fota.dart';
 
 @Deprecated(
     'This export is deprecated and will be removed in a future release.')
