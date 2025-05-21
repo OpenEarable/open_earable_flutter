@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:example/widgets/fota/firmware_update.dart';
 import 'package:open_earable_flutter/open_earable_flutter.dart';
 import 'package:example/global_theme.dart';
 import 'package:flutter/material.dart';
