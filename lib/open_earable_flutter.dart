@@ -52,7 +52,6 @@ export 'src/models/capabilities/microphone_manager.dart';
 
 export 'src/fota/model/firmware_update_request.dart';
 export 'src/fota/providers/firmware_update_request_provider.dart';
-export 'src/fota/firmware_update.dart';
 
 @Deprecated(
     'This export is deprecated and will be removed in a future release.')
