@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:open_earable_flutter/open_earable_flutter.dart';
+import '../../../open_earable_flutter.dart';
 import '../../managers/ble_manager.dart';
 
 const String _batteryLevelCharacteristicUuid = "2A19";
@@ -22,6 +22,24 @@ const String _deviceFirmwareVersionCharacteristicUuid =
 const String _deviceHardwareVersionCharacteristicUuid =
     "45622513-6468-465a-b141-0b9b0f96b468";
 
+const String _audioConfigServiceUuid = "1410df95-5f68-4ebb-a7c7-5e0fb9ae7557";
+const String _micSelectCharacteristicUuid =
+    "0x1410df97-5f68-4ebb-a7c7-5e0fb9ae7557";
+const String _audioModeCharacteristicUuid =
+    "0x1410df96-5f68-4ebb-a7c7-5e0fb9ae7557";
+
+// MARK: OpenEarableV2
+
+/// Represents the OpenEarable V2 device.
+/// This class implements various interfaces to provide functionality
+/// such as sensor management, LED control, battery status, and device information.
+/// It extends the Wearable class and implements several interfaces
+/// to provide a comprehensive set of features for the OpenEarable V2 device.
+/// The class is designed to be used with the OpenEarable Flutter SDK.
+/// It provides methods to read and write data to the device,
+/// manage sensors, control LEDs, and retrieve battery and device information.
+/// The class also provides streams for monitoring battery and power status,
+/// as well as health and energy status.
 class OpenEarableV2 extends Wearable
     implements
         SensorManager,
@@ -34,7 +52,9 @@ class OpenEarableV2 extends Wearable
         BatteryEnergyStatusService,
         DeviceIdentifier,
         DeviceFirmwareVersion,
-        DeviceHardwareVersion {
+        DeviceHardwareVersion,
+        MicrophoneManager<OpenEarableV2Mic>,
+        AudioModeManager {
   static const String deviceInfoServiceUuid =
       "45622510-6468-465a-b141-0b9b0f96b468";
   static const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
@@ -45,6 +65,11 @@ class OpenEarableV2 extends Wearable
   final BleManager _bleManager;
   final DiscoveredDevice _discoveredDevice;
 
+  @override
+  final Set<OpenEarableV2Mic> availableMicrophones;
+  @override
+  final Set<AudioMode> availableAudioModes;
+
   OpenEarableV2({
     required super.name,
     required super.disconnectNotifier,
@@ -52,6 +77,8 @@ class OpenEarableV2 extends Wearable
     required List<SensorConfiguration> sensorConfigurations,
     required BleManager bleManager,
     required DiscoveredDevice discoveredDevice,
+    this.availableMicrophones = const {},
+    this.availableAudioModes = const {},
   })  : _sensors = sensors,
         _sensorConfigurations = sensorConfigurations,
         _bleManager = bleManager,
@@ -426,4 +453,75 @@ class OpenEarableV2 extends Wearable
 
     return controller.stream;
   }
+
+  @override
+  void setMicrophone(OpenEarableV2Mic microphone) {
+    if (!availableMicrophones.contains(microphone)) {
+      throw ArgumentError('Microphone not available: ${microphone.key}');
+    }
+
+    _bleManager.write(
+      deviceId: deviceId,
+      serviceId: _audioConfigServiceUuid,
+      characteristicId: _micSelectCharacteristicUuid,
+      byteData: [microphone.id],
+    );
+  }
+
+  @override
+  Future<OpenEarableV2Mic> getMicrophone() async {
+    List<int> microphoneBytes = await _bleManager.read(
+      deviceId: deviceId,
+      serviceId: _audioConfigServiceUuid,
+      characteristicId: _micSelectCharacteristicUuid,
+    );
+
+    if (microphoneBytes.length != 1) {
+      throw StateError(
+          'Microphone characteristic expected 1 value, but got ${microphoneBytes.length}');
+    }
+
+    int microphoneId = microphoneBytes[0];
+    return availableMicrophones.firstWhere((mic) => mic.id == microphoneId);
+  }
+
+  @override
+  void setAudioMode(AudioMode audioMode) {
+    if (!availableAudioModes.contains(audioMode)) {
+      throw ArgumentError('Audio mode not available: ${audioMode.key}');
+    }
+
+    _bleManager.write(
+      deviceId: deviceId,
+      serviceId: _audioConfigServiceUuid,
+      characteristicId: _audioModeCharacteristicUuid,
+      byteData: [audioMode.id],
+    );
+  }
+
+  @override
+  Future<AudioMode> getAudioMode() async {
+    List<int> audioModeBytes = await _bleManager.read(
+      deviceId: deviceId,
+      serviceId: _audioConfigServiceUuid,
+      characteristicId: _audioModeCharacteristicUuid,
+    );
+
+    if (audioModeBytes.length != 1) {
+      throw StateError(
+          'Audio mode characteristic expected 1 value, but got ${audioModeBytes.length}');
+    }
+
+    int audioModeId = audioModeBytes[0];
+    return availableAudioModes.firstWhere((mode) => mode.id == audioModeId);
+  }
+}
+
+class OpenEarableV2Mic extends Microphone {
+  final int id;
+
+  const OpenEarableV2Mic({
+    required this.id,
+    required super.key,
+  });
 }
