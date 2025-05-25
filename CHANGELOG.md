@@ -17,3 +17,8 @@ Extend pipeline to use Flutter.
 ## 0.0.5
 
 README updates (example web app) and add supported platforms. 
+
+## 0.1.0
+
+* Create new lib structure
+* Support more devices: Polar devices, Cosinuss One, OpenEarable v2
