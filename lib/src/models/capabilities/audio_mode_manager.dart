@@ -6,6 +6,7 @@ abstract class AudioModeManager {
   });
 
   void setAudioMode(AudioMode audioMode);
+
   Future<AudioMode> getAudioMode();
 }
 
@@ -17,6 +18,11 @@ abstract class AudioMode {
     required this.id,
     required this.key,
   });
+
+  @override
+  String toString() {
+    return key;
+  }
 }
 
 class NormalMode extends AudioMode {
