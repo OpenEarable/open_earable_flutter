@@ -38,25 +38,16 @@ class SelectedFirmware {
 }
 
 class RemoteFirmware extends SelectedFirmware {
-  final Application application;
-  final Version version;
-  final Board board;
-  final BuildConfig firmware;
+  final String name;
+  final String version;
+  final String url;
+  final FirmwareType type;
 
-  @override
-  String get name => '${application.appName} ${version.version}';
-
-  RemoteFirmware({
-    required this.application,
-    required this.version,
-    required this.board,
-    required this.firmware,
-  });
-
-  @override
-  String toString() {
-    return 'SelectedFirmware{application: $application, version: $version, board: $board, firmware: $firmware}';
-  }
+  RemoteFirmware(
+      {required this.name,
+      required this.version,
+      required this.url,
+      required this.type});
 }
 
 enum FirmwareType {

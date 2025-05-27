@@ -48,8 +48,7 @@ class FirmwareDownloader extends FirmwareUpdateHandler {
 
     final remoteFirmware = multiImageRequest.remoteFirmware!;
 
-    final response = await http.get(Uri.parse(
-        '${FirmwareImageRepository.baseUrl}${remoteFirmware.firmware.file}'));
+    final response = await http.get(Uri.parse(remoteFirmware.url));
     if (response.statusCode == 200) {
       multiImageRequest.zipFile = response.bodyBytes;
     } else {

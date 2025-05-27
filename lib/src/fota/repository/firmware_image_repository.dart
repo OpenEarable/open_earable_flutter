@@ -1,21 +1,42 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
 
-import '../model/firmware_image.dart';
+import '../model/firmware_update_request.dart';
 
 class FirmwareImageRepository {
-  static const String baseUrl =
-      'https://nordicsemiconductor.github.io/nrfprogrammer-firmware-images/';
-  String get url => '$baseUrl/manifest.json';
+  Future<List<RemoteFirmware>> getFirmwareImages() async {
+    final response = await http.get(
+      Uri.parse(
+        'https://api.github.com/repos/o-bagge/app-update-test/releases/latest',
+      ),
+    );
 
-  Future<ApplicationResponse> getFirmwareImages() async {
-    final response = await http.get(Uri.parse(url));
-    if (response.statusCode == HttpStatus.ok) {
-      Map<String, dynamic> jsonBody = json.decode(response.body);
-      return ApplicationResponse.fromJson(jsonBody);
-    } else {
-      throw Exception('Failed to load firmware images');
+    if (response.statusCode != 200) {
+      throw Exception('Failed to fetch release data');
     }
+
+    final release = jsonDecode(response.body);
+    final assets = release['assets'] as List;
+
+    final version = release['tag_name'];
+    return assets
+        .where(
+      (asset) =>
+          asset['name'].endsWith('.zip') || asset['name'].endsWith('.bin'),
+    )
+        .map<RemoteFirmware>((asset) {
+      final name = asset['name'];
+      final url = asset['browser_download_url'];
+      final type = name.endsWith('.zip')
+          ? FirmwareType.multiImage
+          : FirmwareType.singleImage;
+      final displayName = name.split('_fota').first + ' $version';
+      return RemoteFirmware(
+        name: displayName,
+        version: version,
+        url: url,
+        type: type,
+      );
+    }).toList();
   }
 }
