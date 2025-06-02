@@ -8,6 +8,8 @@ const String sensorConfigurationCharacteristicUuid =
     "34c2e3bd-34aa-11eb-adc1-0242ac120002";
 const String sensorConfigurationV2CharacteristicUuid =
     "34c2e3be-34aa-11eb-adc1-0242ac120002";
+const String sensorConfigStateCharacteristicUuid =
+    "34c2e3bf-34aa-11eb-adc1-0242ac120002";
 const String sensorDataCharacteristicUuid =
     "34c2e3bc-34aa-11eb-adc1-0242ac120002";
 
