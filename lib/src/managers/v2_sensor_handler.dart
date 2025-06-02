@@ -63,11 +63,7 @@ class V2SensorHandler extends SensorHandler<V2SensorConfig> {
       await _readSensorScheme();
     }
 
-    Uint8List sensorConfigBytes = Uint8List(3);
-    sensorConfigBytes[0] = sensorConfig.sensorId;
-    sensorConfigBytes[1] = sensorConfig.sampleRateIndex;
-    sensorConfigBytes[2] = (sensorConfig.streamData ? 1 : 0) |
-        (sensorConfig.storeData ? 1 : 0) << 1;
+    Uint8List sensorConfigBytes = sensorConfig.toBytes();
 
     await _bleManager.write(
       deviceId: _discoveredDevice.id,
@@ -103,4 +99,35 @@ class V2SensorConfig extends SensorConfig {
     required this.streamData,
     required this.storeData,
   });
+
+  Uint8List toBytes() {
+    Uint8List bytes = Uint8List(3);
+    bytes[0] = sensorId;
+    bytes[1] = sampleRateIndex;
+    bytes[2] = (streamData ? 1 : 0) | (storeData ? 1 : 0) << 1;
+    return bytes;
+  }
+
+  static V2SensorConfig fromBytes(Uint8List bytes) {
+    if (bytes.length != 3) {
+      throw ArgumentError("Invalid byte length for V2SensorConfig");
+    }
+    return V2SensorConfig(
+      sensorId: bytes[0],
+      sampleRateIndex: bytes[1],
+      streamData: (bytes[2] & 0x01) != 0,
+      storeData: (bytes[2] & 0x02) != 0,
+    );
+  }
+
+  static List<V2SensorConfig> listFromBytes(Uint8List bytes) {
+    if (bytes.length % 3 != 0) {
+      throw ArgumentError("Invalid byte length for V2SensorConfig list");
+    }
+    List<V2SensorConfig> configs = [];
+    for (int i = 0; i < bytes.length; i += 3) {
+      configs.add(V2SensorConfig.fromBytes(bytes.sublist(i, i + 3)));
+    }
+    return configs;
+  }
 }
