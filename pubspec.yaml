@@ -23,6 +23,7 @@ dependencies:
   permission_handler: ^11.4.0
   universal_ble: ^0.17.0
   logger: ^2.5.0
+  path_provider: ^2.0.11
 
 dev_dependencies:
   flutter_test:
