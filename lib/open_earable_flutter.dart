@@ -49,6 +49,7 @@ export 'src/models/capabilities/audio_player_controls.dart';
 export 'src/models/capabilities/storage_path_audio_player.dart';
 export 'src/models/capabilities/audio_mode_manager.dart';
 export 'src/models/capabilities/microphone_manager.dart';
+export 'src/models/recorder.dart';
 export 'src/models/capabilities/edge_recorder_manager.dart';
 
 export 'src/fota/fota.dart';
