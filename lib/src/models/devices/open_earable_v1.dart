@@ -57,6 +57,10 @@ class OpenEarableV1 extends Wearable
   final List<WaveType> _supportedFrequencyPlayerWaveTypes;
   final List<Jingle> _supportedJingles;
 
+  @override
+  Stream<Map<SensorConfiguration, SensorConfigurationValue>>
+      get sensorConfigurationStream => const Stream.empty();
+
   OpenEarableV1({
     required super.name,
     required super.disconnectNotifier,
