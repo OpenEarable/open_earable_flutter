@@ -21,33 +21,42 @@ class Recorder {
   }
 
   /// Starts the recording process.
-  void start({
+  Future<File> start({
     required String filepath,
     required Stream<SensorValue> inputStream,
     bool append = false,
   }) async {
-    if (_isRecording) return;
+    if (_isRecording) throw Exception('Recording is already in progress.');
 
     _isRecording = true;
     final publicDirectory = await _getPublicDirectory();
     final fullPath = '$publicDirectory/$filepath';
     final file = File(fullPath);
 
-    final exists = await file.exists();
-    _sink = file.openWrite(mode: append && exists ? FileMode.append : FileMode.write);
+    await file.parent.create(recursive: true);
 
-    // Write header only if not appending or file didn't exist
+    final exists = await file.exists();
+    _sink = file.openWrite(
+      mode: append && exists ? FileMode.append : FileMode.write,
+    );
+
     if (!append || !exists) {
       _sink!.writeln(_columns.join(','));
     }
 
-    _subscription = inputStream.listen((SensorValue value) {
-      final row = _formatSensorValue(value);
-      _sink!.writeln(row);
-    }, onDone: stop, onError: (error) {
-      debugPrint('Recording error: $error');
-      stop();
-    },);
+    _subscription = inputStream.listen(
+      (SensorValue value) {
+        final row = _formatSensorValue(value);
+        _sink!.writeln(row);
+      },
+      onDone: stop,
+      onError: (error) {
+        debugPrint('Recording error: $error');
+        stop();
+      },
+    );
+
+    return file;
   }
 
   /// Stops the recording process.
