@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:open_earable_flutter/src/constants.dart';
+import 'package:open_earable_flutter/src/models/capabilities/edge_recorder_manager.dart';
 
 import '../../../open_earable_flutter.dart';
 import '../../managers/ble_manager.dart';
@@ -60,7 +61,8 @@ class OpenEarableV2 extends Wearable
         DeviceFirmwareVersion,
         DeviceHardwareVersion,
         MicrophoneManager<OpenEarableV2Mic>,
-        AudioModeManager {
+        AudioModeManager,
+        EdgeRecorderManager {
 
   static const String deviceInfoServiceUuid = "45622510-6468-465a-b141-0b9b0f96b468";
   static const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
@@ -137,6 +139,16 @@ class OpenEarableV2 extends Wearable
   final Set<OpenEarableV2Mic> availableMicrophones;
   @override
   final Set<AudioMode> availableAudioModes;
+
+  @override
+  Future<String> get filePrefix async {
+    List<int> prefixBytes = await _bleManager.read(
+      deviceId: deviceId,
+      serviceId: sensorServiceUuid,
+      characteristicId: sensorEdgeRecorderFilePrefixCharacteristicUuid,
+    );
+    return String.fromCharCodes(prefixBytes);
+  }
 
   OpenEarableV2({
     required super.name,
@@ -571,6 +583,16 @@ class OpenEarableV2 extends Wearable
 
     int audioModeId = audioModeBytes[0];
     return availableAudioModes.firstWhere((mode) => mode.id == audioModeId);
+  }
+
+  @override
+  Future<void> setFilePrefix(String prefix) {
+    return _bleManager.write(
+      deviceId: deviceId,
+      serviceId: sensorServiceUuid,
+      characteristicId: sensorEdgeRecorderFilePrefixCharacteristicUuid,
+      byteData: prefix.codeUnits,
+    );
   }
 }
 
