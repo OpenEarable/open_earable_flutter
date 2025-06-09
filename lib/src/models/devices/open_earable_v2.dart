@@ -3,7 +3,6 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:open_earable_flutter/src/constants.dart';
-import 'package:open_earable_flutter/src/models/capabilities/edge_recorder_manager.dart';
 
 import '../../../open_earable_flutter.dart';
 import '../../managers/ble_manager.dart';
