@@ -104,7 +104,8 @@ class OpenEarableV2 extends Wearable
 
           if (matchingConfig == null) {
             logger.w(
-                'No matching sensor configuration found for ID: ${sensorConfig.sensorId}');
+              'No matching sensor configuration found for ID: ${sensorConfig.sensorId}',
+            );
             continue;
           }
 
@@ -122,7 +123,8 @@ class OpenEarableV2 extends Wearable
 
           if (sensorConfigValue == null) {
             logger.w(
-                'No matching sensor configuration value found for sensor ID: ${sensorConfig.sensorId}');
+              'No matching sensor configuration value found for sensor ID: ${sensorConfig.sensorId}',
+            );
             continue;
           }
           sensorConfigMap[matchingConfig] = sensorConfigValue;
@@ -284,7 +286,8 @@ class OpenEarableV2 extends Wearable
 
     if (batteryLevelList.length != 1) {
       throw StateError(
-          'Battery level characteristic expected 1 value, but got ${batteryLevelList.length}');
+        'Battery level characteristic expected 1 value, but got ${batteryLevelList.length}',
+      );
     }
 
     return batteryLevelList[0];
@@ -302,7 +305,8 @@ class OpenEarableV2 extends Wearable
 
     if (energyStatusList.length != 7) {
       throw StateError(
-          'Battery energy status characteristic expected 7 values, but got ${energyStatusList.length}');
+        'Battery energy status characteristic expected 7 values, but got ${energyStatusList.length}',
+      );
     }
 
     int rawVoltage = (energyStatusList[2] << 8) | energyStatusList[1];
@@ -349,7 +353,8 @@ class OpenEarableV2 extends Wearable
 
     if (healthStatusList.length != 5) {
       throw StateError(
-          'Battery health status characteristic expected 5 values, but got ${healthStatusList.length}');
+        'Battery health status characteristic expected 5 values, but got ${healthStatusList.length}',
+      );
     }
 
     int healthSummary = healthStatusList[1];
@@ -567,7 +572,8 @@ class OpenEarableV2 extends Wearable
 
     if (microphoneBytes.length != 1) {
       throw StateError(
-          'Microphone characteristic expected 1 value, but got ${microphoneBytes.length}');
+        'Microphone characteristic expected 1 value, but got ${microphoneBytes.length}',
+      );
     }
 
     int microphoneId = microphoneBytes[0];
@@ -598,7 +604,8 @@ class OpenEarableV2 extends Wearable
 
     if (audioModeBytes.length != 1) {
       throw StateError(
-          'Audio mode characteristic expected 1 value, but got ${audioModeBytes.length}');
+        'Audio mode characteristic expected 1 value, but got ${audioModeBytes.length}',
+      );
     }
 
     int audioModeId = audioModeBytes[0];
