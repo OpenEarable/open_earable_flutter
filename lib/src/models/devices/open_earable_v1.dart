@@ -502,7 +502,8 @@ class _OpenEarableSensor extends Sensor<SensorDoubleValue> {
   }
 
   Stream<SensorDoubleValue> _createSingleDataSubscription(
-      String componentName) {
+    String componentName,
+  ) {
     StreamController<SensorDoubleValue> streamController = StreamController();
 
     StreamSubscription subscription =
