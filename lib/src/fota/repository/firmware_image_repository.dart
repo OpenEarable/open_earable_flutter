@@ -7,7 +7,7 @@ class FirmwareImageRepository {
   Future<List<RemoteFirmware>> getFirmwareImages() async {
     final response = await http.get(
       Uri.parse(
-        'https://api.github.com/repos/o-bagge/app-update-test/releases/latest',
+        'https://api.github.com/repos/OpenEarable/open-earable-2/releases/latest',
       ),
     );
 
