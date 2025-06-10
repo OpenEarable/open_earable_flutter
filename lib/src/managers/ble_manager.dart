@@ -123,7 +123,6 @@ class BleManager {
             DiscoveredDevice(
               id: bleDevice.deviceId,
               name: bleDevice.name ?? "",
-              // TODO Might need some refactoring
               manufacturerData:
                   bleDevice.manufacturerDataList.firstOrNull?.toUint8List() ??
                       Uint8List.fromList([]),
@@ -144,7 +143,6 @@ class BleManager {
                 DiscoveredDevice(
                   id: bleDevice.deviceId,
                   name: bleDevice.name ?? "",
-                  // TODO Might need some refactoring
                   manufacturerData: bleDevice.manufacturerDataList.firstOrNull
                           ?.toUint8List() ??
                       Uint8List.fromList([]),

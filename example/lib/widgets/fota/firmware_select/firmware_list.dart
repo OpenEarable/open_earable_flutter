@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -7,6 +9,8 @@ import 'package:open_earable_flutter/open_earable_flutter.dart';
 
 class FirmwareList extends StatelessWidget {
   final repository = FirmwareImageRepository();
+
+  FirmwareList({super.key});
 
   @override
   Widget build(BuildContext context) {

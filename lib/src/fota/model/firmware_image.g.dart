@@ -1,5 +1,7 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
+// ignore_for_file: unused_element
+
 part of 'firmware_image.dart';
 
 // **************************************************************************
@@ -15,7 +17,8 @@ ApplicationResponse _$ApplicationResponseFromJson(Map<String, dynamic> json) =>
     );
 
 Map<String, dynamic> _$ApplicationResponseToJson(
-        ApplicationResponse instance) =>
+  ApplicationResponse instance,
+) =>
     <String, dynamic>{
       'version': instance.version,
       'applications': instance.applications,

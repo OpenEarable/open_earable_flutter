@@ -9,7 +9,7 @@ class LoggerScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          title: Text('Log'),
+          title: const Text('Log'),
         ),
         body: _logFutureBuilder());
   }
@@ -26,7 +26,7 @@ class LoggerScreen extends StatelessWidget {
         } else if (snapshot.hasError) {
           return Text(snapshot.error.toString());
         }
-        return CircularProgressIndicator();
+        return const CircularProgressIndicator();
       },
     );
   }

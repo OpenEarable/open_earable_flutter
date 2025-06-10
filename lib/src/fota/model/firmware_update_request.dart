@@ -29,8 +29,12 @@ class MultiImageFirmwareUpdateRequest extends FirmwareUpdateRequest {
 
   RemoteFirmware? get remoteFirmware => firmware as RemoteFirmware?;
 
-  MultiImageFirmwareUpdateRequest(
-      {this.zipFile, this.firmwareImages, super.peripheral, super.firmware});
+  MultiImageFirmwareUpdateRequest({
+    this.zipFile,
+    this.firmwareImages,
+    super.peripheral,
+    super.firmware,
+  });
 }
 
 class SelectedFirmware {
@@ -38,16 +42,18 @@ class SelectedFirmware {
 }
 
 class RemoteFirmware extends SelectedFirmware {
+  @override
   final String name;
   final String version;
   final String url;
   final FirmwareType type;
 
-  RemoteFirmware(
-      {required this.name,
-      required this.version,
-      required this.url,
-      required this.type});
+  RemoteFirmware({
+    required this.name,
+    required this.version,
+    required this.url,
+    required this.type,
+  });
 }
 
 enum FirmwareType {
@@ -56,6 +62,7 @@ enum FirmwareType {
 }
 
 class LocalFirmware extends SelectedFirmware {
+  @override
   final String name;
   final Uint8List data;
   final FirmwareType type;

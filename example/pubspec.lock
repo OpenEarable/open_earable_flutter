@@ -130,7 +130,7 @@ packages:
     source: hosted
     version: "2.1.4"
   file_picker:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: file_picker
       sha256: ab13ae8ef5580a411c458d6207b6774a6c237d77ac37011b13994879f68a8810
@@ -159,7 +159,7 @@ packages:
     source: hosted
     version: "6.0.3"
   flutter_bloc:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: flutter_bloc
       sha256: b594505eac31a0518bdcb4b5b79573b8d9117b193cc80cc12e17d639b10aa27a
@@ -305,7 +305,7 @@ packages:
     source: hosted
     version: "0.11.1"
   mcumgr_flutter:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: mcumgr_flutter
       sha256: e19a5c420bdc20c831ffc4673a01b8fb1825fb3f42524cfc454a9862b20453f2

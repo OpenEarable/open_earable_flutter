@@ -92,8 +92,11 @@ class DevKit extends Wearable
   }
 
   @override
-  Future<void> playFrequency(WaveType waveType,
-      {double frequency = 440.0, double loudness = 1}) {
+  Future<void> playFrequency(
+    WaveType waveType, {
+    double frequency = 440.0,
+    double loudness = 1,
+  }) {
     return Future.value();
   }
 

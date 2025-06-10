@@ -46,15 +46,15 @@ class _FirmwareUpdateWidget extends State<FirmwareUpdateWidget> {
         Step(
           state:
               provider.currentStep > 0 ? StepState.complete : StepState.indexed,
-          title: Text('Select Firmware'),
-          content: Center(child: FirmwareSelect()),
+          title: const Text('Select Firmware'),
+          content: const Center(child: FirmwareSelect()),
           isActive: provider.currentStep >= 0,
         ),
         Step(
           state:
               provider.currentStep > 1 ? StepState.complete : StepState.indexed,
-          title: Text('Update'),
-          content: Text('Update'),
+          title: const Text('Update'),
+          content: const Text('Update'),
           isActive: provider.currentStep >= 1,
         ),
       ],
@@ -73,14 +73,14 @@ class _FirmwareUpdateWidget extends State<FirmwareUpdateWidget> {
           children: [
             ElevatedButton(
               onPressed: details.onStepContinue,
-              child: Text('Next'),
+              child: const Text('Next'),
             ),
           ],
         );
       case 1:
         return BlocProvider(
           create: (context) => UpdateBloc(firmwareUpdateRequest: parameters),
-          child: UpdateStepView(),
+          child: const UpdateStepView(),
         );
       default:
         throw Exception('Unknown step');

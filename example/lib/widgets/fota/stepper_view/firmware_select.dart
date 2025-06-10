@@ -23,7 +23,7 @@ class FirmwareSelect extends StatelessWidget {
                 MaterialPageRoute(builder: (context) => FirmwareList()),
               );
             },
-            child: Text('Select Firmware')),
+            child: const Text('Select Firmware')),
       ],
     );
   }

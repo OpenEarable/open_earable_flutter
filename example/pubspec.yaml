@@ -46,6 +46,9 @@ dependencies:
   bloc: ^8.1.4
   flutter_svg: ^2.0.17
   provider: ^6.1.5
+  file_picker: ^8.3.7
+  mcumgr_flutter: ^0.4.2
+  flutter_bloc: ^8.1.6
 
 dev_dependencies:
   flutter_test:

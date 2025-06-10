@@ -28,25 +28,30 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
       );
 
       final progressStream = _firmwareUpdateManager!.progressStream
-          .map((event) =>
-              event.bytesSent.toDouble() / event.imageSize.toDouble())
+          .map(
+            (event) => event.bytesSent.toDouble() / event.imageSize.toDouble(),
+          )
           .startWith(0);
 
       final logManager = _firmwareUpdateManager!.logger;
 
       logManager.logMessageStream.where((log) => log.level.rawValue > 1).listen(
-          (log) {
-        print(log.message);
-      }, onDone: () {
-        print('done');
-      }, onError: (error) {
-        print('error: $error');
-      });
+        (log) {
+          print(log.message);
+        },
+        onDone: () {
+          print('done');
+        },
+        onError: (error) {
+          print('error: $error');
+        },
+      );
 
       rx.CombineLatestStream.combine2(
-          progressStream,
-          _firmwareUpdateManager!.updateStateStream!,
-          (a, b) => Tuple2(a, b)).map((event) {
+        progressStream,
+        _firmwareUpdateManager!.updateStateStream!,
+        Tuple2.new,
+      ).map((event) {
         if (event.item2 == FirmwareUpgradeState.upload) {
           return UploadProgress(
             progress: (event.item1 * 100).toInt(),
@@ -58,12 +63,13 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
           print(event.item2.toString());
           return UploadState(event.item2.toString());
         }
-      }).listen((event) {
-        add(event);
-      }, onError: (error) {
-        print(error);
-        add(UploadFailed(error.toString()));
-      });
+      }).listen(
+        add,
+        onError: (error) {
+          print(error);
+          add(UploadFailed(error.toString()));
+        },
+      );
     });
     on<DownloadStarted>((event, emit) {
       _state = _updatedState(UpdateFirmware('Download firmware'));
@@ -84,13 +90,17 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
       }
     });
     on<UploadFinished>((event, emit) {
-      _state = _updatedState(UpdateCompleteSuccess(),
-          updateManager: _firmwareUpdateManager);
+      _state = _updatedState(
+        UpdateCompleteSuccess(),
+        updateManager: _firmwareUpdateManager,
+      );
       emit(_state!);
     });
     on<UploadFailed>((event, emit) {
-      _state = _updatedState(UpdateCompleteFailure(event.error),
-          updateManager: _firmwareUpdateManager);
+      _state = _updatedState(
+        UpdateCompleteFailure(event.error),
+        updateManager: _firmwareUpdateManager,
+      );
       emit(_state!);
     });
     on<ResetUpdate>((event, emit) {
@@ -98,12 +108,14 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
     });
   }
 
-  UpdateFirmwareStateHistory _updatedState(UpdateFirmware currentState,
-      {FirmwareUpdateManager? updateManager}) {
+  UpdateFirmwareStateHistory _updatedState(
+    UpdateFirmware currentState, {
+    FirmwareUpdateManager? updateManager,
+  }) {
     if (_state == null) {
       return UpdateFirmwareStateHistory(
         currentState,
-        [],
+        const [],
         updateManager: updateManager,
       );
     } else if (_state!.history.isEmpty) {

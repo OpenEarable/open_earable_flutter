@@ -207,7 +207,7 @@ class MyAppState extends State<MyApp> {
                               Text(
                                 "Firmware Version:  ${snapshot.data}",
                               ),
-                              Spacer(),
+                              const Spacer(),
                               ElevatedButton(
                                   onPressed: () {
                                     Navigator.push(
@@ -215,13 +215,14 @@ class MyAppState extends State<MyApp> {
                                       MaterialPageRoute(
                                         builder: (context) => Scaffold(
                                           appBar: AppBar(
-                                              title: Text("Update Firmware")),
-                                          body: FirmwareUpdateWidget(),
+                                              title: const Text(
+                                                  "Update Firmware")),
+                                          body: const FirmwareUpdateWidget(),
                                         ),
                                       ),
                                     );
                                   },
-                                  child: Text("Update Firmware"))
+                                  child: const Text("Update Firmware"))
                             ]);
                           },
                         ),

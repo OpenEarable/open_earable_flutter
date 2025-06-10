@@ -20,7 +20,9 @@ typedef FirmwareUpdateCallback = void Function(FirmwareUpdateState state);
 abstract class FirmwareUpdateHandler {
   FirmwareUpdateHandler? _nextHandler;
   Future<FirmwareUpdateManager> handleFirmwareUpdate(
-      FirmwareUpdateRequest request, FirmwareUpdateCallback? callback);
+    FirmwareUpdateRequest request,
+    FirmwareUpdateCallback? callback,
+  );
 
   Future<void> setNextHandler(FirmwareUpdateHandler handler) async {
     _nextHandler = handler;
@@ -30,7 +32,9 @@ abstract class FirmwareUpdateHandler {
 class FirmwareDownloader extends FirmwareUpdateHandler {
   @override
   Future<FirmwareUpdateManager> handleFirmwareUpdate(
-      FirmwareUpdateRequest request, FirmwareUpdateCallback? callback) async {
+    FirmwareUpdateRequest request,
+    FirmwareUpdateCallback? callback,
+  ) async {
     if (request.firmware is LocalFirmware) {
       if (request is MultiImageFirmwareUpdateRequest) {
         request.zipFile = (request.firmware as LocalFirmware).data;
@@ -63,7 +67,9 @@ class FirmwareDownloader extends FirmwareUpdateHandler {
 class FirmwareUnpacker extends FirmwareUpdateHandler {
   @override
   Future<FirmwareUpdateManager> handleFirmwareUpdate(
-      FirmwareUpdateRequest request, FirmwareUpdateCallback? callback) async {
+    FirmwareUpdateRequest request,
+    FirmwareUpdateCallback? callback,
+  ) async {
     callback?.call(FirmwareUnpackStarted());
 
     if (request.firmware == null) {
@@ -74,7 +80,7 @@ class FirmwareUnpacker extends FirmwareUpdateHandler {
       return await _nextHandler!.handleFirmwareUpdate(request, callback);
     }
 
-    final prefix = 'firmware_${Uuid().v4()}';
+    final prefix = 'firmware_${const Uuid().v4()}';
     final systemTempDir = await path_provider.getTemporaryDirectory();
 
     final tempDir = Directory('${systemTempDir.path}/$prefix');
@@ -89,7 +95,9 @@ class FirmwareUnpacker extends FirmwareUpdateHandler {
     await destinationDir.create();
     try {
       await ZipFile.extractToDirectory(
-          zipFile: firmwareFile, destinationDir: destinationDir);
+        zipFile: firmwareFile,
+        destinationDir: destinationDir,
+      );
     } catch (e) {
       throw Exception('Failed to unzip firmware');
     }
@@ -130,7 +138,9 @@ class FirmwareUpdater extends FirmwareUpdateHandler {
 
   @override
   Future<FirmwareUpdateManager> handleFirmwareUpdate(
-      FirmwareUpdateRequest request, FirmwareUpdateCallback? callback) async {
+    FirmwareUpdateRequest request,
+    FirmwareUpdateCallback? callback,
+  ) async {
     callback?.call(FirmwareUploadStarted());
 
     if (request.peripheral == null) {
@@ -145,15 +155,20 @@ class FirmwareUpdater extends FirmwareUpdateHandler {
     if (request is SingleImageFirmwareUpdateRequest) {
       final fwImage = request.firmwareImage;
       await updateManager.updateWithImageData(
-          imageData: fwImage!,
-          configuration: FirmwareUpgradeConfiguration(
-              firmwareUpgradeMode: FirmwareUpgradeMode.testOnly));
+        imageData: fwImage!,
+        configuration: const FirmwareUpgradeConfiguration(
+          firmwareUpgradeMode: FirmwareUpgradeMode.testOnly,
+        ),
+      );
       return updateManager;
     } else {
       final multiImageRequest = request as MultiImageFirmwareUpdateRequest;
-      updateManager.update(multiImageRequest.firmwareImages!,
-          configuration: FirmwareUpgradeConfiguration(
-              firmwareUpgradeMode: FirmwareUpgradeMode.testOnly));
+      updateManager.update(
+        multiImageRequest.firmwareImages!,
+        configuration: const FirmwareUpgradeConfiguration(
+          firmwareUpgradeMode: FirmwareUpgradeMode.testOnly,
+        ),
+      );
     }
 
     return updateManager;

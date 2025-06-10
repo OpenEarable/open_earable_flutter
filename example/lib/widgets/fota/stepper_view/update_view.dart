@@ -22,7 +22,7 @@ class UpdateStepView extends StatelessWidget {
                   onPressed: () {
                     context.read<UpdateBloc>().add(BeginUpdateProcess());
                   },
-                  child: Text('Update'),
+                  child: const Text('Update'),
                 ),
               ],
             );
@@ -60,19 +60,19 @@ class UpdateStepView extends StatelessWidget {
                                       logger: state.updateManager!.logger,
                                     )));
                       },
-                      child: Text('Show Log')),
+                      child: const Text('Show Log')),
                 if (state.isComplete)
                   ElevatedButton(
                     onPressed: () {
                       BlocProvider.of<UpdateBloc>(context).add(ResetUpdate());
                       provider.reset();
                     },
-                    child: Text('Update Again'),
+                    child: const Text('Update Again'),
                   ),
               ],
             );
           default:
-            return Text('Unknown state');
+            return const Text('Unknown state');
         }
       },
     );
@@ -89,7 +89,7 @@ class UpdateStepView extends StatelessWidget {
   Text _currentState(UpdateFirmwareStateHistory state) {
     final currentState = state.currentState;
     if (currentState == null) {
-      return Text('Unknown state');
+      return const Text('Unknown state');
     } else if (currentState is UpdateProgressFirmware) {
       return Text("Uploading ${currentState.progress}%");
     } else {
@@ -103,7 +103,7 @@ class UpdateStepView extends StatelessWidget {
     } else if (firmware is RemoteFirmware) {
       return _remoteFirmwareInfo(context, firmware);
     } else {
-      return Text('Unknown firmware type');
+      return const Text('Unknown firmware type');
     }
   }
 
