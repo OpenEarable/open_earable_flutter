@@ -101,8 +101,6 @@ class MyAppState extends State<MyApp> {
       );
     }
 
-    String? wearableIconPath = _connectedDevice?.getWearableIconPath();
-
     return Scaffold(
         appBar: AppBar(
           title: const Text('Bluetooth Devices'),

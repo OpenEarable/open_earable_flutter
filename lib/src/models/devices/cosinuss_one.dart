@@ -155,7 +155,8 @@ class CosinussOne extends Wearable
 
     if (batteryLevelList.length != 1) {
       throw StateError(
-          'Battery level characteristic expected 1 value, but got ${batteryLevelList.length}');
+        'Battery level characteristic expected 1 value, but got ${batteryLevelList.length}',
+      );
     }
 
     return batteryLevelList[0];

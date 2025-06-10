@@ -54,7 +54,8 @@ export 'src/models/capabilities/edge_recorder_manager.dart';
 export 'src/fota/fota.dart';
 
 @Deprecated(
-    'This export is deprecated and will be removed in a future release.')
+  'This export is deprecated and will be removed in a future release.',
+)
 export 'src/models/capabilities/sensor_configuration_specializations/sensor_configuration_open_earable_v2.dart';
 
 Logger logger = Logger();

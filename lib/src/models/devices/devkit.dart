@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import '../../../open_earable_flutter.dart';
 import '../../managers/ble_manager.dart';

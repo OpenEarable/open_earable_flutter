@@ -9,7 +9,9 @@ class DevKitFactory extends WearableFactory {
 
   @override
   Future<bool> matches(
-      DiscoveredDevice device, List<BleService> services) async {
+    DiscoveredDevice device,
+    List<BleService> services,
+  ) async {
     return device.name == _name;
   }
 
@@ -20,7 +22,8 @@ class DevKitFactory extends WearableFactory {
     }
     if (disconnectNotifier == null) {
       throw Exception(
-          "disconnectNotifier needs to be set before using the factory");
+        "disconnectNotifier needs to be set before using the factory",
+      );
     }
 
     if (device.name != _name) {

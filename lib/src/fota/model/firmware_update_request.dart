@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 import 'package:mcumgr_flutter/mcumgr_flutter.dart';
-import '../model/firmware_image.dart';
 
 class FirmwareUpdateRequest {
   SelectedFirmware? firmware;

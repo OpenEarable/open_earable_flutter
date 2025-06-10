@@ -47,6 +47,7 @@ class FirmwareList extends StatelessWidget {
   }
 
   Container _body() {
+    // ignore: avoid_unnecessary_containers
     return Container(
       child: FutureBuilder(
           future: repository.getFirmwareImages(),

@@ -5,7 +5,6 @@ import 'package:flutter_archive/flutter_archive.dart';
 import 'package:mcumgr_flutter/models/firmware_upgrade_mode.dart';
 import '../model/firmware_update_request.dart';
 import '../model/manifest.dart';
-import '../repository/firmware_image_repository.dart';
 
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart' as path_provider;
