@@ -58,9 +58,16 @@ class OpenEarableV2 extends Wearable
         DeviceFirmwareVersion,
         DeviceHardwareVersion,
         MicrophoneManager<OpenEarableV2Mic>,
+<<<<<<< HEAD
         AudioModeManager {
   static const String deviceInfoServiceUuid =
       "45622510-6468-465a-b141-0b9b0f96b468";
+=======
+        AudioModeManager,
+        EdgeRecorderManager {
+
+  static const String deviceInfoServiceUuid = "45622510-6468-465a-b141-0b9b0f96b468";
+>>>>>>> 724c850fb87be37a69c51ab352ccc7fe61ff4a05
   static const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
   static const String batteryServiceUuid = "180F";
 
@@ -135,6 +142,16 @@ class OpenEarableV2 extends Wearable
   final Set<OpenEarableV2Mic> availableMicrophones;
   @override
   final Set<AudioMode> availableAudioModes;
+
+  @override
+  Future<String> get filePrefix async {
+    List<int> prefixBytes = await _bleManager.read(
+      deviceId: deviceId,
+      serviceId: sensorServiceUuid,
+      characteristicId: sensorEdgeRecorderFilePrefixCharacteristicUuid,
+    );
+    return String.fromCharCodes(prefixBytes);
+  }
 
   OpenEarableV2({
     required super.name,
@@ -580,6 +597,16 @@ class OpenEarableV2 extends Wearable
 
     int audioModeId = audioModeBytes[0];
     return availableAudioModes.firstWhere((mode) => mode.id == audioModeId);
+  }
+
+  @override
+  Future<void> setFilePrefix(String prefix) {
+    return _bleManager.write(
+      deviceId: deviceId,
+      serviceId: sensorServiceUuid,
+      characteristicId: sensorEdgeRecorderFilePrefixCharacteristicUuid,
+      byteData: prefix.codeUnits,
+    );
   }
 }
 
