@@ -197,4 +197,10 @@ class DevKit extends Wearable
   Future<void> writeLedColor({required int r, required int g, required int b}) {
     return Future.value();
   }
+
+  @override
+  Stream<
+      Map<SensorConfiguration<SensorConfigurationValue>,
+          SensorConfigurationValue>> get sensorConfigurationStream =>
+      const Stream.empty();
 }

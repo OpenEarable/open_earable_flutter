@@ -7,6 +7,12 @@ pluginManagement {
         flutterSdkPath
     }
 
+    plugins {
+        id("com.android.application") version "8.2.1"
+        id("org.jetbrains.kotlin.android") version "1.9.22"
+        id("dev.flutter.flutter-gradle-plugin") version "1.0.0" // or whatever is current
+    }
+    
     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
 
     repositories {
