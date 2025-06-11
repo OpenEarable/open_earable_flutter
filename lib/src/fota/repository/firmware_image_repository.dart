@@ -30,7 +30,7 @@ class FirmwareImageRepository {
       final type = name.endsWith('.zip')
           ? FirmwareType.multiImage
           : FirmwareType.singleImage;
-      final displayName = name.split('_fota').first + ' $version';
+      final displayName = name.split('_').first + ' $version';
       return RemoteFirmware(
         name: displayName,
         version: version,
