@@ -1,10 +1,11 @@
 import 'dart:async';
 
-import 'package:example/widgets/battery_info_widget.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
+import 'package:example/widgets/fota/firmware_update.dart';
 import 'package:open_earable_flutter/open_earable_flutter.dart';
+import 'package:example/global_theme.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
 
 import 'widgets/frequency_player_widget.dart';
 import 'widgets/jingle_player_widget.dart';
@@ -36,7 +37,8 @@ class MyAppState extends State<MyApp> {
 
   // Get devices for auto connect
   static List<String> get _autoConnectDevices {
-    const devicesString = String.fromEnvironment("AUTO_CONNECT_DEVICES", defaultValue: "");
+    const devicesString =
+        String.fromEnvironment("AUTO_CONNECT_DEVICES", defaultValue: "");
     if (devicesString.isEmpty) return [];
     return devicesString
         .split(",")
@@ -80,20 +82,26 @@ class MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+        create: (context) => FirmwareUpdateRequestProvider(),
+        builder: (context, child) => MaterialApp(
+              theme: materialTheme,
+              home: _materialApp(context),
+            ));
+  }
+
+  Widget _materialApp(BuildContext context) {
     List<SensorView>? sensorViews;
     List<SensorConfigurationView>? sensorConfigurationViews;
     if (_connectedDevice != null) {
       sensorViews = SensorView.createSensorViews(_connectedDevice!);
       sensorConfigurationViews =
           SensorConfigurationView.createSensorConfigurationViews(
-            _connectedDevice!,
-          );
+        _connectedDevice!,
+      );
     }
 
-    String? wearableIconPath = _connectedDevice?.getWearableIconPath();
-
-    return MaterialApp(
-      home: Scaffold(
+    return Scaffold(
         appBar: AppBar(
           title: const Text('Bluetooth Devices'),
         ),
@@ -117,7 +125,6 @@ class MyAppState extends State<MyApp> {
                 visible: discoveredDevices.isNotEmpty,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
                     border: Border.all(
                       color: Colors.grey,
                       width: 1.0,
@@ -135,15 +142,19 @@ class MyAppState extends State<MyApp> {
                       return Column(
                         children: [
                           ListTile(
-                            textColor: Colors.black,
-                            selectedTileColor: Colors.grey,
                             title: Text(device.name),
                             titleTextStyle: const TextStyle(fontSize: 16),
                             visualDensity: const VisualDensity(
                                 horizontal: -4, vertical: -4),
-                            trailing: _buildTrailingWidget(device.id),
+                            trailing: _buildTrailingWidget(device.id,
+                                Theme.of(context).colorScheme.secondary),
                             onTap: () {
                               _wearableManager.connectToDevice(device);
+                              context
+                                  .read<FirmwareUpdateRequestProvider>()
+                                  .setPeripheral(SelectedPeripheral(
+                                      name: device.name,
+                                      identifier: device.id));
                             },
                           ),
                           if (index != discoveredDevices.length - 1)
@@ -172,13 +183,7 @@ class MyAppState extends State<MyApp> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (wearableIconPath != null)
-                        SvgPicture.asset(
-                          wearableIconPath,
-                          width: 100,
-                          height: 100,
-                        ),
-                      SelectableText(
+                      Text(
                         "Name:                    ${_connectedDevice?.name}",
                       ),
                       if (_connectedDevice is DeviceIdentifier)
@@ -186,7 +191,7 @@ class MyAppState extends State<MyApp> {
                           future: (_connectedDevice as DeviceIdentifier)
                               .readDeviceIdentifier(),
                           builder: (context, snapshot) {
-                            return SelectableText(
+                            return Text(
                               "Device Identifier:   ${snapshot.data}",
                             );
                           },
@@ -196,9 +201,27 @@ class MyAppState extends State<MyApp> {
                           future: (_connectedDevice as DeviceFirmwareVersion)
                               .readDeviceFirmwareVersion(),
                           builder: (context, snapshot) {
-                            return SelectableText(
-                              "Firmware Version:  ${snapshot.data}",
-                            );
+                            return Row(children: [
+                              Text(
+                                "Firmware Version:  ${snapshot.data}",
+                              ),
+                              const Spacer(),
+                              ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => Scaffold(
+                                          appBar: AppBar(
+                                              title: const Text(
+                                                  "Update Firmware")),
+                                          body: const FirmwareUpdateWidget(),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: const Text("Update Firmware"))
+                            ]);
                           },
                         ),
                       if (_connectedDevice is DeviceHardwareVersion)
@@ -206,7 +229,7 @@ class MyAppState extends State<MyApp> {
                           future: (_connectedDevice as DeviceHardwareVersion)
                               .readDeviceHardwareVersion(),
                           builder: (context, snapshot) {
-                            return SelectableText(
+                            return Text(
                               "Hardware Version: ${snapshot.data}",
                             );
                           },
@@ -214,18 +237,7 @@ class MyAppState extends State<MyApp> {
                     ],
                   ),
                 ),
-              if (_connectedDevice != null)
-                BatteryInfoWidget(connectedDevice: _connectedDevice!),
-              if (_connectedDevice is RgbLed && _connectedDevice is StatusLed)
-                GroupedBox(
-                  title: "RGB LED",
-                  child:
-                    RgbLedControlWidget(
-                      rgbLed: _connectedDevice as RgbLed,
-                      statusLed: _connectedDevice as StatusLed?,
-                    ),
-                ),
-              if (_connectedDevice is RgbLed && _connectedDevice is! StatusLed)
+              if (_connectedDevice is RgbLed)
                 GroupedBox(
                   title: "RGB LED",
                   child:
@@ -292,14 +304,12 @@ class MyAppState extends State<MyApp> {
                     ))
                 .toList(),
           ),
-        )),
-      ),
-    );
+        )));
   }
 
-  Widget _buildTrailingWidget(String id) {
+  Widget _buildTrailingWidget(String id, Color successColor) {
     if (_connectedDevice?.deviceId == id) {
-      return const Icon(size: 24, Icons.check, color: Colors.green);
+      return Icon(size: 24, Icons.check, color: successColor);
     } else if (_connectingDevice?.id == id) {
       return const SizedBox(
         height: 24,

@@ -1,4 +1,4 @@
-abstract class BatteryLevelService {
+abstract class BatteryLevelStatus {
   /// Reads the battery percentage of the device.
   /// The value is between 0 and 100.
   Future<int> readBatteryPercentage();

@@ -26,13 +26,11 @@ const String _deviceFirmwareVersionCharacteristicUuid =
 const String _deviceHardwareVersionCharacteristicUuid =
     "45622513-6468-465a-b141-0b9b0f96b468";
 
-const String _audioConfigServiceUuid =
-    "1410df95-5f68-4ebb-a7c7-5e0fb9ae7557";
+const String _audioConfigServiceUuid = "1410df95-5f68-4ebb-a7c7-5e0fb9ae7557";
 const String _micSelectCharacteristicUuid =
     "0x1410df97-5f68-4ebb-a7c7-5e0fb9ae7557";
 const String _audioModeCharacteristicUuid =
     "0x1410df96-5f68-4ebb-a7c7-5e0fb9ae7557";
-
 
 // MARK: OpenEarableV2
 
@@ -52,7 +50,7 @@ class OpenEarableV2 extends Wearable
         SensorConfigurationManager,
         RgbLed,
         StatusLed,
-        BatteryLevelService,
+        BatteryLevelStatus,
         BatteryLevelStatusService,
         BatteryHealthStatusService,
         BatteryEnergyStatusService,
@@ -62,8 +60,8 @@ class OpenEarableV2 extends Wearable
         MicrophoneManager<OpenEarableV2Mic>,
         AudioModeManager,
         EdgeRecorderManager {
-
-  static const String deviceInfoServiceUuid = "45622510-6468-465a-b141-0b9b0f96b468";
+  static const String deviceInfoServiceUuid =
+      "45622510-6468-465a-b141-0b9b0f96b468";
   static const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
   static const String batteryServiceUuid = "180F";
 
@@ -71,64 +69,78 @@ class OpenEarableV2 extends Wearable
   final List<SensorConfiguration> _sensorConfigurations;
 
   @override
-  Stream<Map<SensorConfiguration, SensorConfigurationValue>> get sensorConfigurationStream {
-    StreamController<Map<SensorConfiguration, SensorConfigurationValue>> controller
-      = StreamController<Map<SensorConfiguration, SensorConfigurationValue>>();
+  Stream<Map<SensorConfiguration, SensorConfigurationValue>>
+      get sensorConfigurationStream {
+    StreamController<Map<SensorConfiguration, SensorConfigurationValue>>
+        controller =
+        StreamController<Map<SensorConfiguration, SensorConfigurationValue>>();
 
     _sensorConfigSubscription?.cancel();
 
-    _sensorConfigSubscription = _bleManager.subscribe(
+    _sensorConfigSubscription = _bleManager
+        .subscribe(
       deviceId: deviceId,
       serviceId: sensorServiceUuid,
       characteristicId: sensorConfigStateCharacteristicUuid,
-    ).listen((data) {
-      List<V2SensorConfig> sensorConfigs = V2SensorConfig.listFromBytes(Uint8List.fromList(data));
-      logger.d('Received sensor configuration data: $sensorConfigs');
+    )
+        .listen(
+      (data) {
+        List<V2SensorConfig> sensorConfigs =
+            V2SensorConfig.listFromBytes(Uint8List.fromList(data));
+        logger.d('Received sensor configuration data: $sensorConfigs');
 
-      Map<SensorConfiguration, SensorConfigurationValue> sensorConfigMap = {};
+        Map<SensorConfiguration, SensorConfigurationValue> sensorConfigMap = {};
 
-      for (V2SensorConfig sensorConfig in sensorConfigs) {
-        // Find the matching sensor configuration
-        SensorConfiguration? matchingConfig = _sensorConfigurations.where(
-          (config) {
-            if (config is SensorConfigurationOpenEarableV2) {
-              return config.sensorId == sensorConfig.sensorId;
-            }
-            return false;
-          },
-        ).firstOrNull;
+        for (V2SensorConfig sensorConfig in sensorConfigs) {
+          // Find the matching sensor configuration
+          SensorConfiguration? matchingConfig = _sensorConfigurations.where(
+            (config) {
+              if (config is SensorConfigurationOpenEarableV2) {
+                return config.sensorId == sensorConfig.sensorId;
+              }
+              return false;
+            },
+          ).firstOrNull;
 
-        if (matchingConfig == null) {
-          logger.w('No matching sensor configuration found for ID: ${sensorConfig.sensorId}');
-          continue;
+          if (matchingConfig == null) {
+            logger.w(
+              'No matching sensor configuration found for ID: ${sensorConfig.sensorId}',
+            );
+            continue;
+          }
+
+          SensorConfigurationValue? sensorConfigValue =
+              matchingConfig.values.where(
+            (value) {
+              if (value is SensorConfigurationOpenEarableV2Value) {
+                return value.frequencyIndex == sensorConfig.sampleRateIndex &&
+                    value.streamData == sensorConfig.streamData &&
+                    value.recordData == sensorConfig.storeData;
+              }
+              return false;
+            },
+          ).firstOrNull;
+
+          if (sensorConfigValue == null) {
+            logger.w(
+              'No matching sensor configuration value found for sensor ID: ${sensorConfig.sensorId}',
+            );
+            continue;
+          }
+          sensorConfigMap[matchingConfig] = sensorConfigValue;
         }
 
-        SensorConfigurationValue? sensorConfigValue = matchingConfig.values.where(
-          (value) {
-            if (value is SensorConfigurationOpenEarableV2Value) {
-              return value.frequencyIndex == sensorConfig.sampleRateIndex &&
-                     value.streamData == sensorConfig.streamData &&
-                     value.recordData == sensorConfig.storeData;
-            }
-            return false;
-          },
-        ).firstOrNull;
-
-        if (sensorConfigValue == null) {
-          logger.w('No matching sensor configuration value found for sensor ID: ${sensorConfig.sensorId}');
-          continue;
-        }
-        sensorConfigMap[matchingConfig] = sensorConfigValue;
-      }
-
-      controller.add(sensorConfigMap);
-    }, onError: (error) {
-      logger.e('Error in sensor configuration stream: $error');
-      controller.addError(error);
-    },);
+        controller.add(sensorConfigMap);
+      },
+      onError: (error) {
+        logger.e('Error in sensor configuration stream: $error');
+        controller.addError(error);
+      },
+    );
 
     return controller.stream;
   }
+
   StreamSubscription? _sensorConfigSubscription;
 
   final BleManager _bleManager;
@@ -273,7 +285,9 @@ class OpenEarableV2 extends Wearable
     logger.t("Battery level bytes: $batteryLevelList");
 
     if (batteryLevelList.length != 1) {
-      throw StateError('Battery level characteristic expected 1 value, but got ${batteryLevelList.length}');
+      throw StateError(
+        'Battery level characteristic expected 1 value, but got ${batteryLevelList.length}',
+      );
     }
 
     return batteryLevelList[0];
@@ -290,7 +304,9 @@ class OpenEarableV2 extends Wearable
     logger.t("Battery energy status bytes: $energyStatusList");
 
     if (energyStatusList.length != 7) {
-      throw StateError('Battery energy status characteristic expected 7 values, but got ${energyStatusList.length}');
+      throw StateError(
+        'Battery energy status characteristic expected 7 values, but got ${energyStatusList.length}',
+      );
     }
 
     int rawVoltage = (energyStatusList[2] << 8) | energyStatusList[1];
@@ -336,7 +352,9 @@ class OpenEarableV2 extends Wearable
     logger.t("Battery health status bytes: $healthStatusList");
 
     if (healthStatusList.length != 5) {
-      throw StateError('Battery health status characteristic expected 5 values, but got ${healthStatusList.length}');
+      throw StateError(
+        'Battery health status characteristic expected 5 values, but got ${healthStatusList.length}',
+      );
     }
 
     int healthSummary = healthStatusList[1];
@@ -368,12 +386,14 @@ class OpenEarableV2 extends Wearable
     bool batteryPresent = powerState >> 15 & 0x1 != 0;
 
     int wiredExternalPowerSourceConnectedRaw = (powerState >> 13) & 0x3;
-    ExternalPowerSourceConnected wiredExternalPowerSourceConnected
-      = ExternalPowerSourceConnected.values[wiredExternalPowerSourceConnectedRaw];
+    ExternalPowerSourceConnected wiredExternalPowerSourceConnected =
+        ExternalPowerSourceConnected
+            .values[wiredExternalPowerSourceConnectedRaw];
 
     int wirelessExternalPowerSourceConnectedRaw = (powerState >> 11) & 0x3;
-    ExternalPowerSourceConnected wirelessExternalPowerSourceConnected
-      = ExternalPowerSourceConnected.values[wirelessExternalPowerSourceConnectedRaw];
+    ExternalPowerSourceConnected wirelessExternalPowerSourceConnected =
+        ExternalPowerSourceConnected
+            .values[wirelessExternalPowerSourceConnectedRaw];
 
     int chargeStateRaw = (powerState >> 9) & 0x3;
     ChargeState chargeState = ChargeState.values[chargeStateRaw];
@@ -382,7 +402,8 @@ class OpenEarableV2 extends Wearable
     BatteryChargeLevel chargeLevel = BatteryChargeLevel.values[chargeLevelRaw];
 
     int chargingTypeRaw = (powerState >> 5) & 0x7;
-    BatteryChargingType chargingType = BatteryChargingType.values[chargingTypeRaw];
+    BatteryChargingType chargingType =
+        BatteryChargingType.values[chargingTypeRaw];
 
     int chargingFaultReasonRaw = (powerState >> 2) & 0x5;
     List<ChargingFaultReason> chargingFaultReason = [];
@@ -399,7 +420,8 @@ class OpenEarableV2 extends Wearable
     BatteryPowerStatus batteryPowerStatus = BatteryPowerStatus(
       batteryPresent: batteryPresent,
       wiredExternalPowerSourceConnected: wiredExternalPowerSourceConnected,
-      wirelessExternalPowerSourceConnected: wirelessExternalPowerSourceConnected,
+      wirelessExternalPowerSourceConnected:
+          wirelessExternalPowerSourceConnected,
       chargeState: chargeState,
       chargeLevel: chargeLevel,
       chargingType: chargingType,
@@ -415,7 +437,7 @@ class OpenEarableV2 extends Wearable
   Stream<int> get batteryPercentageStream {
     StreamController<int> controller = StreamController<int>();
     Timer? batteryPollingTimer;
-    
+
     controller.onCancel = () {
       batteryPollingTimer?.cancel();
     };
@@ -441,7 +463,8 @@ class OpenEarableV2 extends Wearable
 
   @override
   Stream<BatteryPowerStatus> get powerStatusStream {
-    StreamController<BatteryPowerStatus> controller = StreamController<BatteryPowerStatus>();
+    StreamController<BatteryPowerStatus> controller =
+        StreamController<BatteryPowerStatus>();
     Timer? powerPollingTimer;
 
     controller.onCancel = () {
@@ -469,7 +492,8 @@ class OpenEarableV2 extends Wearable
 
   @override
   Stream<BatteryEnergyStatus> get energyStatusStream {
-    StreamController<BatteryEnergyStatus> controller = StreamController<BatteryEnergyStatus>();
+    StreamController<BatteryEnergyStatus> controller =
+        StreamController<BatteryEnergyStatus>();
     Timer? energyPollingTimer;
 
     controller.onCancel = () {
@@ -497,7 +521,8 @@ class OpenEarableV2 extends Wearable
 
   @override
   Stream<BatteryHealthStatus> get healthStatusStream {
-    StreamController<BatteryHealthStatus> controller = StreamController<BatteryHealthStatus>();
+    StreamController<BatteryHealthStatus> controller =
+        StreamController<BatteryHealthStatus>();
     Timer? healthPollingTimer;
 
     controller.onCancel = () {
@@ -523,7 +548,6 @@ class OpenEarableV2 extends Wearable
     return controller.stream;
   }
 
-
   @override
   void setMicrophone(OpenEarableV2Mic microphone) {
     if (!availableMicrophones.contains(microphone)) {
@@ -547,7 +571,9 @@ class OpenEarableV2 extends Wearable
     );
 
     if (microphoneBytes.length != 1) {
-      throw StateError('Microphone characteristic expected 1 value, but got ${microphoneBytes.length}');
+      throw StateError(
+        'Microphone characteristic expected 1 value, but got ${microphoneBytes.length}',
+      );
     }
 
     int microphoneId = microphoneBytes[0];
@@ -577,7 +603,9 @@ class OpenEarableV2 extends Wearable
     );
 
     if (audioModeBytes.length != 1) {
-      throw StateError('Audio mode characteristic expected 1 value, but got ${audioModeBytes.length}');
+      throw StateError(
+        'Audio mode characteristic expected 1 value, but got ${audioModeBytes.length}',
+      );
     }
 
     int audioModeId = audioModeBytes[0];
@@ -594,7 +622,6 @@ class OpenEarableV2 extends Wearable
     );
   }
 }
-
 
 class OpenEarableV2Mic extends Microphone {
   final int id;

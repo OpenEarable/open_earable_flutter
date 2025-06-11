@@ -24,7 +24,8 @@ final List<int> _sensorBluetoothCharacteristics = [
   0x35,
 ];
 
-class CosinussOne extends Wearable implements SensorManager, BatteryLevelService {
+class CosinussOne extends Wearable
+    implements SensorManager, BatteryLevelStatus {
   static const ppgAndAccServiceUuid = "0000a000-1212-efde-1523-785feabcd123";
   static const temperatureServiceUuid = "00001809-0000-1000-8000-00805f9b34fb";
   static const heartRateServiceUuid = "0000180d-0000-1000-8000-00805f9b34fb";
@@ -153,7 +154,9 @@ class CosinussOne extends Wearable implements SensorManager, BatteryLevelService
     logger.t("Battery level bytes: $batteryLevelList");
 
     if (batteryLevelList.length != 1) {
-      throw StateError('Battery level characteristic expected 1 value, but got ${batteryLevelList.length}');
+      throw StateError(
+        'Battery level characteristic expected 1 value, but got ${batteryLevelList.length}',
+      );
     }
 
     return batteryLevelList[0];
@@ -371,7 +374,8 @@ class _CosinussOneHeartRateSensor extends HeartRateSensor {
 
   @override
   Stream<HeartRateSensorValue> get sensorStream {
-    StreamController<HeartRateSensorValue> streamController = StreamController();
+    StreamController<HeartRateSensorValue> streamController =
+        StreamController();
 
     int startTime = DateTime.now().millisecondsSinceEpoch;
 

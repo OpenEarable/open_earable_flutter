@@ -6,6 +6,7 @@ import 'package:logger/logger.dart';
 import 'package:open_earable_flutter/src/models/devices/cosinuss_one_factory.dart';
 import 'package:open_earable_flutter/src/models/devices/open_earable_factory.dart';
 import 'package:open_earable_flutter/src/models/devices/polar_factory.dart';
+import 'package:open_earable_flutter/src/models/devices/devkit_factory.dart';
 import 'package:open_earable_flutter/src/models/wearable_factory.dart';
 import 'package:universal_ble/universal_ble.dart';
 
@@ -50,7 +51,11 @@ export 'src/models/capabilities/audio_mode_manager.dart';
 export 'src/models/capabilities/microphone_manager.dart';
 export 'src/models/capabilities/edge_recorder_manager.dart';
 
-@Deprecated('This export is deprecated and will be removed in a future release.')
+export 'src/fota/fota.dart';
+
+@Deprecated(
+  'This export is deprecated and will be removed in a future release.',
+)
 export 'src/models/capabilities/sensor_configuration_specializations/sensor_configuration_open_earable_v2.dart';
 
 Logger logger = Logger();
@@ -74,6 +79,7 @@ class WearableManager {
     OpenEarableFactory(),
     CosinussOneFactory(),
     PolarFactory(),
+    DevKitFactory(),
   ];
 
   factory WearableManager() {
