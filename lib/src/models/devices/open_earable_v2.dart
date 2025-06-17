@@ -22,9 +22,9 @@ const String _ledSetStateCharacteristic =
 const String _deviceIdentifierCharacteristicUuid =
     "45622511-6468-465a-b141-0b9b0f96b468";
 const String _deviceFirmwareVersionCharacteristicUuid =
-    "45622512-6468-465a-b141-0b9b0f96b468";
-const String _deviceHardwareVersionCharacteristicUuid =
     "45622513-6468-465a-b141-0b9b0f96b468";
+const String _deviceHardwareVersionCharacteristicUuid =
+    "45622512-6468-465a-b141-0b9b0f96b468";
 
 const String _audioConfigServiceUuid = "1410df95-5f68-4ebb-a7c7-5e0fb9ae7557";
 const String _micSelectCharacteristicUuid =

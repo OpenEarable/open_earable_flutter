@@ -14,9 +14,9 @@ const String _ledSetStateCharacteristic =
 const String _deviceIdentifierCharacteristicUuid =
     "45622511-6468-465a-b141-0b9b0f96b468";
 const String _deviceFirmwareVersionCharacteristicUuid =
-    "45622512-6468-465a-b141-0b9b0f96b468";
-const String _deviceHardwareVersionCharacteristicUuid =
     "45622513-6468-465a-b141-0b9b0f96b468";
+const String _deviceHardwareVersionCharacteristicUuid =
+    "45622512-6468-465a-b141-0b9b0f96b468";
 
 const String _audioSourceCharacteristic =
     "566916a8-476d-11ee-be56-0242ac120002";
