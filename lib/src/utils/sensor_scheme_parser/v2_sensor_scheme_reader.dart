@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:open_earable_flutter/src/constants.dart';
@@ -103,7 +104,7 @@ class V2SensorSchemeReader extends SensorSchemeReader {
 
     List<int> nameBytes =
         byteStream.sublist(currentIndex, currentIndex + nameLength);
-    String sensorName = String.fromCharCodes(nameBytes);
+    String sensorName = utf8.decode(nameBytes);
     currentIndex += nameLength;
 
     int componentCount = byteStream[currentIndex++];
@@ -118,7 +119,7 @@ class V2SensorSchemeReader extends SensorSchemeReader {
 
       List<int> groupNameBytes =
           byteStream.sublist(currentIndex, currentIndex + groupNameLength);
-      String groupName = String.fromCharCodes(groupNameBytes);
+      String groupName = utf8.decode(groupNameBytes);
       currentIndex += groupNameLength;
 
       int componentNameLength = byteStream[currentIndex++];
@@ -127,14 +128,14 @@ class V2SensorSchemeReader extends SensorSchemeReader {
         currentIndex,
         currentIndex + componentNameLength,
       );
-      String componentName = String.fromCharCodes(componentNameBytes);
+      String componentName = utf8.decode(componentNameBytes);
       currentIndex += componentNameLength;
 
       int unitNameLength = byteStream[currentIndex++];
 
       List<int> unitNameBytes =
           byteStream.sublist(currentIndex, currentIndex + unitNameLength);
-      String unitName = String.fromCharCodes(unitNameBytes);
+      String unitName = utf8.decode(unitNameBytes);
       currentIndex += unitNameLength;
 
       Component component =
