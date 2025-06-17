@@ -2,8 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:open_earable_flutter/open_earable_flutter.dart'; // Assuming SensorValue is from here
-import 'package:path_provider/path_provider.dart';
+import 'package:open_earable_flutter/open_earable_flutter.dart';
 
 class Recorder {
   final List<String> _columns;
@@ -13,14 +12,13 @@ class Recorder {
 
   Recorder({
     required List<String> columns,
-  }) : _columns = columns;
-
-  Future<String> _getPublicDirectory() async {
-    final directory = await getApplicationDocumentsDirectory();
-    return directory.path;
-  }
+  }) : _columns = ['timestamp', ...columns];
 
   /// Starts the recording process.
+  /// It writes sensor data to a file at the specified [filepath].
+  /// If [append] is true, it appends to the existing file; otherwise, it creates a new file.
+  /// Returns the [File] object for the recorded file.
+  /// Throws an exception if recording is already in progress.
   Future<File> start({
     required String filepath,
     required Stream<SensorValue> inputStream,
@@ -29,9 +27,7 @@ class Recorder {
     if (_isRecording) throw Exception('Recording is already in progress.');
 
     _isRecording = true;
-    final publicDirectory = await _getPublicDirectory();
-    final fullPath = '$publicDirectory/$filepath';
-    final file = File(fullPath);
+    final file = File(filepath);
 
     await file.parent.create(recursive: true);
 
