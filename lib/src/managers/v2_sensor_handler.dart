@@ -31,6 +31,11 @@ class V2SensorHandler extends SensorHandler<V2SensorConfig> {
     if (!_bleManager.isConnected(_discoveredDevice.id)) {
       throw Exception("Can't subscribe to sensor data. Earable not connected");
     }
+
+    if (_sensorSchemes == null) {
+      _readSensorScheme();
+    }
+
     StreamController<Map<String, dynamic>> streamController =
         StreamController();
     _bleManager
@@ -76,6 +81,10 @@ class V2SensorHandler extends SensorHandler<V2SensorConfig> {
    /// Parses raw sensor data bytes into a [Map] of sensor values.
   Future<Map<String, dynamic>> _parseData(data) async {
     ByteData byteData = ByteData.sublistView(Uint8List.fromList(data));
+
+    if (_sensorSchemes == null) {
+      await _readSensorScheme();
+    }
     
     return _sensorValueParser.parse(byteData, _sensorSchemes!);
   }
