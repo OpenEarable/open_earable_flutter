@@ -77,60 +77,13 @@ class OpenEarableV2 extends Wearable
 
     _sensorConfigSubscription?.cancel();
 
-    _sensorConfigSubscription = _bleManager
-        .subscribe(
+    _sensorConfigSubscription = _bleManager.subscribe(
       deviceId: deviceId,
       serviceId: sensorServiceUuid,
       characteristicId: sensorConfigStateCharacteristicUuid,
-    )
-        .listen(
+    ).listen(
       (data) {
-        List<V2SensorConfig> sensorConfigs =
-            V2SensorConfig.listFromBytes(Uint8List.fromList(data));
-        logger.d('Received sensor configuration data: $sensorConfigs');
-
-        Map<SensorConfiguration, SensorConfigurationValue> sensorConfigMap = {};
-
-        for (V2SensorConfig sensorConfig in sensorConfigs) {
-          // Find the matching sensor configuration
-          SensorConfiguration? matchingConfig = _sensorConfigurations.where(
-            (config) {
-              if (config is SensorConfigurationOpenEarableV2) {
-                return config.sensorId == sensorConfig.sensorId;
-              }
-              return false;
-            },
-          ).firstOrNull;
-
-          if (matchingConfig == null) {
-            logger.w(
-              'No matching sensor configuration found for ID: ${sensorConfig.sensorId}',
-            );
-            continue;
-          }
-
-          SensorConfigurationValue? sensorConfigValue =
-              matchingConfig.values.where(
-            (value) {
-              if (value is SensorConfigurationOpenEarableV2Value) {
-                return value.frequencyIndex == sensorConfig.sampleRateIndex &&
-                    value.streamData == sensorConfig.streamData &&
-                    value.recordData == sensorConfig.storeData;
-              }
-              return false;
-            },
-          ).firstOrNull;
-
-          if (sensorConfigValue == null) {
-            logger.w(
-              'No matching sensor configuration value found for sensor ID: ${sensorConfig.sensorId}',
-            );
-            continue;
-          }
-          sensorConfigMap[matchingConfig] = sensorConfigValue;
-        }
-
-        controller.add(sensorConfigMap);
+        controller.add(_parseConfigMap(data));
       },
       onError: (error) {
         logger.e('Error in sensor configuration stream: $error');
@@ -138,7 +91,74 @@ class OpenEarableV2 extends Wearable
       },
     );
 
+    controller.onCancel = () {
+      _sensorConfigSubscription?.cancel();
+      _sensorConfigSubscription = null;
+    };
+
+    controller.onListen = () {
+      // Immediately read the current sensor configuration
+      _bleManager.read(
+        deviceId: deviceId,
+        serviceId: sensorServiceUuid,
+        characteristicId: sensorConfigStateCharacteristicUuid,
+      ).then((data) {
+        controller.add(_parseConfigMap(data));
+      }).catchError((error) {
+        logger.e('Error reading initial sensor configuration: $error');
+        controller.addError(error);
+      });
+    };
     return controller.stream;
+  }
+
+  Map<SensorConfiguration, SensorConfigurationValue> _parseConfigMap(List<int> data) {
+    List<V2SensorConfig> sensorConfigs =
+        V2SensorConfig.listFromBytes(Uint8List.fromList(data));
+    logger.d('Received sensor configuration data: $sensorConfigs');
+    
+    Map<SensorConfiguration, SensorConfigurationValue> sensorConfigMap = {};
+    
+    for (V2SensorConfig sensorConfig in sensorConfigs) {
+      // Find the matching sensor configuration
+      SensorConfiguration? matchingConfig = _sensorConfigurations.where(
+        (config) {
+          if (config is SensorConfigurationOpenEarableV2) {
+            return config.sensorId == sensorConfig.sensorId;
+          }
+          return false;
+        },
+      ).firstOrNull;
+    
+      if (matchingConfig == null) {
+        logger.w(
+          'No matching sensor configuration found for ID: ${sensorConfig.sensorId}',
+        );
+        continue;
+      }
+    
+      SensorConfigurationValue? sensorConfigValue =
+          matchingConfig.values.where(
+        (value) {
+          if (value is SensorConfigurationOpenEarableV2Value) {
+            return value.frequencyIndex == sensorConfig.sampleRateIndex &&
+                value.streamData == sensorConfig.streamData &&
+                value.recordData == sensorConfig.storeData;
+          }
+          return false;
+        },
+      ).firstOrNull;
+    
+      if (sensorConfigValue == null) {
+        logger.w(
+          'No matching sensor configuration value found for sensor ID: ${sensorConfig.sensorId}',
+        );
+        continue;
+      }
+      sensorConfigMap[matchingConfig] = sensorConfigValue;
+    }
+    
+    return sensorConfigMap;
   }
 
   StreamSubscription? _sensorConfigSubscription;
