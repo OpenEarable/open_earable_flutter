@@ -557,6 +557,7 @@ class _ImuSensorConfiguration extends SensorFrequencyConfiguration {
             SensorFrequencyConfigurationValue(frequencyHz: 20),
             SensorFrequencyConfigurationValue(frequencyHz: 30),
           ],
+          offValue: SensorFrequencyConfigurationValue(frequencyHz: 0),
         );
 
   @override
@@ -590,6 +591,7 @@ class _BarometerSensorConfiguration extends SensorFrequencyConfiguration {
             SensorFrequencyConfigurationValue(frequencyHz: 20),
             SensorFrequencyConfigurationValue(frequencyHz: 30),
           ],
+          offValue: SensorFrequencyConfigurationValue(frequencyHz: 0),
         );
 
   @override
@@ -629,6 +631,7 @@ class _MicrophoneSensorConfiguration extends SensorFrequencyConfiguration {
             SensorFrequencyConfigurationValue(frequencyHz: 50000),
             SensorFrequencyConfigurationValue(frequencyHz: 62500),
           ],
+          offValue: SensorFrequencyConfigurationValue(frequencyHz: 0),
         );
 
   @override

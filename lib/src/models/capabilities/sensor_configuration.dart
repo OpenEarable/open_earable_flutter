@@ -3,16 +3,19 @@ abstract class SensorConfiguration<SCV extends SensorConfigurationValue> {
   final String name;
   final List<SCV> values;
 
+  /// Optional value that indicates the off state of the sensor.
+  final SCV? offValue;
+
   final String? unit;
 
   const SensorConfiguration({
     required this.name,
     required this.values,
+    this.offValue,
     this.unit,
   });
 
   void setConfiguration(SCV configuration);
-
   @override
   String toString() {
     return 'SensorConfiguration(name: $name, values: $values, unit: $unit)';

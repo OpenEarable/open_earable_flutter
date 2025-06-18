@@ -167,6 +167,11 @@ class OpenEarableFactory extends WearableFactory {
         }
       }
 
+      final SensorConfigurationOpenEarableV2Value? offValue =
+        sensorConfigurationValues.where(
+          (value) => value.options.isEmpty,
+        ).firstOrNull;
+
       SensorConfigurationOpenEarableV2 sensorConfiguration =
           SensorConfigurationOpenEarableV2(
         name: scheme.sensorName,
@@ -175,6 +180,7 @@ class OpenEarableFactory extends WearableFactory {
             scheme.options!.frequencies!.maxStreamingFreqIndex,
         sensorHandler: sensorManager,
         sensorId: scheme.sensorId,
+        offValue: offValue,
       );
 
       sensorConfigurations.add(sensorConfiguration);

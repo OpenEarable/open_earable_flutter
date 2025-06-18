@@ -6,15 +6,17 @@ abstract class SensorFrequencyConfiguration<
   const SensorFrequencyConfiguration({
     required String name,
     required List<SFC> values,
+    SFC? offValue,
   }) : super(
           name: name,
           values: values,
           unit: "Hz",
+          offValue: offValue,
         );
 
   @override
   String toString() {
-    return 'SensorFrequencyConfiguration(name: $name, values: $values, unit: $unit)';
+    return 'SensorFrequencyConfiguration(name: $name, values: $values, unit: $unit, offValue: $offValue)';
   }
 
   /// Sets the frequency close to [targetFrequencyHz].
