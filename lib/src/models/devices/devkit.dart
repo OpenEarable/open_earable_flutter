@@ -191,6 +191,9 @@ class DevKit extends Wearable
   }
 
   @override
+  SensorConfigurationValue get offValue => values.first;
+
+  @override
   double get voltage {
     return 0.0;
   }

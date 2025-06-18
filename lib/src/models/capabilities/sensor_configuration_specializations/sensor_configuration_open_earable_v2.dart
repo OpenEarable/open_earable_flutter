@@ -24,11 +24,12 @@ class SensorConfigurationOpenEarableV2 extends SensorFrequencyConfiguration<Sens
     required List<SensorConfigurationOpenEarableV2Value> values,
     required this.maxStreamingFreqIndex,
     required V2SensorHandler sensorHandler,
-    String? unit,
+    SensorConfigurationOpenEarableV2Value? offValue,
   })  : _sensorHandler = sensorHandler,
         super(
           name: name,
           values: values,
+          offValue: offValue,
         );
 
   @override
