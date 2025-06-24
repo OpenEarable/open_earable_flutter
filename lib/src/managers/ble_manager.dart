@@ -133,25 +133,11 @@ class BleManager {
         };
 
         if (!kIsWeb) {
-          UniversalBle.getSystemDevices(
-            // This filter has several generic services by default as filter
-            // and is required on iOS/MacOS
-            withServices: allServiceUuids,
-          ).then((devices) {
-            for (var bleDevice in devices) {
-              _scanStreamController?.add(
-                DiscoveredDevice(
-                  id: bleDevice.deviceId,
-                  name: bleDevice.name ?? "",
-                  manufacturerData: bleDevice.manufacturerDataList.firstOrNull
-                          ?.toUint8List() ??
-                      Uint8List.fromList([]),
-                  rssi: bleDevice.rssi ?? -1,
-                  serviceUuids: bleDevice.services,
-                ),
-              );
-            }
-          });
+          List<DiscoveredDevice> devices =
+              await getSystemDevices(filterByServices: filterByServices);
+          for (var device in devices) {
+            _scanStreamController?.add(device);
+          }
         }
 
         await UniversalBle.startScan(
@@ -163,6 +149,35 @@ class BleManager {
       }
       _firstScan = false;
     }
+  }
+
+  /// Retrieves a list of system devices.
+  /// If `filterByServices` is true, it filters devices by the predefined service UUIDs.
+  /// Returns a list of `BleDevice` objects.
+  /// Throws an exception if called on web.
+  /// If no devices are found, returns an empty list.
+  /// If the platform is not web, it uses `UniversalBle.getSystemDevices`.
+  Future<List<DiscoveredDevice>> getSystemDevices({
+    bool filterByServices = false,
+  }) async {
+    if (kIsWeb) {
+      throw Exception("getSystemDevices is not supported on web");
+    }
+    return UniversalBle.getSystemDevices(
+      withServices: filterByServices ? allServiceUuids : [],
+    ).then((devices) {
+      return devices.map((device) {
+        return DiscoveredDevice(
+          id: device.deviceId,
+          name: device.name ?? "",
+          manufacturerData:
+              device.manufacturerDataList.firstOrNull?.toUint8List() ??
+                  Uint8List.fromList([]),
+          rssi: device.rssi ?? -1,
+          serviceUuids: device.services,
+        );
+      }).toList();
+    });
   }
 
   /// Connects to the specified Earable device.
