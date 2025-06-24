@@ -157,6 +157,21 @@ class WearableManager {
     }
   }
 
+  Future<List<Wearable>> connectToSystemDevices() async {
+    List<DiscoveredDevice> systemDevices =
+        await _bleManager.getSystemDevices(filterByServices: true);
+    List<Wearable> connectedWearables = [];
+    for (DiscoveredDevice device in systemDevices) {
+      try {
+        Wearable wearable = await connectToDevice(device);
+        connectedWearables.add(wearable);
+      } catch (e) {
+        logger.e('Failed to connect to system device ${device.id}: $e');
+      }
+    }
+    return connectedWearables;
+  }
+
   void setAutoConnect(List<String> deviceIds) {
     _autoConnectDeviceIds = deviceIds;
     if (deviceIds.isEmpty) {
