@@ -100,6 +100,10 @@ class WearableManager {
     logger.i('WearableManager initialized');
   }
 
+  Future<bool> hasPermissions() async {
+    return await BleManager.checkPermissions();
+  }
+
   void addWearableFactory(WearableFactory factory) {
     _wearableFactories.add(factory);
   }
