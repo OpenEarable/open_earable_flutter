@@ -96,6 +96,16 @@ class BleManager {
     return permGranted;
   }
 
+  static Future<bool> checkPermissions() async {
+    if (kIsWeb) {
+      return true; // Permissions are not required on web
+    }
+
+    return await Permission.bluetoothScan.isGranted &&
+        await Permission.bluetoothConnect.isGranted &&
+        await Permission.location.isGranted;
+  }
+
   /// Initiates the BLE device scan to discover nearby Bluetooth devices.
   Future<void> startScan({
     bool filterByServices = false,
@@ -160,6 +170,9 @@ class BleManager {
   Future<List<DiscoveredDevice>> getSystemDevices({
     bool filterByServices = false,
   }) async {
+    if (!await checkAndRequestPermissions()) {
+      throw Exception("Permissions not granted");
+    }
     if (kIsWeb) {
       throw Exception("getSystemDevices is not supported on web");
     }
