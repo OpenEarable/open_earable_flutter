@@ -64,6 +64,11 @@ export 'src/models/capabilities/sensor_configuration_specializations/sensor_conf
 
 Logger logger = Logger();
 
+/// WearableManager is a singleton class that manages the connection and interaction
+/// with wearable devices using Bluetooth Low Energy (BLE).
+/// It provides methods to start scanning for devices,
+/// connect to them, and manage connected wearables.
+/// It also allows adding custom wearable factories for device support.
 class WearableManager {
   static final WearableManager _instance = WearableManager._internal();
 
@@ -103,14 +108,37 @@ class WearableManager {
     logger.i('WearableManager initialized');
   }
 
+  /// Checks if the device has the necessary permissions for BLE operations.
+  /// Returns a Future that completes with a boolean indicating whether the permissions
+  /// are granted or not.
   Future<bool> hasPermissions() async {
     return await BleManager.checkPermissions();
   }
 
+  /// Adds a wearable factory to the manager.
+  /// Wearable factories are used to create wearable instances based on the connected devices.
+  /// This allows the manager to support multiple types of wearables.
+  /// /// Example usage:
+  /// ```dart
+  /// WearableManager().addWearableFactory(MyCustomWearableFactory());
+  /// ```
   void addWearableFactory(WearableFactory factory) {
     _wearableFactories.add(factory);
   }
 
+  /// Starts scanning for BLE devices.
+  /// If `excludeUnsupported` is true, it will filter out devices that do not support
+  /// the required services.
+  /// If `checkAndRequestPermissions` is true, it will check and request the necessary
+  /// permissions before starting the scan.
+  /// Returns a Future that completes when the scan starts.
+  /// 
+  /// The discovered devices can be listened to via the [scanStream].
+  /// 
+  /// Example usage:
+  /// ```dart
+  /// await WearableManager().startScan(excludeUnsupported: true);
+  /// ```
   Future<void> startScan({
     bool excludeUnsupported = false,
     bool checkAndRequestPermissions = true,
@@ -122,13 +150,25 @@ class WearableManager {
     );
   }
 
+  /// A stream that emits discovered devices during the scan.
   Stream<DiscoveredDevice> get scanStream => _bleManager.scanStream;
 
+  /// A stream that emits connected wearables.
+  /// This stream is updated when a device is successfully connected.
   Stream<Wearable> get connectStream => _connectStreamController.stream;
 
+  /// A stream that emits devices that are currently being connected.
+  /// This stream is useful for tracking the connection process of devices.
+  /// It emits a [DiscoveredDevice] when a connection attempt is made.
   Stream<DiscoveredDevice> get connectingStream =>
       _connectingStreamController.stream;
 
+  /// Connects to a discovered device and returns a [Wearable] instance.
+  /// It checks all registered wearable factories to find a matching one for the device.
+  /// If a matching factory is found, it creates a wearable instance and adds it to the
+  /// connected wearables list.
+  /// If the device is not supported by any factory, it throws an exception.
+  /// If the connection fails, it also throws an exception.
   Future<Wearable> connectToDevice(DiscoveredDevice device) async {
     _connectingStreamController.add(device);
 
@@ -164,6 +204,9 @@ class WearableManager {
     }
   }
 
+  /// Connects to all wearables that are currently discovered in the system.
+  /// It retrieves the system devices and attempts to connect to each one.
+  /// Returns a list of successfully connected wearables.
   Future<List<Wearable>> connectToSystemDevices() async {
     List<DiscoveredDevice> systemDevices =
         await _bleManager.getSystemDevices(filterByServices: true);
@@ -179,6 +222,9 @@ class WearableManager {
     return connectedWearables;
   }
 
+  /// Automatically connects to devices with the specified IDs as soon as they are discovered.
+  /// This method sets up a subscription to the scan stream and listens for discovered devices.
+  /// Scanning has to be started in order for this to work.
   void setAutoConnect(List<String> deviceIds) {
     _autoConnectDeviceIds = deviceIds;
     if (deviceIds.isEmpty) {
@@ -210,6 +256,9 @@ class WearableManager {
     _bleManager.dispose();
   }
 
+  /// Checks and requests the necessary permissions for BLE operations.
+  /// Returns a Future that completes with a boolean indicating whether the permissions
+  /// were granted or not.
   static Future<bool> checkAndRequestPermissions() {
     return BleManager.checkAndRequestPermissions();
   }
