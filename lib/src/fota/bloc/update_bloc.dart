@@ -33,6 +33,20 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
           )
           .startWith(0);
 
+      final imageProgressStream = progressStream.scan<Tuple2<int, double>>(
+        (accumulated, currentProgress, index) {
+          final previousProgress = accumulated.item2;
+          var imageNumber = accumulated.item1;
+
+          if (currentProgress < previousProgress) {
+            imageNumber += 1;
+          }
+
+          return Tuple2(imageNumber, currentProgress);
+        },
+        Tuple2(0, 0.0),
+      );
+
       final logManager = _firmwareUpdateManager!.logger;
 
       logManager.logMessageStream.where((log) => log.level.rawValue > 1).listen(
@@ -48,22 +62,25 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
       );
 
       rx.CombineLatestStream.combine2(
-        progressStream,
+        imageProgressStream,
         _firmwareUpdateManager!.updateStateStream!,
-        Tuple2.new,
-      ).map((event) {
-        if (event.item2 == FirmwareUpgradeState.upload) {
-          return UploadProgress(
-            progress: (event.item1 * 100).toInt(),
-            stage: event.item2.toString(),
-          );
-        } else if (event.item2 == FirmwareUpgradeState.success) {
-          return UploadFinished();
-        } else {
-          print(event.item2.toString());
-          return UploadState(event.item2.toString());
-        }
-      }).listen(
+        (Tuple2<int, double> progressData, FirmwareUpgradeState updateState) {
+          final imageNumber = progressData.item1;
+          final progress = (progressData.item2 * 100).toInt();
+
+          if (updateState == FirmwareUpgradeState.upload) {
+            return UploadProgress(
+              progress: progress,
+              stage: updateState.toString(),
+              imageNumber: imageNumber,
+            );
+          } else if (updateState == FirmwareUpgradeState.success) {
+            return UploadFinished();
+          } else {
+            return UploadState(updateState.toString());
+          }
+        },
+      ).listen(
         add,
         onError: (error) {
           print(error);
@@ -81,8 +98,13 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
     });
     on<UploadState>((event, emit) {
       if (event is UploadProgress) {
-        _state =
-            _updatedState(UpdateProgressFirmware(event.state, event.progress));
+        _state = _updatedState(
+          UpdateProgressFirmware(
+            event.state,
+            event.progress,
+            event.imageNumber,
+          ),
+        );
         emit(_state!);
       } else {
         _state = _updatedState(UpdateFirmware(event.state));
@@ -173,8 +195,11 @@ class _StateConverter {
     return switch (state) {
       FirmwareDownloadStarted() => DownloadStarted(),
       FirmwareUnpackStarted() => UnpackStarted(),
-      FirmwareUploadProgress(progress: var progress) =>
-        UploadProgress(stage: "Upload firmware", progress: progress),
+      FirmwareUploadProgress(progress: var progress) => UploadProgress(
+          stage: "Upload firmware",
+          progress: progress,
+          imageNumber: 0,
+        ),
       FirmwareUploadFinished() => UploadFinished(),
       FirmwareUploadStarted() => UploadState("Upload firmware"),
     };

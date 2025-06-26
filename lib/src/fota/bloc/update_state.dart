@@ -19,8 +19,10 @@ class UpdateFirmware extends UpdateState {
 
 final class UpdateProgressFirmware extends UpdateFirmware {
   final int progress;
+  final int imageNumber;
 
-  UpdateProgressFirmware(String state, this.progress) : super(state);
+  UpdateProgressFirmware(String state, this.progress, int this.imageNumber)
+      : super(state);
 
   @override
   List<Object?> get props => [stage, progress];

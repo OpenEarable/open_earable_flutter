@@ -17,9 +17,13 @@ class UploadState extends UpdateEvent {
 
 class UploadProgress extends UploadState {
   final int progress;
+  final int imageNumber;
 
-  UploadProgress({required String stage, required this.progress})
-      : super(stage);
+  UploadProgress({
+    required String stage,
+    required this.progress,
+    required this.imageNumber,
+  }) : super(stage);
 }
 
 class UploadFinished extends UpdateEvent {}
