@@ -44,7 +44,7 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
 
           return Tuple2(imageNumber, currentProgress);
         },
-        Tuple2(0, 0.0),
+        const Tuple2(0, 0.0),
       );
 
       final logManager = _firmwareUpdateManager!.logger;

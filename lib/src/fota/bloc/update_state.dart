@@ -21,7 +21,7 @@ final class UpdateProgressFirmware extends UpdateFirmware {
   final int progress;
   final int imageNumber;
 
-  UpdateProgressFirmware(String state, this.progress, int this.imageNumber)
+  UpdateProgressFirmware(String state, this.progress, this.imageNumber)
       : super(state);
 
   @override
