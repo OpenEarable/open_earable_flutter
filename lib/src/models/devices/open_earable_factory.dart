@@ -82,6 +82,7 @@ class OpenEarableFactory extends WearableFactory {
         availableAudioModes: {
           const NormalMode(),
           const TransparencyMode(),
+          const NoiseCancellationMode(),
         },
       );
     } else {

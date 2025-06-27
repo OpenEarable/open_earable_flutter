@@ -34,5 +34,5 @@ class TransparencyMode extends AudioMode {
 }
 
 class NoiseCancellationMode extends AudioMode {
-  const NoiseCancellationMode() : super(id: 2, key: "Noise Cancellation");
+  const NoiseCancellationMode() : super(id: 2, key: "Noise Cancellation (Beta)");
 }
