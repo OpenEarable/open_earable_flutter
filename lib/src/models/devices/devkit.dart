@@ -42,7 +42,7 @@ class DevKit extends Wearable
 
   @override
   Future<String?> readDeviceFirmwareVersion() {
-    return Future(() => "not available");
+    return Future(() => "2.1.2");
   }
 
   @override
