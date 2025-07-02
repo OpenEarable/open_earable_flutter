@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:open_earable_flutter/src/constants.dart';
+import 'package:open_earable_flutter/src/models/capabilities/file_system_manager.dart';
 
 import '../../../open_earable_flutter.dart';
 import '../../managers/ble_manager.dart';
@@ -28,9 +29,16 @@ const String _deviceHardwareVersionCharacteristicUuid =
 
 const String _audioConfigServiceUuid = "1410df95-5f68-4ebb-a7c7-5e0fb9ae7557";
 const String _micSelectCharacteristicUuid =
-    "0x1410df97-5f68-4ebb-a7c7-5e0fb9ae7557";
+    "1410df97-5f68-4ebb-a7c7-5e0fb9ae7557";
 const String _audioModeCharacteristicUuid =
-    "0x1410df96-5f68-4ebb-a7c7-5e0fb9ae7557";
+    "1410df96-5f68-4ebb-a7c7-5e0fb9ae7557";
+
+const String _fileSystemServiceUuid = "6cae1b90-8ce4-41ec-8538-8c4befed5a4d";
+const String _fileSystemCommandCharacteristicUuid =
+    "6cae1b91-8ce4-41ec-8538-8c4befed5a4d";
+const String _fileSystemDataCharacteristicUuid =
+    "6cae1b92-8ce4-41ec-8538-8c4befed5a4d";
+
 
 // MARK: OpenEarableV2
 
@@ -59,7 +67,8 @@ class OpenEarableV2 extends Wearable
         DeviceHardwareVersion,
         MicrophoneManager<OpenEarableV2Mic>,
         AudioModeManager,
-        EdgeRecorderManager {
+        EdgeRecorderManager,
+        FileSystemManager {
   static const String deviceInfoServiceUuid =
       "45622510-6468-465a-b141-0b9b0f96b468";
   static const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
@@ -640,6 +649,57 @@ class OpenEarableV2 extends Wearable
       characteristicId: sensorEdgeRecorderFilePrefixCharacteristicUuid,
       byteData: prefix.codeUnits,
     );
+  }
+
+  // MARK: FileSystemManager
+
+  @override
+  Future<List<FileSystemItem>> listFiles(String directory) async {
+    logger.d('Listing files in directory: $directory');
+
+    final responseCompleter = Completer<List<FileSystemItem>>();
+    StreamSubscription<List<int>>? subscription;
+    
+    subscription = _bleManager.subscribe(
+      deviceId: deviceId,
+      serviceId: _fileSystemServiceUuid,
+      characteristicId: _fileSystemDataCharacteristicUuid,
+    ).listen(
+      (data) {
+        String dataString = String.fromCharCodes(data);
+        logger.d('Received data: $dataString');
+        final List<FileSystemItem> fileList = dataString.split('\n')
+          .where((line) => line.isNotEmpty)
+          .map((line) {
+            final isFile = line.startsWith('[FILE]');
+            final isDir = line.startsWith('[DIR ]');
+            if (!isFile && !isDir) return null; // Ignore invalid lines
+
+            final name = line.substring(7); // Remove prefix
+            return isFile 
+              ? OWFile(name: name)
+              : OWDirectory(name: name, items: []);
+          }).where((item) => item != null)
+          .map((item) => item!)
+          .toList();
+        logger.d('Received file list: $fileList');
+        responseCompleter.complete(fileList);
+        subscription?.cancel();
+      },
+      onError: (error) {
+        responseCompleter.completeError(error);
+        subscription?.cancel();
+      },
+    );
+
+    _bleManager.write(
+      deviceId: deviceId,
+      serviceId: _fileSystemServiceUuid,
+      characteristicId: _fileSystemCommandCharacteristicUuid,
+      byteData: "LIST $directory".codeUnits,
+    );
+
+    return responseCompleter.future;
   }
 }
 
