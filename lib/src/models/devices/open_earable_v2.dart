@@ -701,6 +701,43 @@ class OpenEarableV2 extends Wearable
 
     return responseCompleter.future;
   }
+
+  @override
+  Future<bool> remove(String path) async {
+    logger.d('Removing file or directory: $path');
+    final responseCompleter = Completer<bool>();
+    StreamSubscription<List<int>>? subscription;
+
+    subscription = _bleManager.subscribe(
+      deviceId: deviceId,
+      serviceId: _fileSystemServiceUuid,
+      characteristicId: _fileSystemDataCharacteristicUuid,
+    ).listen(
+      (data) {
+        String response = String.fromCharCodes(data);
+        logger.d('Received response: $response');
+        if (response.startsWith('SUCCESS')) {
+          responseCompleter.complete(true);
+        } else {
+          responseCompleter.complete(false);
+        }
+        subscription?.cancel();
+      },
+      onError: (error) {
+        responseCompleter.completeError(error);
+        subscription?.cancel();
+      },
+    );
+
+    _bleManager.write(
+      deviceId: deviceId,
+      serviceId: _fileSystemServiceUuid,
+      characteristicId: _fileSystemCommandCharacteristicUuid,
+      byteData: "REMOVE $path".codeUnits,
+    );
+
+    return responseCompleter.future;
+  }
 }
 
 class OpenEarableV2Mic extends Microphone {

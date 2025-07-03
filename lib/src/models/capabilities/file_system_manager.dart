@@ -1,5 +1,6 @@
 abstract class FileSystemManager {
   Future<List<FileSystemItem>> listFiles(String directory);
+  Future<bool> remove(String path);
 }
 
 abstract class FileSystemItem {
