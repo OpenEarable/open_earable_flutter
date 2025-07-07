@@ -1,6 +1,8 @@
 abstract class FileSystemManager {
   Future<List<FileSystemItem>> listFiles(String directory);
   Future<bool> remove(String path);
+
+  Future<bool> writeFile({required String path, required Stream<List<int>> data});
 }
 
 abstract class FileSystemItem {

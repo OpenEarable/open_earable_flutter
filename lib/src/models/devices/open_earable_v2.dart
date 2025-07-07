@@ -738,6 +738,104 @@ class OpenEarableV2 extends Wearable
 
     return responseCompleter.future;
   }
+
+  @override
+  Future<bool> writeFile({
+    required String path,
+    required Stream<List<int>> data,
+  }) async {
+    await for (final chunk in data) {
+      final int mtuSize = _bleManager.mtu;
+      for (int i = 0; i < chunk.length; i += mtuSize) {
+        final end = min(i + mtuSize, chunk.length);
+        final subChunk = chunk.sublist(i, end);
+        logger.d('Writing chunk of size ${subChunk.length} to file: $path');
+        
+        final success = await _writeChunk(path: path, chunk: subChunk);
+        if (!success) return false;
+      }
+    }
+    return true;
+  }
+
+  Future<bool> _writeChunk({
+    required String path,
+    required List<int> chunk,
+  }) async {
+    logger.d('Writing chunk to file: $path, chunk size: ${chunk.length}');
+    
+    final responseCompleter = Completer<bool>();
+    late final StreamSubscription<List<int>> subscription;
+
+    bool completed = false;
+
+    subscription = _bleManager
+        .subscribe(
+          deviceId: deviceId,
+          serviceId: _fileSystemServiceUuid,
+          characteristicId: _fileSystemDataCharacteristicUuid,
+        )
+        .listen(
+      (data) async {
+        try {
+          final response = String.fromCharCodes(data);
+          logger.d('Received response for write: $response');
+
+          if (response.startsWith('ACK ')) {
+            final bytesWritten = int.parse(response.substring(4));
+            logger.d('Bytes written: $bytesWritten');
+
+            if (bytesWritten >= chunk.length) {
+              responseCompleter.complete(true);
+            } else {
+              // Retry with remaining chunk
+              final remaining = chunk.sublist(bytesWritten);
+              final success = await _writeChunk(path: path, chunk: remaining);
+              responseCompleter.complete(success);
+            }
+          } else {
+            responseCompleter.complete(false);
+          }
+        } catch (e) {
+          logger.e('Error during writeChunk response handling $e');
+          responseCompleter.completeError(e);
+        } finally {
+          await subscription.cancel();
+          completed = true;
+        }
+      },
+      onError: (error) async {
+        logger.e('BLE subscription error during write $error');
+        if (!responseCompleter.isCompleted) {
+          responseCompleter.completeError(error);
+        }
+        await subscription.cancel();
+        completed = true;
+      },
+    );
+
+    // Write after subscription is active
+    await Future.delayed(const Duration(milliseconds: 20)); // short delay to ensure ready
+    final payload = "WRITE $path".codeUnits + [0] + chunk;
+    await _bleManager.write(
+      deviceId: deviceId,
+      serviceId: _fileSystemServiceUuid,
+      characteristicId: _fileSystemCommandCharacteristicUuid,
+      byteData: payload,
+    );
+
+    // Optional: timeout handling
+    return responseCompleter.future.timeout(
+      const Duration(seconds: 5),
+      onTimeout: () {
+        if (!completed) {
+          logger.w('Timeout while waiting for ACK');
+          subscription.cancel();
+        }
+        return false;
+      },
+    );
+  }
 }
 
 class OpenEarableV2Mic extends Microphone {
