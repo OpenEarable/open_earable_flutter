@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:open_earable_flutter/open_earable_flutter.dart';
 
-import '../model/firmware_update_request.dart';
-
 class FirmwareUpdateRequestProvider extends ChangeNotifier {
   FirmwareUpdateRequest _updateParameters = FirmwareUpdateRequest();
   FirmwareUpdateRequest get updateParameters => _updateParameters;

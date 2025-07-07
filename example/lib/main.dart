@@ -139,6 +139,8 @@ class MyAppState extends State<MyApp> {
                     itemCount: discoveredDevices.length,
                     itemBuilder: (BuildContext context, int index) {
                       final device = discoveredDevices[index];
+                      final provider =
+                          context.read<FirmwareUpdateRequestProvider>();
                       return Column(
                         children: [
                           ListTile(
@@ -148,13 +150,10 @@ class MyAppState extends State<MyApp> {
                                 horizontal: -4, vertical: -4),
                             trailing: _buildTrailingWidget(device.id,
                                 Theme.of(context).colorScheme.secondary),
-                            onTap: () {
-                              _wearableManager.connectToDevice(device);
-                              context
-                                  .read<FirmwareUpdateRequestProvider>()
-                                  .setPeripheral(SelectedPeripheral(
-                                      name: device.name,
-                                      identifier: device.id));
+                            onTap: () async {
+                              Wearable wearable = await _wearableManager
+                                  .connectToDevice(device);
+                              provider.setSelectedPeripheral(wearable);
                             },
                           ),
                           if (index != discoveredDevices.length - 1)
