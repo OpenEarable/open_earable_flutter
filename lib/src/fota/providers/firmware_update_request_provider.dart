@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:open_earable_flutter/open_earable_flutter.dart';
 
 import '../model/firmware_update_request.dart';
 
 class FirmwareUpdateRequestProvider extends ChangeNotifier {
   FirmwareUpdateRequest _updateParameters = FirmwareUpdateRequest();
   FirmwareUpdateRequest get updateParameters => _updateParameters;
+  Wearable? selectedWearable;
   int currentStep = 0;
 
   void setFirmware(SelectedFirmware? firmware) {
@@ -36,8 +38,12 @@ class FirmwareUpdateRequestProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setPeripheral(SelectedPeripheral peripheral) {
-    _updateParameters.peripheral = peripheral;
+  void setSelectedPeripheral(Wearable wearable) {
+    selectedWearable = wearable;
+    _updateParameters.peripheral = SelectedPeripheral(
+      name: wearable.name,
+      identifier: wearable.deviceId,
+    );
     notifyListeners();
   }
 
