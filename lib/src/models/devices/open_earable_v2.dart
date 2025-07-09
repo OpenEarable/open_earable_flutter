@@ -7,6 +7,7 @@ import 'package:open_earable_flutter/src/constants.dart';
 import '../../../open_earable_flutter.dart';
 import '../../managers/ble_manager.dart';
 import '../../managers/v2_sensor_handler.dart';
+import '../capabilities/button_manager.dart';
 import '../capabilities/sensor_configuration_specializations/sensor_configuration_open_earable_v2.dart';
 
 const String _batteryLevelCharacteristicUuid = "2A19";
@@ -31,6 +32,9 @@ const String _micSelectCharacteristicUuid =
     "0x1410df97-5f68-4ebb-a7c7-5e0fb9ae7557";
 const String _audioModeCharacteristicUuid =
     "0x1410df96-5f68-4ebb-a7c7-5e0fb9ae7557";
+
+const String _buttonServiceUuid = "29c10bdc-4773-11ee-be56-0242ac120002";
+const String _buttonCharacteristicUuid = "29c10f38-4773-11ee-be56-0242ac120002";
 
 // MARK: OpenEarableV2
 
@@ -59,7 +63,8 @@ class OpenEarableV2 extends Wearable
         DeviceHardwareVersion,
         MicrophoneManager<OpenEarableV2Mic>,
         AudioModeManager,
-        EdgeRecorderManager {
+        EdgeRecorderManager,
+        ButtonManager {
   static const String deviceInfoServiceUuid =
       "45622510-6468-465a-b141-0b9b0f96b468";
   static const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
@@ -162,6 +167,7 @@ class OpenEarableV2 extends Wearable
   }
 
   StreamSubscription? _sensorConfigSubscription;
+  StreamSubscription? _buttonSubscription;
 
   final BleManager _bleManager;
   final DiscoveredDevice _discoveredDevice;
@@ -179,6 +185,42 @@ class OpenEarableV2 extends Wearable
       characteristicId: sensorEdgeRecorderFilePrefixCharacteristicUuid,
     );
     return String.fromCharCodes(prefixBytes);
+  }
+
+  @override
+  Stream<ButtonEvent> get buttonEvents {
+    StreamController<ButtonEvent> controller =
+        StreamController<ButtonEvent>();
+
+    _buttonSubscription?.cancel();
+
+    _buttonSubscription = _bleManager.subscribe(
+      deviceId: deviceId,
+      serviceId: _buttonServiceUuid,
+      characteristicId: _buttonCharacteristicUuid,
+    ).listen(
+      (data) {
+        if (data.isNotEmpty) {
+          int buttonState = data[0];
+          if (buttonState == 0) {
+            controller.add(ButtonEvent.released);
+          } else if (buttonState == 1) {
+            controller.add(ButtonEvent.pressed);
+          }
+        }
+      },
+      onError: (error) {
+        logger.e('Error in button events stream: $error');
+        controller.addError(error);
+      },
+    );
+
+    controller.onCancel = () {
+      _buttonSubscription?.cancel();
+      _buttonSubscription = null;
+    };
+
+    return controller.stream;
   }
 
   OpenEarableV2({
@@ -282,6 +324,8 @@ class OpenEarableV2 extends Wearable
     return String.fromCharCodes(hardwareGenerationBytes);
   }
 
+  // MARK: SensorManager / SensorConfigurationManager
+
   @override
   Future<void> disconnect() {
     return _bleManager.disconnect(_discoveredDevice.id);
@@ -293,6 +337,8 @@ class OpenEarableV2 extends Wearable
 
   @override
   List<Sensor> get sensors => List.unmodifiable(_sensors);
+
+  // MARK: Battery
 
   @override
   Future<int> readBatteryPercentage() async {
@@ -568,6 +614,8 @@ class OpenEarableV2 extends Wearable
     return controller.stream;
   }
 
+  // MARK: MicrophoneManager
+
   @override
   void setMicrophone(OpenEarableV2Mic microphone) {
     if (!availableMicrophones.contains(microphone)) {
@@ -599,6 +647,8 @@ class OpenEarableV2 extends Wearable
     int microphoneId = microphoneBytes[0];
     return availableMicrophones.firstWhere((mic) => mic.id == microphoneId);
   }
+
+  // MARK: AudioModeManager
 
   @override
   void setAudioMode(AudioMode audioMode) {
@@ -632,6 +682,8 @@ class OpenEarableV2 extends Wearable
     return availableAudioModes.firstWhere((mode) => mode.id == audioModeId);
   }
 
+  // MARK: EdgeRecorderManager
+
   @override
   Future<void> setFilePrefix(String prefix) {
     return _bleManager.write(
@@ -642,6 +694,8 @@ class OpenEarableV2 extends Wearable
     );
   }
 }
+
+// MARK: OpenEarableV2Mic
 
 class OpenEarableV2Mic extends Microphone {
   final int id;
