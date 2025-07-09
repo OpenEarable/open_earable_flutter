@@ -146,6 +146,8 @@ class SensorConfigurationOpenEarableV2 extends SensorFrequencyConfiguration<Sens
       maxStreamingFreqIndex.hashCode;
 }
 
+// MARK: - Value
+
 class SensorConfigurationOpenEarableV2Value
     extends SensorFrequencyConfigurationValue implements ConfigurableSensorConfigurationValue {
   final int frequencyIndex;
@@ -159,19 +161,11 @@ class SensorConfigurationOpenEarableV2Value
     required double frequencyHz,
     required this.frequencyIndex,
     this.options = const {},
-  }) : super(frequencyHz: frequencyHz);
+  }) : super(frequencyHz: frequencyHz, key: "${frequencyHz.toString()} ${_optionsToString(options)}");
 
   @override
   String toString() {
-    String trailer = "off";
-    if (streamData && recordData) {
-      trailer = "stream&record";
-    } else if (streamData) {
-      trailer = "stream";
-    } else if (recordData) {
-      trailer = "record";
-    }
-
+    String trailer = _optionsToString(options);
     return "${frequencyHz.toStringAsPrecision(4)} $trailer";
   }
 
@@ -195,4 +189,17 @@ class SensorConfigurationOpenEarableV2Value
   }
   @override
   int get hashCode => frequencyHz.hashCode ^ frequencyIndex.hashCode ^ options.hashCode;
+
+  static String _optionsToString(Set<SensorConfigurationOption> options) {
+    String trailer = "off";
+    if (options.any((option) => option is StreamSensorConfigOption) &&
+        options.any((option) => option is RecordSensorConfigOption)) {
+      trailer = "stream&record";
+    } else if (options.any((option) => option is StreamSensorConfigOption)) {
+      trailer = "stream";
+    } else if (options.any((option) => option is RecordSensorConfigOption)) {
+      trailer = "record";
+    }
+    return trailer;
+  }
 }
