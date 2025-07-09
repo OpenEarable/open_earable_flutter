@@ -79,7 +79,8 @@ class SensorFrequencyConfigurationValue extends SensorConfigurationValue {
 
   SensorFrequencyConfigurationValue({
     required this.frequencyHz,
-  }) : super(key: frequencyHz.toString());
+    String? key,
+  }) : super(key: key ?? frequencyHz.toString());
 
   @override
   String toString() {
