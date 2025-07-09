@@ -7,7 +7,6 @@ import 'package:open_earable_flutter/src/constants.dart';
 import '../../../open_earable_flutter.dart';
 import '../../managers/ble_manager.dart';
 import '../../managers/v2_sensor_handler.dart';
-import '../capabilities/button_manager.dart';
 import '../capabilities/sensor_configuration_specializations/sensor_configuration_open_earable_v2.dart';
 
 const String _batteryLevelCharacteristicUuid = "2A19";
