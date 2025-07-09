@@ -220,6 +220,27 @@ class OpenEarableV2 extends Wearable
       _buttonSubscription = null;
     };
 
+    controller.onListen = () {
+      // Immediately read current button state
+      _bleManager.read(
+        deviceId: deviceId,
+        serviceId: _buttonServiceUuid,
+        characteristicId: _buttonCharacteristicUuid,
+      ).then((data) {
+        if (data.isNotEmpty) {
+          int buttonState = data[0];
+          if (buttonState == 0) {
+            controller.add(ButtonEvent.released);
+          } else if (buttonState == 1) {
+            controller.add(ButtonEvent.pressed);
+          }
+        }
+      }).catchError((error) {
+        logger.e('Error reading initial button state: $error');
+        controller.addError(error);
+      });
+    };
+
     return controller.stream;
   }
 
