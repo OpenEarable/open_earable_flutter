@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:example/widgets/button_state_widget.dart';
 import 'package:example/widgets/fota/firmware_update.dart';
 import 'package:open_earable_flutter/open_earable_flutter.dart';
 import 'package:example/global_theme.dart';
@@ -241,6 +242,11 @@ class MyAppState extends State<MyApp> {
                   title: "RGB LED",
                   child:
                       RgbLedControlWidget(rgbLed: _connectedDevice as RgbLed),
+                ),
+              if (_connectedDevice is ButtonManager)
+                GroupedBox(
+                  title: "Button State",
+                  child: ButtonStateWidget(buttonManager: _connectedDevice as ButtonManager),
                 ),
               if (_connectedDevice is FrequencyPlayer)
                 GroupedBox(
