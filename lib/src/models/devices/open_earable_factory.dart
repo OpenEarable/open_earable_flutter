@@ -123,97 +123,107 @@ class OpenEarableFactory extends WearableFactory {
     List<SensorScheme> sensorSchemes = await schemeParser.readSensorSchemes();
 
     for (SensorScheme scheme in sensorSchemes) {
-      List<SensorConfigurationOpenEarableV2Value> sensorConfigurationValues =
-          [];
-      //TODO: make sure the frequencies are specified
-      for (int index = 0;
-          index < scheme.options!.frequencies!.frequencies.length;
-          index++) {
-        double frequency = scheme.options!.frequencies!.frequencies[index];
+      List<SensorConfigurationOpenEarableV2Value> sensorConfigurationValues = [];
 
-        sensorConfigurationValues.add(
-          SensorConfigurationOpenEarableV2Value(
+      final features = scheme.options?.features ?? [];
+      final hasStreaming = features.contains(SensorConfigFeatures.streaming);
+      final hasRecording = features.contains(SensorConfigFeatures.recording);
+      final hasFrequencies = features.contains(SensorConfigFeatures.frequencyDefinition);
+      final frequencies = scheme.options?.frequencies?.frequencies ?? [];
+      final maxStreamingIndex = scheme.options?.frequencies?.maxStreamingFreqIndex ?? -1;
+
+      //TODO: handle case where no frequencies are defined
+      if (hasFrequencies && frequencies.isNotEmpty) {
+        for (int index = 0; index < frequencies.length; index++) {
+          final frequency = frequencies[index];
+
+          // Create base prototype
+          final base = SensorConfigurationOpenEarableV2Value(
             frequencyHz: frequency,
             frequencyIndex: index,
-          ),
-        );
-
-        sensorConfigurationValues.add(
-          SensorConfigurationOpenEarableV2Value(
-            frequencyHz: frequency,
-            frequencyIndex: index,
-            options: {const RecordSensorConfigOption()},
-          ),
-        );
-
-        if (index <= scheme.options!.frequencies!.maxStreamingFreqIndex) {
-          // Add stream options
-          sensorConfigurationValues.add(
-            SensorConfigurationOpenEarableV2Value(
-              frequencyHz: frequency,
-              frequencyIndex: index,
-              options: {const StreamSensorConfigOption()},
-            ),
           );
-          sensorConfigurationValues.add(
-            SensorConfigurationOpenEarableV2Value(
-              frequencyHz: frequency,
-              frequencyIndex: index,
-              options: {
-                const StreamSensorConfigOption(),
-                const RecordSensorConfigOption(),
-              },
-            ),
-          );
+
+          // OFF value (base prototype)
+          sensorConfigurationValues.add(base);
+
+          // Clone with record option
+          if (hasRecording) {
+            sensorConfigurationValues.add(
+              base.copyWith(
+                options: {const RecordSensorConfigOption()},
+              ),
+            );
+          }
+
+          // Clone with streaming and stream+record options
+          if (hasStreaming && index <= maxStreamingIndex) {
+            sensorConfigurationValues.add(
+              base.copyWith(
+                options: {const StreamSensorConfigOption()},
+              ),
+            );
+
+            if (hasRecording) {
+              sensorConfigurationValues.add(
+                base.copyWith(
+                  options: {
+                    const StreamSensorConfigOption(),
+                    const RecordSensorConfigOption(),
+                  },
+                ),
+              );
+            }
+          }
         }
       }
 
-      final SensorConfigurationOpenEarableV2Value? offValue =
-        sensorConfigurationValues.where(
-          (value) => value.options.isEmpty,
-        ).firstOrNull;
+      final offValue = sensorConfigurationValues
+          .where((value) => value.options.isEmpty)
+          .firstOrNull;
 
-      SensorConfigurationOpenEarableV2 sensorConfiguration =
-          SensorConfigurationOpenEarableV2(
+      if (sensorConfigurationValues.isEmpty) {
+        logger.w("No configuration values generated for sensor: ${scheme.sensorName}");
+      }
+
+      final sensorConfiguration = SensorConfigurationOpenEarableV2(
         name: scheme.sensorName,
         values: sensorConfigurationValues,
-        maxStreamingFreqIndex:
-            scheme.options!.frequencies!.maxStreamingFreqIndex,
+        maxStreamingFreqIndex: maxStreamingIndex,
         sensorHandler: sensorManager,
         sensorId: scheme.sensorId,
+        availableOptions: {
+          if (hasStreaming) const StreamSensorConfigOption(),
+          if (hasRecording) const RecordSensorConfigOption(),
+        },
         offValue: offValue,
       );
 
       sensorConfigurations.add(sensorConfiguration);
 
-      Map<String, List<Component>> sensorGroups = {};
-      for (Component component in scheme.components) {
-        if (!sensorGroups.containsKey(component.groupName)) {
-          sensorGroups[component.groupName] = [];
-        }
-        sensorGroups[component.groupName]!.add(component);
-      }
-
-      for (String groupName in sensorGroups.keys) {
-        List<String> axisNames = [];
-        List<String> axisUnits = [];
-        for (Component component in sensorGroups[groupName]!) {
-          axisNames.add(component.componentName);
-          axisUnits.add(component.unitName);
+      if (scheme.options?.features.contains(SensorConfigFeatures.streaming) ?? false) {
+        // Group components by group name
+        final sensorGroups = <String, List<Component>>{};
+        for (final component in scheme.components) {
+          sensorGroups.putIfAbsent(component.groupName, () => []).add(component);
         }
 
-        Sensor sensor = _OpenEarableSensorV2(
-          sensorId: scheme.sensorId,
-          sensorName: groupName,
-          chartTitle: groupName,
-          shortChartTitle: groupName,
-          axisNames: axisNames,
-          axisUnits: axisUnits,
-          sensorManager: sensorManager,
-          relatedConfigurations: [sensorConfiguration],
-        );
+        for (final groupName in sensorGroups.keys) {
+          final axisNames = sensorGroups[groupName]!.map((c) => c.componentName).toList();
+          final axisUnits = sensorGroups[groupName]!.map((c) => c.unitName).toList();
 
-        sensors.add(sensor);
+          final sensor = _OpenEarableSensorV2(
+            sensorId: scheme.sensorId,
+            sensorName: groupName,
+            chartTitle: groupName,
+            shortChartTitle: groupName,
+            axisNames: axisNames,
+            axisUnits: axisUnits,
+            sensorManager: sensorManager,
+            relatedConfigurations: [sensorConfiguration],
+          );
+
+          sensors.add(sensor);
+        }
       }
     }
 
