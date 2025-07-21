@@ -12,11 +12,10 @@ class SensorConfigurationOpenEarableV2 extends SensorFrequencyConfiguration<Sens
   final int maxStreamingFreqIndex;
   final V2SensorHandler _sensorHandler;
 
+  final Set<SensorConfigurationOption> _availableOptions;
+
   @override
-  final Set<SensorConfigurationOption> availableOptions = {
-    const StreamSensorConfigOption(),
-    const RecordSensorConfigOption(),
-  };
+  Set<SensorConfigurationOption> get availableOptions => _availableOptions;
 
   SensorConfigurationOpenEarableV2({
     required String name,
@@ -24,8 +23,10 @@ class SensorConfigurationOpenEarableV2 extends SensorFrequencyConfiguration<Sens
     required List<SensorConfigurationOpenEarableV2Value> values,
     required this.maxStreamingFreqIndex,
     required V2SensorHandler sensorHandler,
+    Set<SensorConfigurationOption> availableOptions = const {},
     SensorConfigurationOpenEarableV2Value? offValue,
   })  : _sensorHandler = sensorHandler,
+        _availableOptions = availableOptions,
         super(
           name: name,
           values: values,
@@ -175,6 +176,18 @@ class SensorConfigurationOpenEarableV2Value
       frequencyHz: frequencyHz,
       frequencyIndex: frequencyIndex,
       options: {},
+    );
+  }
+
+  SensorConfigurationOpenEarableV2Value copyWith({
+    double? frequencyHz,
+    int? frequencyIndex,
+    Set<SensorConfigurationOption>? options,
+  }) {
+    return SensorConfigurationOpenEarableV2Value(
+      frequencyHz: frequencyHz ?? this.frequencyHz,
+      frequencyIndex: frequencyIndex ?? this.frequencyIndex,
+      options: options ?? this.options,
     );
   }
 
