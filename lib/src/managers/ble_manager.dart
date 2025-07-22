@@ -5,13 +5,16 @@ import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:universal_ble/universal_ble.dart';
 
+import 'ble_gatt_manager.dart';
 import '../../open_earable_flutter.dart';
 import '../constants.dart';
 
 /// A class that establishes and manages Bluetooth Low Energy (BLE)
 /// communication with OpenEarable devices.
-class BleManager {
-  int mtu = 60; // Largest Byte package sent is 42 bytes for IMU
+class BleManager extends BleGattManager {
+  static const int _desiredMtu = 60;
+  int _mtu = _desiredMtu; // Largest Byte package sent is 42 bytes for IMU
+  int get mtu => _mtu;
 
   final Map<String, List<StreamController<List<int>>>> _streamControllers = {};
 
@@ -210,7 +213,7 @@ class BleManager {
 
     _connectCallbacks[device.id] = () async {
       if (!kIsWeb && !Platform.isLinux) {
-        UniversalBle.requestMtu(device.id, mtu);
+        _mtu = await UniversalBle.requestMtu(device.id, _desiredMtu);
       }
       bool connectionResult = false;
       List<BleService> services = [];
@@ -235,6 +238,7 @@ class BleManager {
   }
 
   /// Writes byte data to a specific characteristic of the connected Earable device.
+  @override
   Future<void> write({
     required String deviceId,
     required String serviceId,
@@ -254,6 +258,7 @@ class BleManager {
   }
 
   /// Subscribes to a specific characteristic of the connected Earable device.
+  @override
   Stream<List<int>> subscribe({
     required String deviceId,
     required String serviceId,
@@ -292,6 +297,7 @@ class BleManager {
   }
 
   /// Reads data from a specific characteristic of the connected Earable device.
+  @override
   Future<List<int>> read({
     required String deviceId,
     required String serviceId,
