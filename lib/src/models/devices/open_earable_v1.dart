@@ -6,7 +6,7 @@ import 'package:open_earable_flutter/open_earable_flutter.dart';
 
 import '../../managers/open_earable_sensor_manager.dart';
 import '../../utils/simple_kalman.dart';
-import '../../managers/ble_manager.dart';
+import '../../managers/ble_gatt_manager.dart';
 
 const String _ledSetStateCharacteristic =
     "81040e7a-4819-11ee-be56-0242ac120002";
@@ -52,7 +52,7 @@ class OpenEarableV1 extends Wearable
 
   final List<Sensor> _sensors;
   final List<SensorConfiguration> _sensorConfigurations;
-  final BleManager _bleManager;
+  final BleGattManager _bleManager;
   final DiscoveredDevice _discoveredDevice;
   final List<WaveType> _supportedFrequencyPlayerWaveTypes;
   final List<Jingle> _supportedJingles;
@@ -64,7 +64,7 @@ class OpenEarableV1 extends Wearable
   OpenEarableV1({
     required super.name,
     required super.disconnectNotifier,
-    required BleManager bleManager,
+    required BleGattManager bleManager,
     required DiscoveredDevice discoveredDevice,
   })  : _sensors = [],
         _sensorConfigurations = [],

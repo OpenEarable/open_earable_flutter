@@ -3,13 +3,13 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:open_earable_flutter/src/constants.dart';
-import 'package:open_earable_flutter/src/managers/ble_manager.dart';
 
+import '../../managers/ble_gatt_manager.dart';
 import 'sensor_scheme_reader.dart';
 
 class V2SensorSchemeReader extends SensorSchemeReader {
   final String _deviceId;
-  final BleManager _bleManager;
+  final BleGattManager _bleManager;
 
   final Map<int, SensorScheme> _sensorSchemes = {};
   final List<int> _sensorIds = [];

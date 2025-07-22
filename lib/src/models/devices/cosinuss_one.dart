@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import '../../../open_earable_flutter.dart';
-import '../../managers/ble_manager.dart';
+import '../../managers/ble_gatt_manager.dart';
 
 // For activating PPG and ACC
 final List<int> _sensorBluetoothCharacteristics = [
@@ -34,13 +34,13 @@ class CosinussOne extends Wearable
   static const _batteryLevelCharacteristicUuid = "02a19";
 
   final List<Sensor> _sensors;
-  final BleManager _bleManager;
+  final BleGattManager _bleManager;
   final DiscoveredDevice _discoveredDevice;
 
   CosinussOne({
     required super.name,
     required super.disconnectNotifier,
-    required BleManager bleManager,
+    required BleGattManager bleManager,
     required DiscoveredDevice discoveredDevice,
   })  : _sensors = [],
         _bleManager = bleManager,
@@ -167,7 +167,7 @@ class CosinussOne extends Wearable
 class _CosinussOneSensor extends Sensor<SensorDoubleValue> {
   final List<String> _axisNames;
   final List<String> _axisUnits;
-  final BleManager _bleManager;
+  final BleGattManager _bleManager;
   final DiscoveredDevice _discoveredDevice;
 
   _CosinussOneSensor({
@@ -176,7 +176,7 @@ class _CosinussOneSensor extends Sensor<SensorDoubleValue> {
     required String shortChartTitle,
     required List<String> axisNames,
     required List<String> axisUnits,
-    required BleManager bleManager,
+    required BleGattManager bleManager,
     required DiscoveredDevice discoveredDevice,
   })  : _axisNames = axisNames,
         _axisUnits = axisUnits,
@@ -362,11 +362,11 @@ class _CosinussOneSensor extends Sensor<SensorDoubleValue> {
 
 // Based on https://github.com/teco-kit/cosinuss-flutter
 class _CosinussOneHeartRateSensor extends HeartRateSensor {
-  final BleManager _bleManager;
+  final BleGattManager _bleManager;
   final DiscoveredDevice _discoveredDevice;
 
   _CosinussOneHeartRateSensor({
-    required BleManager bleManager,
+    required BleGattManager bleManager,
     required DiscoveredDevice discoveredDevice,
   })  : _bleManager = bleManager,
         _discoveredDevice = discoveredDevice,

@@ -5,7 +5,7 @@ import 'dart:typed_data';
 import 'package:open_earable_flutter/src/constants.dart';
 
 import '../../../open_earable_flutter.dart';
-import '../../managers/ble_manager.dart';
+import '../../managers/ble_gatt_manager.dart';
 import '../../managers/v2_sensor_handler.dart';
 import '../capabilities/sensor_configuration_specializations/sensor_configuration_open_earable_v2.dart';
 
@@ -168,7 +168,7 @@ class OpenEarableV2 extends Wearable
   StreamSubscription? _sensorConfigSubscription;
   StreamSubscription? _buttonSubscription;
 
-  final BleManager _bleManager;
+  final BleGattManager _bleManager;
   final DiscoveredDevice _discoveredDevice;
 
   @override
@@ -248,7 +248,7 @@ class OpenEarableV2 extends Wearable
     required super.disconnectNotifier,
     required List<Sensor> sensors,
     required List<SensorConfiguration> sensorConfigurations,
-    required BleManager bleManager,
+    required BleGattManager bleManager,
     required DiscoveredDevice discoveredDevice,
     this.availableMicrophones = const {},
     this.availableAudioModes = const {},

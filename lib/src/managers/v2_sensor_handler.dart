@@ -3,14 +3,14 @@ import 'dart:typed_data';
 
 import '../../open_earable_flutter.dart';
 import '../constants.dart';
-import 'ble_manager.dart';
+import 'ble_gatt_manager.dart';
 import 'sensor_handler.dart';
 import '../utils/sensor_scheme_parser/sensor_scheme_reader.dart';
 import '../utils/sensor_value_parser/sensor_value_parser.dart';
 
 class V2SensorHandler extends SensorHandler<V2SensorConfig> {
   final DiscoveredDevice _discoveredDevice;
-  final BleManager _bleManager;
+  final BleGattManager _bleManager;
 
   final SensorSchemeReader _sensorSchemeParser;
   final SensorValueParser _sensorValueParser;
@@ -18,7 +18,7 @@ class V2SensorHandler extends SensorHandler<V2SensorConfig> {
 
   V2SensorHandler({
     required DiscoveredDevice discoveredDevice,
-    required BleManager bleManager,
+    required BleGattManager bleManager,
     required SensorSchemeReader sensorSchemeParser,
     required SensorValueParser sensorValueParser,
   })  : _discoveredDevice = discoveredDevice,

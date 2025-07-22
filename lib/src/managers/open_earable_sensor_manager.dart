@@ -10,14 +10,14 @@ import '../constants.dart';
 import '../utils/mahony_ahrs.dart';
 import '../utils/sensor_scheme_parser/sensor_scheme_reader.dart';
 import '../utils/sensor_value_parser/edge_ml_sensor_value_parser.dart';
-import 'ble_manager.dart';
+import 'ble_gatt_manager.dart';
 
 /// Manages sensor-related functionality for the OpenEarable device.
 class OpenEarableSensorHandler extends SensorHandler<OpenEarableSensorConfig> {
   final String deviceId;
 
   final imuID = 0;
-  final BleManager _bleManager;
+  final BleGattManager _bleManager;
   final MahonyAHRS _mahonyAHRS = MahonyAHRS();
 
   final SensorSchemeReader _sensorSchemeParser;
@@ -26,7 +26,7 @@ class OpenEarableSensorHandler extends SensorHandler<OpenEarableSensorConfig> {
 
   /// Creates a [OpenEarableSensorHandler] instance with the specified [bleManager].
   OpenEarableSensorHandler({
-    required BleManager bleManager,
+    required BleGattManager bleManager,
     required this.deviceId,
     SensorSchemeReader? sensorSchemeParser,
     SensorValueParser? sensorValueParser,
