@@ -92,3 +92,16 @@ To get started with the OpenEarable Flutter package, follow these steps:
   ```dart
   _wearableManager.connectToDevice(scannedDevice);
   ```
+
+7. **Access sensor data**:
+  In order to access sensor data, you need to check if the device is a `SensorManager`. Then you can access the sensor data streams by accessing the `sensors` property:
+  ```dart
+  if (wearable is SensorManager) {
+    wearable.sensors.forEach((sensor) {
+      sensor.sensorStream.listen((data) {
+        // Handle sensor data
+      });
+    });
+  }
+  ```
+  For most devices, the sensors have to be configured before they start sending data. You can learn more about configuring sensors in the chapter [Configuring Sensors](doc/SENSOR_CONFIG.md).
