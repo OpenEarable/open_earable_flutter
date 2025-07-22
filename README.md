@@ -90,7 +90,7 @@ To get started with the OpenEarable Flutter package, follow these steps:
 
 6. **Connect to a device**:
   ```dart
-  _wearableManager.connectToDevice(scannedDevice);
+  Wearable wearable = await _wearableManager.connectToDevice(scannedDevice);
   ```
 
 7. **Access sensor data**:
