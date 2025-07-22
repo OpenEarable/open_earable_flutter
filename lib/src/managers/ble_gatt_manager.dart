@@ -1,5 +1,8 @@
 /// An interface for managing Bluetooth Low Energy (BLE) GATT operations.
 abstract class BleGattManager {
+  /// Check if a device is connected.
+  bool isConnected(String deviceId);
+
   /// Writes byte data to a specific characteristic of a device.
   Future<void> write({
     required String deviceId,
@@ -21,4 +24,7 @@ abstract class BleGattManager {
     required String serviceId,
     required String characteristicId,
   });
+
+  /// Disconnects from a device.
+  Future<void> disconnect(String deviceId);
 }

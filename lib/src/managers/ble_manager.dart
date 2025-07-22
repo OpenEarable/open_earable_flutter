@@ -38,6 +38,7 @@ class BleManager extends BleGattManager {
     _init();
   }
 
+  @override
   bool isConnected(String deviceId) {
     return _connectedDevicesIds.contains(deviceId);
   }
@@ -315,6 +316,7 @@ class BleManager extends BleGattManager {
     return response.toList();
   }
 
+  @override
   Future<void> disconnect(String deviceId) {
     return UniversalBle.disconnect(deviceId);
   }
