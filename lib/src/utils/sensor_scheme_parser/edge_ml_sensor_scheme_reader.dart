@@ -1,12 +1,11 @@
-import 'package:open_earable_flutter/src/managers/ble_manager.dart';
-
 import '../../constants.dart';
+import '../../managers/ble_gatt_manager.dart';
 import 'sensor_scheme_reader.dart';
 
 /// This class is used to parse the sensor scheme from the byte stream of Devices, matching the EdgeML sensor scheme.
 class EdgeMlSensorSchemeReader extends SensorSchemeReader {
 
-  final BleManager _bleManager;
+  final BleGattManager _bleManager;
   final String _deviceId;
 
   Map<int, SensorScheme> _sensorSchemes = {};

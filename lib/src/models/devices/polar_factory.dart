@@ -6,7 +6,7 @@ import 'package:open_earable_flutter/src/models/devices/polar.dart';
 import 'package:open_earable_flutter/src/models/devices/wearable.dart';
 import 'package:open_earable_flutter/src/models/wearable_factory.dart';
 import 'package:universal_ble/universal_ble.dart';
-import '../../managers/ble_manager.dart';
+import '../../managers/ble_gatt_manager.dart';
 import '../capabilities/sensor.dart';
 import '../capabilities/sensor_specializations/heart_rate_sensor.dart';
 import '../capabilities/sensor_specializations/heart_rate_variability_sensor.dart';
@@ -73,11 +73,11 @@ class PolarFactory extends WearableFactory {
 }
 
 class _PolarHeartRateSensor extends HeartRateSensor {
-  final BleManager _bleManager;
+  final BleGattManager _bleManager;
   final DiscoveredDevice _discoveredDevice;
 
   _PolarHeartRateSensor({
-    required BleManager bleManager,
+    required BleGattManager bleManager,
     required DiscoveredDevice discoveredDevice,
   })  : _bleManager = bleManager,
         _discoveredDevice = discoveredDevice,
@@ -124,7 +124,7 @@ class _PolarHeartRateSensor extends HeartRateSensor {
 
 class _PolarHeartRateVariabilitySensor extends HeartRateVariabilitySensor {
   _PolarHeartRateVariabilitySensor({
-    required BleManager bleManager,
+    required BleGattManager bleManager,
     required DiscoveredDevice discoveredDevice,
   }) : super(
           rrIntervalsMsStream:
@@ -132,7 +132,7 @@ class _PolarHeartRateVariabilitySensor extends HeartRateVariabilitySensor {
         );
 
   static Stream<List<int>> _getRrIntervalsMsStream(
-    BleManager bleManager,
+    BleGattManager bleManager,
     DiscoveredDevice discoveredDevice,
   ) {
     StreamController<List<int>> streamController = StreamController();

@@ -4,7 +4,7 @@ import '../capabilities/device_firmware_version.dart';
 import '../capabilities/device_hardware_version.dart';
 import '../capabilities/sensor.dart';
 import '../capabilities/sensor_manager.dart';
-import '../../managers/ble_manager.dart';
+import '../../managers/ble_gatt_manager.dart';
 import 'discovered_device.dart';
 import 'wearable.dart';
 
@@ -14,13 +14,13 @@ class Polar extends Wearable
   static const heartRateServiceUuid = "0000180D-0000-1000-8000-00805f9b34fb";
 
   final List<Sensor> _sensors;
-  final BleManager _bleManager;
+  final BleGattManager _bleManager;
   final DiscoveredDevice _discoveredDevice;
 
   Polar({
     required super.name,
     required super.disconnectNotifier,
-    required BleManager bleManager,
+    required BleGattManager bleManager,
     required DiscoveredDevice discoveredDevice,
     required List<Sensor> sensors,
   })  : _sensors = sensors,

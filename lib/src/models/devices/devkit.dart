@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import '../../../open_earable_flutter.dart';
-import '../../managers/ble_manager.dart';
+import '../../managers/ble_gatt_manager.dart';
 
 class DevKit extends Wearable
     implements
@@ -21,13 +21,13 @@ class DevKit extends Wearable
         Sensor,
         StatusLed,
         StoragePathAudioPlayer {
-  final BleManager _bleManager;
+  final BleGattManager _bleManager;
   final DiscoveredDevice _discoveredDevice;
 
   DevKit({
     required super.name,
     required super.disconnectNotifier,
-    required BleManager bleManager,
+    required BleGattManager bleManager,
     required DiscoveredDevice discoveredDevice,
   })  : _bleManager = bleManager,
         _discoveredDevice = discoveredDevice;
