@@ -1,8 +1,5 @@
 /// An interface for managing Bluetooth Low Energy (BLE) GATT operations.
 abstract class BleGattManager {
-  /// The maximum transmission unit (MTU) size for BLE communication.
-  int get mtu;
-
   /// Writes byte data to a specific characteristic of a device.
   Future<void> write({
     required String deviceId,
