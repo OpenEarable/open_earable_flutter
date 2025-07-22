@@ -63,7 +63,7 @@ When `connectToDevice(discoveredDevice)` is called, the manager will use your fa
 
 Extend your custom wearable by implementing capabilities (e.g., sensor access, configuration, storage). Capabilities are modular and reusable components that define what a wearable can do.
 
-For more details, refer to the [Functionality of Wearables](doc/CAPABILITIES.md) guide.
+For more details, refer to the [Functionality of Wearables](CAPABILITIES.md) guide.
 
 ---
 
