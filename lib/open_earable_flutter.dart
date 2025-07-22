@@ -52,6 +52,8 @@ export 'src/models/capabilities/microphone_manager.dart';
 export 'src/models/recorder.dart';
 export 'src/models/capabilities/edge_recorder_manager.dart';
 export 'src/models/capabilities/button_manager.dart';
+export 'src/models/wearable_factory.dart';
+export 'src/managers/ble_gatt_manager.dart';
 
 export 'src/fota/fota.dart';
 
