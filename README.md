@@ -51,23 +51,24 @@ For macOS, add the Bluetooth capability to the macOS app from Xcode.
 ## Getting Started
 To get started with the OpenEarable Flutter package, follow these steps:
 
-1. **Installation**: Add the package to your flutter project: \
+### 1. Installation
+  Add the package to your flutter project: \
   ```bash
   flutter pub add open_earable_flutter
   ```
   Alternatively, you can follow the instructions on [pub.dev](https://pub.dev/packages/open_earable_flutter/install)
 
-2. **Import the package**: 
+### 2. Import the package
   ```dart
   import 'package:open_earable_flutter/open_earable_flutter.dart';
   ```
 
-3. **Initialize WearableManager**
+### 3. Initialize WearableManager
   ```dart
   final WearableManager _wearableManager = WearableManager();
   ```
 
-4. **Scan for devices**:
+### 4. Scan for devices
   ```dart
   _wearableManager.scanStream.listen((scannedDevice) {
     // Handle scanned devices
@@ -76,7 +77,7 @@ To get started with the OpenEarable Flutter package, follow these steps:
   _wearableManager.startScan();
   ```
 
-5. **Handle new connections**:
+### 5. Handle new connections
   ```dart
   // Deal with new connected devices
   _wearableManager.connectStream.listen((wearable) {
@@ -88,12 +89,12 @@ To get started with the OpenEarable Flutter package, follow these steps:
   });
   ```
 
-6. **Connect to a device**:
+### 6. Connect to a device
   ```dart
   Wearable wearable = await _wearableManager.connectToDevice(scannedDevice);
   ```
 
-7. **Access sensor data**:
+### 7. Access sensor data
   In order to access sensor data, you need to check if the device is a `SensorManager`. Then you can access the sensor data streams by accessing the `sensors` property:
   ```dart
   if (wearable is SensorManager) {
@@ -104,4 +105,7 @@ To get started with the OpenEarable Flutter package, follow these steps:
     });
   }
   ```
+
+  For more information about using sensor data, refer to the [Using Sensor Data](doc/SENSOR_DATA.md) documentation.
+
   For most devices, the sensors have to be configured before they start sending data. You can learn more about configuring sensors in the chapter [Configuring Sensors](doc/SENSOR_CONFIG.md).
