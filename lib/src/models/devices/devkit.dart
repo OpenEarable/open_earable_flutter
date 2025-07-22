@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import '../../../open_earable_flutter.dart';
-import '../../managers/ble_gatt_manager.dart';
 
 class DevKit extends Wearable
     implements

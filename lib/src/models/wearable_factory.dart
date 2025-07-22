@@ -1,7 +1,6 @@
 import 'package:open_earable_flutter/open_earable_flutter.dart';
 import 'package:universal_ble/universal_ble.dart';
 
-import '../managers/ble_gatt_manager.dart';
 
 /// Abstract factory for creating [Wearable] instances from [DiscoveredDevice]s.
 abstract class WearableFactory {

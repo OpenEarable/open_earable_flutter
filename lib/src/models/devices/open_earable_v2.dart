@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import 'package:open_earable_flutter/src/constants.dart';
 
 import '../../../open_earable_flutter.dart';
-import '../../managers/ble_gatt_manager.dart';
 import '../../managers/v2_sensor_handler.dart';
 import '../capabilities/sensor_configuration_specializations/sensor_configuration_open_earable_v2.dart';
 

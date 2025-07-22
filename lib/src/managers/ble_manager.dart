@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:universal_ble/universal_ble.dart';
 
-import 'ble_gatt_manager.dart';
 import '../../open_earable_flutter.dart';
 import '../constants.dart';
 

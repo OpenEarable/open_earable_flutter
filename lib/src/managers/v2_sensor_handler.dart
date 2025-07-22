@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import '../../open_earable_flutter.dart';
 import '../constants.dart';
-import 'ble_gatt_manager.dart';
 import 'sensor_handler.dart';
 import '../utils/sensor_scheme_parser/sensor_scheme_reader.dart';
 import '../utils/sensor_value_parser/sensor_value_parser.dart';
