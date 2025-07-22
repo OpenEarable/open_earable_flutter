@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import '../../../open_earable_flutter.dart';
-import '../../managers/ble_gatt_manager.dart';
 
 // For activating PPG and ACC
 final List<int> _sensorBluetoothCharacteristics = [
