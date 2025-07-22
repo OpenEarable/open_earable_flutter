@@ -20,7 +20,7 @@ class MyCustomWearable extends Wearable {
 
 ## 2. Implement a Custom Wearable Factory
 
-Create a factory that determines when your custom wearable should be used. This factory is responsible for recognizing a device and constructing the corresponding wearable object.
+Create a factory that determines when your custom wearable should be used. This factory is responsible for recognizing a device and constructing the corresponding wearable object. If you need to perform ble gatt operations, you can use the `BleGattManager` in `bleManager` of the `WearableFactory` class. The `BleGattManager` provides methods for interacting with BLE devices, such as reading and writing characteristics. It is provided by the `WearableManager` and should not be set manually.
 
 ```dart
 class MyCustomWearableFactory extends WearableFactory {
@@ -32,6 +32,10 @@ class MyCustomWearableFactory extends WearableFactory {
 
   @override
   Future<Wearable> createFromDevice(DiscoveredDevice device) async {
+    if (bleManager == null) {
+      throw Exception("BleGattManager is not initialized");
+    }
+
     // Create and return an instance of your custom wearable
     String name = device.name;
     Notifier disconnectNotifier = Notifier();
