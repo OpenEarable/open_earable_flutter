@@ -314,6 +314,10 @@ class OpenEarableV2 extends Wearable
       serviceId: deviceInfoServiceUuid,
       characteristicId: _deviceIdentifierCharacteristicUuid,
     );
+    int nullIndex = deviceIdentifierBytes.indexOf(0);
+    if (nullIndex != -1) {
+      deviceIdentifierBytes = deviceIdentifierBytes.sublist(0, nullIndex);
+    }
     return String.fromCharCodes(deviceIdentifierBytes);
   }
 
@@ -327,6 +331,10 @@ class OpenEarableV2 extends Wearable
       serviceId: deviceInfoServiceUuid,
       characteristicId: _deviceFirmwareVersionCharacteristicUuid,
     );
+    int nullIndex = deviceGenerationBytes.indexOf(0);
+    if (nullIndex != -1) {
+      deviceGenerationBytes = deviceGenerationBytes.sublist(0, nullIndex);
+    }
     return String.fromCharCodes(deviceGenerationBytes);
   }
 
@@ -340,6 +348,10 @@ class OpenEarableV2 extends Wearable
       serviceId: deviceInfoServiceUuid,
       characteristicId: _deviceHardwareVersionCharacteristicUuid,
     );
+    int nullIndex = hardwareGenerationBytes.indexOf(0);
+    if (nullIndex != -1) {
+      hardwareGenerationBytes = hardwareGenerationBytes.sublist(0, nullIndex);
+    }
     return String.fromCharCodes(hardwareGenerationBytes);
   }
 
