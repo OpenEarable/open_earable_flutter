@@ -62,7 +62,8 @@ class OpenEarableV2 extends Wearable
         MicrophoneManager<OpenEarableV2Mic>,
         AudioModeManager,
         EdgeRecorderManager,
-        ButtonManager {
+        ButtonManager,
+        StereoDevice {
   static const String deviceInfoServiceUuid =
       "45622510-6468-465a-b141-0b9b0f96b468";
   static const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
@@ -723,6 +724,64 @@ class OpenEarableV2 extends Wearable
       characteristicId: sensorEdgeRecorderFilePrefixCharacteristicUuid,
       byteData: prefix.codeUnits,
     );
+  }
+
+  // MARK: StereoDevice
+
+  @override
+  Future<DevicePosition?> get position async {
+    List<int> positionBytes;
+    try {
+      positionBytes = await _bleManager.read(
+      deviceId: deviceId,
+      serviceId: "1410df95-5f68-4ebb-a7c7-5e0fb9ae7557",
+      characteristicId: "1410df98-5f68-4ebb-a7c7-5e0fb9ae7557",
+    );
+    } catch (e) {
+      logger.w("Failed to read position characteristic: $e");
+      return _determinePositionFromName(name);
+    }
+    
+    if (positionBytes.length != 1) {
+      logger.e("Expected 1 byte for position, but got ${positionBytes.length}");
+      return null;
+    }
+
+    return switch (positionBytes[0]) {
+      0 => DevicePosition.left,
+      1 => DevicePosition.right,
+      _ => null,
+    };
+  }
+
+  DevicePosition? _determinePositionFromName(String name) {
+    if (name.endsWith('-L')) {
+      return DevicePosition.left;
+    } else if (name.endsWith('-R')) {
+      return DevicePosition.right;
+    }
+    return null;
+  }
+
+  StereoDevice? _pairedDevice;
+
+  @override
+  Future<StereoDevice?> get pairedDevice async {
+    return _pairedDevice;
+  }
+
+  @override
+  Future<void> pair(StereoDevice device) async {
+    if (device == await pairedDevice) return;
+    _pairedDevice = device;
+    _pairedDevice!.pair(this);
+  }
+
+  @override
+  Future<void> unpair() async {
+    if (await pairedDevice == null) return;
+    _pairedDevice?.unpair();
+    _pairedDevice = null;
   }
 }
 
