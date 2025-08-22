@@ -795,3 +795,20 @@ class OpenEarableV2Mic extends Microphone {
     required super.key,
   });
 }
+
+class OpenEarableV2PairingRule extends PairingRule<OpenEarableV2> {
+  @override
+  Future<bool> isValidPair(OpenEarableV2 left, OpenEarableV2 right) async {
+    // Example rule: both devices must be OpenEarable V2 and have different positions
+    DevicePosition? leftPosition = await left.position;
+    DevicePosition? rightPosition = await right.position;
+    if (leftPosition == null || rightPosition == null) {
+      return false;
+    }
+    if (leftPosition == rightPosition) {
+      return false;
+    }
+
+    return left.name == right.name;
+  }
+}
