@@ -5,13 +5,17 @@ import 'dart:async';
 import 'package:logger/logger.dart';
 import 'package:open_earable_flutter/src/models/devices/cosinuss_one_factory.dart';
 import 'package:open_earable_flutter/src/models/devices/open_earable_factory.dart';
+import 'package:open_earable_flutter/src/models/devices/open_earable_v2.dart';
 import 'package:open_earable_flutter/src/models/devices/polar_factory.dart';
 import 'package:open_earable_flutter/src/models/devices/devkit_factory.dart';
+import 'package:open_earable_flutter/src/models/devices/stereo_pairing/pairing_rule.dart';
 import 'package:open_earable_flutter/src/models/wearable_factory.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 import 'src/managers/ble_manager.dart';
+import 'src/managers/pairing_manager.dart';
 import 'src/managers/wearable_disconnect_notifier.dart';
+import 'src/models/capabilities/stereo_device.dart';
 import 'src/models/devices/discovered_device.dart';
 import 'src/models/devices/wearable.dart';
 
@@ -51,6 +55,7 @@ export 'src/models/capabilities/audio_mode_manager.dart';
 export 'src/models/capabilities/microphone_manager.dart';
 export 'src/models/capabilities/stereo_device.dart';
 export 'src/models/recorder.dart';
+export 'src/models/devices/stereo_pairing/pairing_rule.dart';
 export 'src/models/capabilities/edge_recorder_manager.dart';
 export 'src/models/capabilities/button_manager.dart';
 export 'src/models/wearable_factory.dart';
@@ -74,6 +79,9 @@ class WearableManager {
   static final WearableManager _instance = WearableManager._internal();
 
   late final BleManager _bleManager;
+  final PairingManager _pairingManager = PairingManager(rules: [
+    OpenEarableV2PairingRule(),
+  ],);
 
   late final StreamController<Wearable> _connectStreamController;
   late final StreamController<DiscoveredDevice> _connectingStreamController;
@@ -221,6 +229,19 @@ class WearableManager {
       }
     }
     return connectedWearables;
+  }
+
+  void addPairingRule(PairingRule rule) {
+    _pairingManager.addRule(rule);
+  }
+
+  /// Finds valid pairs of stereo devices based on the defined pairing rules.
+  Future<Map<StereoDevice, List<StereoDevice>>> findValidPairs(List<StereoDevice> devices) async {
+    return await _pairingManager.findValidPairs(devices);
+  }
+
+  Future<List<StereoDevice>> findValidPairsFor(StereoDevice device, List<StereoDevice> devices) async {
+    return await _pairingManager.findValidPairsFor(device, devices);
   }
 
   /// Automatically connects to devices with the specified IDs as soon as they are discovered.
