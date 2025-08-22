@@ -4,7 +4,7 @@ enum DevicePosition {
 }
 
 abstract class StereoDevice {
-  Future<DevicePosition> get position;
+  Future<DevicePosition?> get position;
   Future<StereoDevice?> get pairedDevice;
 
   Future<void> pair(StereoDevice device);
