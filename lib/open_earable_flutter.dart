@@ -28,7 +28,7 @@ export 'src/models/devices/polar.dart';
 
 export 'src/managers/wearable_disconnect_notifier.dart';
 
-export 'src/models/capabilities/device_firmware_version.dart';
+export 'src/models/capabilities/device_firmware_version.dart' hide DeviceFirmwareVersionNumberExt;
 export 'src/models/capabilities/device_hardware_version.dart';
 export 'src/models/capabilities/device_identifier.dart';
 export 'src/models/capabilities/battery_level.dart';
@@ -60,6 +60,8 @@ export 'src/models/capabilities/edge_recorder_manager.dart';
 export 'src/models/capabilities/button_manager.dart';
 export 'src/models/wearable_factory.dart';
 export 'src/managers/ble_gatt_manager.dart';
+
+export 'src/models/capabilities/version_number.dart';
 
 export 'src/fota/fota.dart';
 
