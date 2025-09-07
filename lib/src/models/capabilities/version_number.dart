@@ -1,9 +1,9 @@
-class Version implements Comparable<Version> {
+class VersionNumber implements Comparable<VersionNumber> {
   final List<int> parts;
 
-  Version._(this.parts);
+  VersionNumber._(this.parts);
 
-  factory Version.parse(String v) {
+  factory VersionNumber.parse(String v) {
     final clean = v.trim();
     if (!RegExp(r'^\d+(\.\d+)*$').hasMatch(clean)) {
       throw FormatException('Invalid version: $v');
@@ -13,11 +13,11 @@ class Version implements Comparable<Version> {
     while (nums.length < 3) {
       nums.add(0);
     }
-    return Version._(nums);
+    return VersionNumber._(nums);
   }
 
   @override
-  int compareTo(Version other) {
+  int compareTo(VersionNumber other) {
     final maxLen = (parts.length > other.parts.length) ? parts.length : other.parts.length;
     for (var i = 0; i < maxLen; i++) {
       final a = i < parts.length ? parts[i] : 0;
@@ -32,12 +32,12 @@ class Version implements Comparable<Version> {
 }
 
 int compareVersions(String a, String b) =>
-    Version.parse(a).compareTo(Version.parse(b));
+    VersionNumber.parse(a).compareTo(VersionNumber.parse(b));
 
 /// Returns the newest `count` versions from the provided list (sorted desc, unique).
 List<String> newestN(List<String> allVersions, int count) {
   final uniq = {
-    for (final v in allVersions) Version.parse(v).toString(): Version.parse(v)
+    for (final v in allVersions) VersionNumber.parse(v).toString(): VersionNumber.parse(v),
   }.values.toList();
   uniq.sort((a, b) => b.compareTo(a)); // newest first
   return uniq.take(count).map((v) => v.toString()).toList();
@@ -50,8 +50,8 @@ bool isFirmwareSupported({
   required int newestCount,
   bool sameMajorOnly = false, // set true if you only support the latest N within the current major
 }) {
-  final device = Version.parse(deviceVersion);
-  var pool = releasedVersions.map(Version.parse).toList();
+  final device = VersionNumber.parse(deviceVersion);
+  var pool = releasedVersions.map(VersionNumber.parse).toList();
 
   if (sameMajorOnly && pool.isNotEmpty) {
     // Filter to versions with the same major as the newest release
