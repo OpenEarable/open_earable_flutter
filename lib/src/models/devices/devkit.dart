@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import '../../../open_earable_flutter.dart';
+import '../capabilities/device_firmware_version.dart';
 
 class DevKit extends Wearable
+    with DeviceFirmwareVersionNumberExt
     implements
         DeviceFirmwareVersion,
         DeviceHardwareVersion,

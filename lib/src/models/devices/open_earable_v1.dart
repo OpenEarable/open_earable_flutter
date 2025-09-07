@@ -6,6 +6,7 @@ import 'package:open_earable_flutter/open_earable_flutter.dart';
 
 import '../../managers/open_earable_sensor_manager.dart';
 import '../../utils/simple_kalman.dart';
+import '../capabilities/device_firmware_version.dart';
 
 const String _ledSetStateCharacteristic =
     "81040e7a-4819-11ee-be56-0242ac120002";
@@ -24,6 +25,7 @@ const String _audioStateCharacteristic = "566916a9-476d-11ee-be56-0242ac120002";
 const String _batteryLevelCharacteristicUuid = "2A19";
 
 class OpenEarableV1 extends Wearable
+    with DeviceFirmwareVersionNumberExt
     implements
         SensorManager,
         SensorConfigurationManager,

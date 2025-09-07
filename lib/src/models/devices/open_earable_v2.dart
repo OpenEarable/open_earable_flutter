@@ -6,6 +6,7 @@ import 'package:open_earable_flutter/src/constants.dart';
 
 import '../../../open_earable_flutter.dart';
 import '../../managers/v2_sensor_handler.dart';
+import '../capabilities/device_firmware_version.dart';
 import '../capabilities/sensor_configuration_specializations/sensor_configuration_open_earable_v2.dart';
 
 const String _batteryLevelCharacteristicUuid = "2A19";
@@ -34,6 +35,8 @@ const String _audioModeCharacteristicUuid =
 const String _buttonServiceUuid = "29c10bdc-4773-11ee-be56-0242ac120002";
 const String _buttonCharacteristicUuid = "29c10f38-4773-11ee-be56-0242ac120002";
 
+final VersionNumber _maxVersionSupported = VersionNumber.parse("2.1.5");
+
 // MARK: OpenEarableV2
 
 /// Represents the OpenEarable V2 device.
@@ -47,6 +50,7 @@ const String _buttonCharacteristicUuid = "29c10f38-4773-11ee-be56-0242ac120002";
 /// The class also provides streams for monitoring battery and power status,
 /// as well as health and energy status.
 class OpenEarableV2 extends Wearable
+    with DeviceFirmwareVersionNumberExt
     implements
         SensorManager,
         SensorConfigurationManager,
@@ -305,6 +309,8 @@ class OpenEarableV2 extends Wearable
     );
   }
 
+  // MARK: DeviceIdentifier / DeviceFirmwareVersion / DeviceHardwareVersion
+
   /// Reads the device identifier from the connected OpenEarable device.
   ///
   /// Returns a `Future` that completes with the device identifier as a `String`.
@@ -337,6 +343,25 @@ class OpenEarableV2 extends Wearable
       deviceGenerationBytes = deviceGenerationBytes.sublist(0, nullIndex);
     }
     return String.fromCharCodes(deviceGenerationBytes);
+  }
+
+  @override
+  Future<bool> isFirmwareSupported() async {
+    final ver = await readFirmwareVersionNumber();
+    if (ver == null) return false;
+    try {
+      if (ver.compareTo(_maxVersionSupported) <= 0) {
+        return true;
+      } else {
+        logger.w(
+          'Device firmware version $ver is newer than the maximum supported version $_maxVersionSupported',
+        );
+        return false;
+      }
+    } catch (e) {
+      logger.w('Failed to parse firmware version: $ver, error: $e');
+      return false;
+    }
   }
 
   /// Reads the device hardware version from the connected OpenEarable device.
