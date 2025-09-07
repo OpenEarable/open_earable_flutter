@@ -9,6 +9,7 @@ import 'discovered_device.dart';
 import 'wearable.dart';
 
 class Polar extends Wearable
+    with DeviceFirmwareVersionNumberExt
     implements SensorManager, DeviceFirmwareVersion, DeviceHardwareVersion {
   static const disServiceUuid = "0000180a-0000-1000-8000-00805f9b34fb";
   static const heartRateServiceUuid = "0000180D-0000-1000-8000-00805f9b34fb";
