@@ -63,7 +63,7 @@ class EdgeMlSensorSchemeReader extends SensorSchemeReader {
         currentIndex += unitNameLength;
 
         Component component =
-            Component(componentType, groupName, componentName, unitName);
+            Component(ParseType.fromInt(componentType), groupName, componentName, unitName);
         sensorScheme.components.add(component);
       }
 
