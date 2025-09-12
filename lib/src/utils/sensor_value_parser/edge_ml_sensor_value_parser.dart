@@ -5,7 +5,7 @@ import 'sensor_value_parser.dart';
 
 class EdgeMlSensorValueParser extends SensorValueParser {
   @override
-  Map<String, dynamic> parse(ByteData data, List<SensorScheme> sensorSchemes) {
+  List<Map<String, dynamic>> parse(ByteData data, List<SensorScheme> sensorSchemes) {
     var byteIndex = 0;
     final sensorId = data.getUint8(byteIndex);
     byteIndex += 2; // skip one byte because of size byte that is not used
@@ -26,7 +26,7 @@ class EdgeMlSensorValueParser extends SensorValueParser {
         parsedData[component.groupName]["units"] = {};
       }
       final dynamic parsedValue;
-      switch (ParseType.values[component.type]) {
+      switch (component.type) {
         case ParseType.int8:
           parsedValue = data.getInt8(byteIndex);
           byteIndex += 1;
@@ -64,6 +64,6 @@ class EdgeMlSensorValueParser extends SensorValueParser {
       parsedData[component.groupName]["units"][component.componentName] =
           component.unitName;
     }
-    return parsedData;
+    return [parsedData];
   }
 }
