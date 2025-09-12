@@ -46,8 +46,10 @@ class V2SensorHandler extends SensorHandler<V2SensorConfig> {
         .listen(
       (data) async {
         if (data.isNotEmpty && data[0] == sensorId) {
-          Map<String, dynamic> parsedData = await _parseData(data);
-          streamController.add(parsedData);
+          List<Map<String, dynamic>> parsedData = await _parseData(data);
+          for (var d in parsedData) {
+            streamController.add(d);
+          }
         }
       },
       onError: (error) {
@@ -78,7 +80,7 @@ class V2SensorHandler extends SensorHandler<V2SensorConfig> {
   }
 
    /// Parses raw sensor data bytes into a [Map] of sensor values.
-  Future<Map<String, dynamic>> _parseData(data) async {
+  Future<List<Map<String, dynamic>>> _parseData(data) async {
     ByteData byteData = ByteData.sublistView(Uint8List.fromList(data));
 
     if (_sensorSchemes == null) {
