@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 
-import '../../../open_earable_flutter.dart' show logger;
 import '../sensor_scheme_parser/sensor_scheme_reader.dart';
 import 'sensor_value_parser.dart';
 
@@ -30,47 +29,44 @@ class V2SensorValueParser extends SensorValueParser {
     // Precompute size of one component payload for efficiency.
     final compSizes = scheme.components.map((c) => c.type.size()).toList();
     final payloadSizePerSample = compSizes.fold<int>(0, (a, b) => a + b);
-    final firstSampleSize = 8 + payloadSizePerSample; // absolute timestamp + payload
-    final subsequentSampleSize = 2 + payloadSizePerSample; // u16 offset + payload
+    const timestampSize = 8; // size of absolute timestamp
+    const offsetSize = 2; // size of relative timestamp offset
     const headerSize = 2;
 
-    if (data.lengthInBytes - headerSize - firstSampleSize < 0) {
-      throw FormatException('Truncated frame: need at least $firstSampleSize bytes '
+    if (data.lengthInBytes - headerSize - payloadSizePerSample < 0) {
+      throw FormatException('Truncated frame: need at least ${timestampSize + offsetSize} bytes '
           'for first sample, have ${data.lengthInBytes - headerSize}.');
     }
-    if (((data.lengthInBytes - headerSize - firstSampleSize) % subsequentSampleSize) != 0) {
-      logger.e("Data length not aligned for subsequent samples. "
-          "Data len: ${data.lengthInBytes}, headerSize: $headerSize, firstSampleSize: $firstSampleSize, subsequentSampleSize: $subsequentSampleSize");
-      throw FormatException('Truncated frame: subsequent samples must be '
-          '$subsequentSampleSize bytes each, have ${data.lengthInBytes - headerSize - firstSampleSize}.');
+    if ((data.lengthInBytes - headerSize - timestampSize) != payloadSizePerSample &&
+        (data.lengthInBytes - headerSize - timestampSize - offsetSize) % payloadSizePerSample != 0) {
+      throw FormatException('Truncated frame: have ${data.lengthInBytes - headerSize} bytes, '
+          'which is not consistent with sample size $payloadSizePerSample, timestamp and offset sizes.');
     }
 
-    // Parse first (anchor) sample
-    final results = <Map<String, dynamic>>[];
-    final firstSample = _parseSample(
-      data: data,
-      startIndex: i,
-      scheme: scheme,
-      absoluteTimestamp: baseTimestamp,
-      compSizes: compSizes,
-      hasOffsetPrefix: false,
-    );
-    results.add(firstSample.map);
-    i = firstSample.nextIndex;
+    int dataCount;
+    if (data.lengthInBytes - headerSize - timestampSize == payloadSizePerSample) {
+      dataCount = 1;
+    } else {
+      dataCount = (data.lengthInBytes - headerSize - timestampSize - offsetSize) ~/ payloadSizePerSample;
+    }
+
+    if (dataCount < 1) {
+      throw FormatException('Invalid data count: $dataCount');
+    }
+
+    final int timeDiff = dataCount > 1 ? _getTimeDiff(data) : 0;
+
+    final List<Map<String, dynamic>> results = <Map<String, dynamic>>[];
 
     // Parse additional samples (if any)
-    while (i < data.lengthInBytes) {
-      // If not enough bytes for even the offset + payload, stop gracefully.
-      final remaining = data.lengthInBytes - i;
-      if (remaining < subsequentSampleSize) break;
-
+    for (int sampleIdx = 0; sampleIdx < dataCount; sampleIdx++) {
+      int timeOffset = sampleIdx * timeDiff;
       final sample = _parseSample(
         data: data,
         startIndex: i,
         scheme: scheme,
-        absoluteTimestamp: baseTimestamp,
+        timestamp: baseTimestamp + timeOffset,
         compSizes: compSizes,
-        hasOffsetPrefix: true,
       );
       results.add(sample.map);
       i = sample.nextIndex;
@@ -116,26 +112,20 @@ class _ParsedSample {
   _ParsedSample(this.map, this.nextIndex);
 }
 
+/// Gets the time difference in milliseconds from the given [data] ByteData.
+/// The time diffenrence is stored as a 16-bit unsigned integer at the end of the [data].
+int _getTimeDiff(ByteData data) {
+  return data.getUint16(data.lengthInBytes - 2, Endian.little);
+}
+
 _ParsedSample _parseSample({
   required ByteData data,
   required int startIndex,
   required SensorScheme scheme,
-  required int absoluteTimestamp,
+  required int timestamp,
   required List<int> compSizes,
-  required bool hasOffsetPrefix,
 }) {
   int i = startIndex;
-  late int timestamp;
-
-  if (hasOffsetPrefix) {
-    _requireBytes(data, i, 2, 'timestamp offset');
-    final offset = data.getUint16(i, Endian.little);
-    i += 2;
-    timestamp = absoluteTimestamp + offset;
-  } else {
-    // First sample already read base ts before; here we just reuse it.
-    timestamp = absoluteTimestamp;
-  }
 
   // Prepare output structure
   final out = <String, dynamic>{
