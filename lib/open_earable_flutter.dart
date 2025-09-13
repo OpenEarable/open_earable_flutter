@@ -181,6 +181,10 @@ class WearableManager {
   /// If the device is not supported by any factory, it throws an exception.
   /// If the connection fails, it also throws an exception.
   Future<Wearable> connectToDevice(DiscoveredDevice device) async {
+    if (_connectedIds.contains(device.id)) {
+      logger.w('Device ${device.id} is already connected');
+      throw Exception('Device is already connected');
+    }
     _connectingStreamController.add(device);
 
     WearableDisconnectNotifier disconnectNotifier =
@@ -209,6 +213,8 @@ class WearableManager {
           logger.d("'$wearableFactory' does not support '$device'");
         }
       }
+      _connectedIds.remove(device.id);
+      await _bleManager.disconnect(device.id);
       throw Exception('Device is currently not supported');
     } else {
       throw Exception('Failed to connect to device');
@@ -223,6 +229,9 @@ class WearableManager {
         await _bleManager.getSystemDevices(filterByServices: true);
     List<Wearable> connectedWearables = [];
     for (DiscoveredDevice device in systemDevices) {
+      if (_connectedIds.contains(device.id)) {
+        continue;
+      }
       try {
         Wearable wearable = await connectToDevice(device);
         connectedWearables.add(wearable);
