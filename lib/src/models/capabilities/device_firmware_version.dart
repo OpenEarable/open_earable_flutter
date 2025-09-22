@@ -1,11 +1,18 @@
 import '../../../open_earable_flutter.dart' show logger;
 import 'version_number.dart';
 
+enum FirmwareSupportStatus {
+  supported,
+  tooOld,
+  tooNew,
+  unknown,
+}
+
 abstract class DeviceFirmwareVersion {
   Future<String?> readDeviceFirmwareVersion();
   Future<VersionNumber?> readFirmwareVersionNumber();
 
-  Future<bool> isFirmwareSupported();
+  Future<FirmwareSupportStatus> checkFirmwareSupport();
 }
 
 mixin DeviceFirmwareVersionNumberExt implements DeviceFirmwareVersion {
@@ -22,7 +29,7 @@ mixin DeviceFirmwareVersionNumberExt implements DeviceFirmwareVersion {
   }
 
   @override
-  Future<bool> isFirmwareSupported() async {
-    return true;
+  Future<FirmwareSupportStatus> checkFirmwareSupport() async {
+    return FirmwareSupportStatus.supported;
   }
 }
