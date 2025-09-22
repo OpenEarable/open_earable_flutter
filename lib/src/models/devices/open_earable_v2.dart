@@ -36,6 +36,7 @@ const String _buttonServiceUuid = "29c10bdc-4773-11ee-be56-0242ac120002";
 const String _buttonCharacteristicUuid = "29c10f38-4773-11ee-be56-0242ac120002";
 
 final VersionNumber _maxVersionSupported = VersionNumber.parse("2.1.5");
+final VersionNumber _minVersionSupported = VersionNumber.parse("2.0.0");
 
 // MARK: OpenEarableV2
 
@@ -346,21 +347,20 @@ class OpenEarableV2 extends Wearable
   }
 
   @override
-  Future<bool> isFirmwareSupported() async {
+  Future<FirmwareSupportStatus> checkFirmwareSupport() async {
     final ver = await readFirmwareVersionNumber();
-    if (ver == null) return false;
+    if (ver == null) return FirmwareSupportStatus.unknown;
     try {
-      if (ver.compareTo(_maxVersionSupported) <= 0) {
-        return true;
+      if (ver.compareTo(_maxVersionSupported) > 0) {
+        return FirmwareSupportStatus.tooNew;
+      } else if (ver.compareTo(_minVersionSupported) < 0) {
+        return FirmwareSupportStatus.tooOld;
       } else {
-        logger.w(
-          'Device firmware version $ver is newer than the maximum supported version $_maxVersionSupported',
-        );
-        return false;
+        return FirmwareSupportStatus.supported;
       }
     } catch (e) {
       logger.w('Failed to parse firmware version: $ver, error: $e');
-      return false;
+      return FirmwareSupportStatus.unknown;
     }
   }
 
