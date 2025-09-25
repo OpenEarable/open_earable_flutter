@@ -1,6 +1,10 @@
 import 'package:open_earable_flutter/open_earable_flutter.dart';
 import 'package:universal_ble/universal_ble.dart';
 
+/// Option for connecting to a wearable.
+abstract class ConnectionOption {
+  const ConnectionOption();
+}
 
 /// Abstract factory for creating [Wearable] instances from [DiscoveredDevice]s.
 abstract class WearableFactory {
@@ -15,5 +19,5 @@ abstract class WearableFactory {
   /// Checks if the factory can create a wearable from the given device and services.
   Future<bool> matches(DiscoveredDevice device, List<BleService> services);
   /// Creates a wearable from the given device.
-  Future<Wearable> createFromDevice(DiscoveredDevice device);
+  Future<Wearable> createFromDevice(DiscoveredDevice device, { Set<ConnectionOption> options = const {} });
 }
