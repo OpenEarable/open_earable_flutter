@@ -68,7 +68,8 @@ class OpenEarableV2 extends Wearable
         AudioModeManager,
         EdgeRecorderManager,
         ButtonManager,
-        StereoDevice {
+        StereoDevice,
+        SystemDevice {
   static const String deviceInfoServiceUuid =
       "45622510-6468-465a-b141-0b9b0f96b468";
   static const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
@@ -76,6 +77,10 @@ class OpenEarableV2 extends Wearable
 
   final List<Sensor> _sensors;
   final List<SensorConfiguration> _sensorConfigurations;
+
+  final bool _isConnectedViaSystem;
+  @override
+  bool get isConnectedViaSystem => _isConnectedViaSystem;
 
   @override
   Stream<Map<SensorConfiguration, SensorConfigurationValue>>
@@ -257,10 +262,12 @@ class OpenEarableV2 extends Wearable
     required DiscoveredDevice discoveredDevice,
     this.availableMicrophones = const {},
     this.availableAudioModes = const {},
+    bool isConnectedViaSystem = false,
   })  : _sensors = sensors,
         _sensorConfigurations = sensorConfigurations,
         _bleManager = bleManager,
-        _discoveredDevice = discoveredDevice;
+        _discoveredDevice = discoveredDevice,
+        _isConnectedViaSystem = isConnectedViaSystem;
 
   @override
   String get deviceId => _discoveredDevice.id;

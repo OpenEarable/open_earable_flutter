@@ -15,6 +15,7 @@ import '../capabilities/sensor_configuration.dart';
 import '../capabilities/sensor_configuration_specializations/recordable_sensor_configuration.dart';
 import '../capabilities/sensor_configuration_specializations/sensor_configuration_open_earable_v2.dart';
 import '../capabilities/sensor_configuration_specializations/streamable_sensor_configuration.dart';
+import '../capabilities/system_device.dart';
 import 'discovered_device.dart';
 import 'open_earable_v1.dart';
 import 'open_earable_v2.dart';
@@ -84,6 +85,7 @@ class OpenEarableFactory extends WearableFactory {
           const TransparencyMode(),
           const NoiseCancellationMode(),
         },
+        isConnectedViaSystem: options.contains(const ConnectedViaSystem()),
       );
     } else {
       throw Exception('OpenEarable version is not supported');
