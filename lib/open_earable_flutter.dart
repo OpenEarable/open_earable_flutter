@@ -16,6 +16,7 @@ import 'src/managers/ble_manager.dart';
 import 'src/managers/pairing_manager.dart';
 import 'src/managers/wearable_disconnect_notifier.dart';
 import 'src/models/capabilities/stereo_device.dart';
+import 'src/models/capabilities/system_device.dart';
 import 'src/models/devices/discovered_device.dart';
 import 'src/models/devices/wearable.dart';
 
@@ -59,6 +60,7 @@ export 'src/models/devices/stereo_pairing/pairing_rule.dart';
 export 'src/models/capabilities/edge_recorder_manager.dart';
 export 'src/models/capabilities/button_manager.dart';
 export 'src/models/wearable_factory.dart';
+export 'src/models/capabilities/system_device.dart';
 export 'src/managers/ble_gatt_manager.dart';
 
 export 'src/models/capabilities/version_number.dart';
@@ -200,7 +202,7 @@ class WearableManager {
         wearableFactory.disconnectNotifier = disconnectNotifier;
         logger.t("checking factory: $wearableFactory");
         if (await wearableFactory.matches(device, connectionResult.$2)) {
-          Wearable wearable = await wearableFactory.createFromDevice(device);
+          Wearable wearable = await wearableFactory.createFromDevice(device, options: options);
 
           _connectedIds.add(device.id);
           wearable.addDisconnectListener(() {
@@ -233,7 +235,7 @@ class WearableManager {
         continue;
       }
       try {
-        Wearable wearable = await connectToDevice(device);
+        Wearable wearable = await connectToDevice(device, options: {const ConnectedViaSystem()});
         connectedWearables.add(wearable);
       } catch (e) {
         logger.e('Failed to connect to system device ${device.id}: $e');
