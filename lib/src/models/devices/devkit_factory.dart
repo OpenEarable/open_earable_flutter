@@ -16,7 +16,7 @@ class DevKitFactory extends WearableFactory {
   }
 
   @override
-  Future<Wearable> createFromDevice(DiscoveredDevice device) async {
+  Future<Wearable> createFromDevice(DiscoveredDevice device, { Set<ConnectionOption> options = const {} }) async {
     if (bleManager == null) {
       throw Exception("bleManager needs to be set before using the factory");
     }

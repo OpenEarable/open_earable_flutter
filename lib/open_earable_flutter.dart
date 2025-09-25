@@ -180,7 +180,7 @@ class WearableManager {
   /// connected wearables list.
   /// If the device is not supported by any factory, it throws an exception.
   /// If the connection fails, it also throws an exception.
-  Future<Wearable> connectToDevice(DiscoveredDevice device) async {
+  Future<Wearable> connectToDevice(DiscoveredDevice device, { Set<ConnectionOption> options = const {}}) async {
     if (_connectedIds.contains(device.id)) {
       logger.w('Device ${device.id} is already connected');
       throw Exception('Device is already connected');
