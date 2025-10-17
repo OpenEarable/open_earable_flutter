@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:open_earable_flutter/src/models/devices/tau_ring.dart';
+
 import '../../open_earable_flutter.dart';
-import '../constants.dart';
 import 'sensor_handler.dart';
 import '../utils/sensor_value_parser/sensor_value_parser.dart';
 
@@ -31,10 +32,9 @@ class TauSensorHandler extends SensorHandler<TauSensorConfig> {
     _bleManager
         .subscribe(
       deviceId: _discoveredDevice.id,
-      serviceId: sensorServiceUuid,
-      characteristicId: sensorDataCharacteristicUuid,
-    )
-        .listen(
+      serviceId: TauRingGatt.service,
+      characteristicId: TauRingGatt.rxChar,
+    ).listen(
       (data) async {
         if (data.isNotEmpty && data[2] == sensorId) {
           Map<String, dynamic> parsedData = await _parseData(data);
@@ -51,8 +51,18 @@ class TauSensorHandler extends SensorHandler<TauSensorConfig> {
 
   @override
   Future<void> writeSensorConfig(TauSensorConfig sensorConfig) async {
-    //TODO: implement
-    throw UnimplementedError();
+    if (!_bleManager.isConnected(_discoveredDevice.id)) {
+      Exception("Can't write sensor config. Earable not connected");
+    }
+
+    Uint8List sensorConfigBytes = sensorConfig.toBytes();
+
+    await _bleManager.write(
+      deviceId: _discoveredDevice.id,
+      serviceId: TauRingGatt.service,
+      characteristicId: TauRingGatt.txChar,
+      byteData: sensorConfigBytes,
+    );
   }
 
    /// Parses raw sensor data bytes into a [Map] of sensor values.
@@ -64,8 +74,22 @@ class TauSensorHandler extends SensorHandler<TauSensorConfig> {
 }
 
 class TauSensorConfig extends SensorConfig {
-  //TODO: implement
+  int cmd;
+  int subOpcode;
+
+  TauSensorConfig({
+    required this.cmd,
+    required this.subOpcode,
+  });
+
   Uint8List toBytes() {
-    throw UnimplementedError();
+    int randomByte = DateTime.now().microsecondsSinceEpoch & 0xFF;
+
+    return Uint8List.fromList([
+      0x00,
+      randomByte,
+      cmd,
+      subOpcode,
+    ]);
   }
 }
