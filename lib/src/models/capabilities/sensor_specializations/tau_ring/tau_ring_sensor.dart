@@ -38,12 +38,12 @@ class TauRingSensor extends Sensor<SensorIntValue> {
         int timestamp = data["timestamp"];
 
         List<int> values = [];
-        for (var entry in (data as Map).entries) {
+        for (var entry in (data[sensorName] as Map).entries) {
           if (entry.key == 'units') {
             continue;
           }
 
-          values.add(entry.value.toDouble());
+          values.add(entry.value);
         }
 
         SensorIntValue sensorValue = SensorIntValue(
