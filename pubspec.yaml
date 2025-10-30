@@ -38,6 +38,7 @@ dependencies:
   uuid: ^4.2.1
   bloc: ^8.1.4
   meta: ^1.16.0
+  pub_semver: ^2.2.0
 
 dev_dependencies:
   flutter_test:
