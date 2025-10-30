@@ -3,8 +3,9 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:open_earable_flutter/src/constants.dart';
+import 'package:pub_semver/pub_semver.dart';
 
-import '../../../open_earable_flutter.dart';
+import '../../../open_earable_flutter.dart' hide Version;
 import '../../managers/v2_sensor_handler.dart';
 import '../capabilities/device_firmware_version.dart';
 import '../capabilities/sensor_configuration_specializations/sensor_configuration_open_earable_v2.dart';
@@ -35,8 +36,7 @@ const String _audioModeCharacteristicUuid =
 const String _buttonServiceUuid = "29c10bdc-4773-11ee-be56-0242ac120002";
 const String _buttonCharacteristicUuid = "29c10f38-4773-11ee-be56-0242ac120002";
 
-final VersionNumber _maxVersionSupported = VersionNumber.parse("2.1.5");
-final VersionNumber _minVersionSupported = VersionNumber.parse("2.0.0");
+final VersionConstraint _versionConstraint = VersionConstraint.parse("<2.2.0");
 
 // MARK: OpenEarableV2
 
@@ -354,22 +354,7 @@ class OpenEarableV2 extends Wearable
   }
 
   @override
-  Future<FirmwareSupportStatus> checkFirmwareSupport() async {
-    final ver = await readFirmwareVersionNumber();
-    if (ver == null) return FirmwareSupportStatus.unknown;
-    try {
-      if (ver.compareTo(_maxVersionSupported) > 0) {
-        return FirmwareSupportStatus.tooNew;
-      } else if (ver.compareTo(_minVersionSupported) < 0) {
-        return FirmwareSupportStatus.tooOld;
-      } else {
-        return FirmwareSupportStatus.supported;
-      }
-    } catch (e) {
-      logger.w('Failed to parse firmware version: $ver, error: $e');
-      return FirmwareSupportStatus.unknown;
-    }
-  }
+  VersionConstraint get supportedFirmwareRange => _versionConstraint;
 
   /// Reads the device hardware version from the connected OpenEarable device.
   ///
