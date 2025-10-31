@@ -6,7 +6,7 @@ abstract class SensorSchemeReader {
 
 /// Represents a sensor component with its type, group name, component name, and unit name.
 class Component {
-  int type;
+  ParseType type;
   String groupName;
   String componentName;
   String unitName;
@@ -36,7 +36,41 @@ class SensorScheme {
   }
 }
 
-enum ParseType { int8, uint8, int16, uint16, int32, uint32, float, double }
+enum ParseType {
+  int8,
+  uint8,
+  int16,
+  uint16,
+  int32,
+  uint32,
+  float,
+  double;
+
+  /// Constructs a [ParseType] from an integer value.
+  static ParseType fromInt(int value) {
+    if (value < 0 || value >= ParseType.values.length) {
+      throw ArgumentError('Invalid ParseType value: $value');
+    }
+    return ParseType.values[value];
+  }
+
+  int size() {
+    switch (this) {
+      case ParseType.int8:
+      case ParseType.uint8:
+        return 1;
+      case ParseType.int16:
+      case ParseType.uint16:
+        return 2;
+      case ParseType.int32:
+      case ParseType.uint32:
+      case ParseType.float:
+        return 4;
+      case ParseType.double:
+        return 8;
+    }
+  }
+}
 
 enum SensorConfigFeatures {
   streaming(0x01),
