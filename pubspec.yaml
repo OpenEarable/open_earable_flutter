@@ -1,6 +1,6 @@
 name: open_earable_flutter
 description: This package provides functionality for interacting with OpenEarable devices. Control LED colors, control audio, and access raw sensor data.
-version: 0.1.0
+version: 2.2.0
 repository: https://github.com/OpenEarable/open_earable_flutter/tree/main
 
 platforms:

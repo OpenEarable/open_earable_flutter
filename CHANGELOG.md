@@ -22,3 +22,8 @@ README updates (example web app) and add supported platforms.
 
 * Create new lib structure
 * Support more devices: Polar devices, Cosinuss One, OpenEarable v2
+
+## 2.2.0
+
+* Fixed a lot of bugs
+* added functionality
