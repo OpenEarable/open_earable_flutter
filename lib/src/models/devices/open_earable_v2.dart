@@ -36,7 +36,7 @@ const String _audioModeCharacteristicUuid =
 const String _buttonServiceUuid = "29c10bdc-4773-11ee-be56-0242ac120002";
 const String _buttonCharacteristicUuid = "29c10f38-4773-11ee-be56-0242ac120002";
 
-final VersionConstraint _versionConstraint = VersionConstraint.parse(">=2.2.0 <2.3.0");
+final VersionConstraint _versionConstraint = VersionConstraint.parse(">=2.1.0 <2.3.0");
 
 // MARK: OpenEarableV2
 
