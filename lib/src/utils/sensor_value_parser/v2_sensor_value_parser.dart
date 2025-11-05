@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import '../sensor_scheme_parser/sensor_scheme_reader.dart';
 import 'sensor_value_parser.dart';
 
+const int _boneAccelSensorId = 0x07;
+
 class V2SensorValueParser extends SensorValueParser {
   @override
   List<Map<String, dynamic>> parse(ByteData data, List<SensorScheme> sensorSchemes) {
@@ -39,8 +41,25 @@ class V2SensorValueParser extends SensorValueParser {
     }
     if ((data.lengthInBytes - headerSize - timestampSize) != payloadSizePerSample &&
         (data.lengthInBytes - headerSize - timestampSize - offsetSize) % payloadSizePerSample != 0) {
-      throw FormatException('Truncated frame: have ${data.lengthInBytes - headerSize} bytes, '
-          'which is not consistent with sample size $payloadSizePerSample, timestamp and offset sizes.');
+      if (sensorId == _boneAccelSensorId) {
+        final fixedBytes = Uint8List(data.lengthInBytes + 2);
+        // Bulk-copy existing bytes
+        fixedBytes.setRange(
+          0,
+          data.lengthInBytes,
+          data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+        );
+        // Get a ByteData view and append the little-endian uint16(1)
+        final fixedData = fixedBytes.buffer.asByteData();
+        fixedData.setUint16(data.lengthInBytes, 1, Endian.little);
+
+        data = fixedData;
+      }
+      if ((data.lengthInBytes - headerSize - timestampSize) != payloadSizePerSample &&
+        (data.lengthInBytes - headerSize - timestampSize - offsetSize) % payloadSizePerSample != 0) {
+        throw FormatException('Truncated frame: have ${data.lengthInBytes - headerSize} bytes, '
+            'which is not consistent with sample size $payloadSizePerSample, timestamp and offset sizes.');
+      }
     }
 
     int dataCount;
