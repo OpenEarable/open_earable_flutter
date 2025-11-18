@@ -132,17 +132,23 @@ class BleManager extends BleGattManager {
         await UniversalBle.stopScan();
 
         UniversalBle.onScanResult = (bleDevice) {
-          _scanStreamController?.add(
-            DiscoveredDevice(
-              id: bleDevice.deviceId,
-              name: bleDevice.name ?? "",
-              manufacturerData:
-                  bleDevice.manufacturerDataList.firstOrNull?.toUint8List() ??
-                      Uint8List.fromList([]),
-              rssi: bleDevice.rssi ?? -1,
-              serviceUuids: bleDevice.services,
-            ),
-          );
+          if (!filterByServices ||
+              bleDevice.services.any(
+                (uuid) =>
+                    uuid.toLowerCase() == deviceInfoServiceUuid.toLowerCase(),
+              )) {
+            _scanStreamController?.add(
+              DiscoveredDevice(
+                id: bleDevice.deviceId,
+                name: bleDevice.name ?? "",
+                manufacturerData:
+                    bleDevice.manufacturerDataList.firstOrNull?.toUint8List() ??
+                        Uint8List.fromList([]),
+                rssi: bleDevice.rssi ?? -1,
+                serviceUuids: bleDevice.services,
+              ),
+            );
+          }
         };
 
         if (!kIsWeb) {
@@ -152,13 +158,6 @@ class BleManager extends BleGattManager {
             _scanStreamController?.add(device);
           }
         }
-
-        await UniversalBle.startScan(
-          scanFilter: ScanFilter(
-            // Needs to be passed for web, can be empty for the rest
-            withServices: (kIsWeb || filterByServices) ? allServiceUuids : [],
-          ),
-        );
       }
       _firstScan = false;
     }
@@ -179,10 +178,16 @@ class BleManager extends BleGattManager {
     if (kIsWeb) {
       throw Exception("getSystemDevices is not supported on web");
     }
-    return UniversalBle.getSystemDevices(
-      withServices: filterByServices ? allServiceUuids : [],
-    ).then((devices) {
-      return devices.map((device) {
+    return UniversalBle.getSystemDevices().then((devices) {
+      return devices
+          .where(
+        (device) => (!filterByServices ||
+            device.services.any(
+              (uuid) =>
+                  uuid.toLowerCase() == deviceInfoServiceUuid.toLowerCase(),
+            )),
+      )
+          .map((device) {
         return DiscoveredDevice(
           id: device.deviceId,
           name: device.name ?? "",
