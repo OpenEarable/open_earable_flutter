@@ -158,6 +158,7 @@ class BleManager extends BleGattManager {
             _scanStreamController?.add(device);
           }
         }
+        await UniversalBle.startScan();
       }
       _firstScan = false;
     }
