@@ -4,8 +4,7 @@ import 'package:open_earable_flutter/open_earable_flutter.dart';
 class StoragePathAudioPlayerWidget extends StatefulWidget {
   final StoragePathAudioPlayer audioPlayer;
 
-  const StoragePathAudioPlayerWidget({Key? key, required this.audioPlayer})
-      : super(key: key);
+  const StoragePathAudioPlayerWidget({super.key, required this.audioPlayer});
 
   @override
   State<StoragePathAudioPlayerWidget> createState() =>

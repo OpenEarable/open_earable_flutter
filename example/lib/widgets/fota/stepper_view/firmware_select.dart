@@ -5,7 +5,7 @@ import '../firmware_select/firmware_list.dart';
 import 'package:open_earable_flutter/open_earable_flutter.dart';
 
 class FirmwareSelect extends StatelessWidget {
-  const FirmwareSelect({Key? key}) : super(key: key);
+  const FirmwareSelect({super.key});
 
   @override
   Widget build(BuildContext context) {

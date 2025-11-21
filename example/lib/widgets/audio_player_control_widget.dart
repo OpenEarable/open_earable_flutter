@@ -4,8 +4,7 @@ import 'package:open_earable_flutter/open_earable_flutter.dart';
 class AudioPlayerControlWidget extends StatelessWidget {
   final AudioPlayerControls audioPlayerControls;
 
-  const AudioPlayerControlWidget({Key? key, required this.audioPlayerControls})
-      : super(key:key);
+  const AudioPlayerControlWidget({super.key, required this.audioPlayerControls});
 
   @override
   Widget build(BuildContext context) {

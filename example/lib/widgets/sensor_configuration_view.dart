@@ -4,8 +4,7 @@ import 'package:open_earable_flutter/open_earable_flutter.dart';
 class SensorConfigurationView extends StatefulWidget {
   final SensorConfiguration configuration;
 
-  const SensorConfigurationView({Key? key, required this.configuration})
-      : super(key: key);
+  const SensorConfigurationView({super.key, required this.configuration});
 
   static List<SensorConfigurationView>? createSensorConfigurationViews(
       Wearable wearable) {

@@ -4,7 +4,7 @@ import 'package:open_earable_flutter/open_earable_flutter.dart';
 class SensorView extends StatelessWidget {
   final Sensor sensor;
 
-  const SensorView({Key? key, required this.sensor}) : super(key: key);
+  const SensorView({super.key, required this.sensor});
 
   static List<SensorView>? createSensorViews(Wearable wearable) {
     if (wearable is SensorManager) {
