@@ -248,12 +248,11 @@ class BleManager extends BleGattManager {
     if (!isConnected(deviceId)) {
       throw Exception("Write failed because no Earable is connected");
     }
-    await UniversalBle.writeValue(
+    await UniversalBle.write(
       deviceId,
       serviceId,
       characteristicId,
       Uint8List.fromList(byteData),
-      BleOutputProperty.withResponse,
     );
   }
 
@@ -267,11 +266,10 @@ class BleManager extends BleGattManager {
     final streamController = StreamController<List<int>>();
     String streamIdentifier = _getCharacteristicKey(deviceId, characteristicId);
     if (!_streamControllers.containsKey(streamIdentifier)) {
-      UniversalBle.setNotifiable(
+      UniversalBle.subscribeNotifications(
         deviceId,
         serviceId,
         characteristicId,
-        BleInputProperty.notification,
       );
       _streamControllers[streamIdentifier] = [streamController];
     } else {
@@ -282,11 +280,10 @@ class BleManager extends BleGattManager {
       if (_streamControllers.containsKey(streamIdentifier)) {
         _streamControllers[streamIdentifier]!.remove(streamController);
         if (_streamControllers[streamIdentifier]!.isEmpty) {
-          UniversalBle.setNotifiable(
+          UniversalBle.unsubscribe(
             deviceId,
             serviceId,
             characteristicId,
-            BleInputProperty.disabled,
           );
           _streamControllers.remove(streamIdentifier);
         }
@@ -307,7 +304,7 @@ class BleManager extends BleGattManager {
       throw Exception("Read failed because no Earable is connected");
     }
 
-    final response = await UniversalBle.readValue(
+    final response = await UniversalBle.read(
       deviceId,
       serviceId,
       characteristicId,

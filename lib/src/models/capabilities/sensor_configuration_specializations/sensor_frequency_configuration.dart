@@ -4,14 +4,11 @@ abstract class SensorFrequencyConfiguration<
         SFC extends SensorFrequencyConfigurationValue>
     extends SensorConfiguration<SFC> {
   const SensorFrequencyConfiguration({
-    required String name,
-    required List<SFC> values,
-    SFC? offValue,
+    required super.name,
+    required super.values,
+    super.offValue,
   }) : super(
-          name: name,
-          values: values,
           unit: "Hz",
-          offValue: offValue,
         );
 
   @override

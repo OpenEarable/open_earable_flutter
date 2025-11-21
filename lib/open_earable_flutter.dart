@@ -1,4 +1,4 @@
-library open_earable_flutter;
+library;
 
 import 'dart:async';
 

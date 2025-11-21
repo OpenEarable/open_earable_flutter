@@ -244,23 +244,19 @@ class _OpenEarableSensorV2 extends Sensor<SensorDoubleValue> {
 
   _OpenEarableSensorV2({
     required int sensorId,
-    required String sensorName,
-    required String chartTitle,
-    required String shortChartTitle,
+    required super.sensorName,
+    required super.chartTitle,
+    required super.shortChartTitle,
     required List<String> axisNames,
     required List<String> axisUnits,
     required SensorHandler sensorManager,
-    List<SensorConfiguration> relatedConfigurations = const [],
+    super.relatedConfigurations,
   })  : _sensorId = sensorId,
         _axisNames = axisNames,
         _axisUnits = axisUnits,
         _sensorManager = sensorManager,
         super(
-          sensorName: sensorName,
-          chartTitle: chartTitle,
-          shortChartTitle: shortChartTitle,
           timestampExponent: -6,
-          relatedConfigurations: relatedConfigurations,
         );
 
   @override

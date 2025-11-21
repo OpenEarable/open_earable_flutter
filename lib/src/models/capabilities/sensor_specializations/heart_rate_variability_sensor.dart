@@ -127,11 +127,10 @@ class HeartRateVariabilitySensorValue extends SensorDoubleValue {
     required List<int> rrIntervalsMs,
     required this.rmssd,
     required this.sdnn,
-    required int timestamp,
+    required super.timestamp,
   })  : _rrIntervalsMs = rrIntervalsMs,
         super(
           values: [rmssd, sdnn],
-          timestamp: timestamp,
         );
 
   /// Get the latest new rr intervals in milliseconds

@@ -434,22 +434,16 @@ class _OpenEarableSensor extends Sensor<SensorDoubleValue> {
   final OpenEarableSensorHandler _sensorManager;
 
   _OpenEarableSensor({
-    required String sensorName,
-    required String chartTitle,
-    required String shortChartTitle,
+    required super.sensorName,
+    required super.chartTitle,
+    required super.shortChartTitle,
     required List<String> axisNames,
     required List<String> axisUnits,
     required OpenEarableSensorHandler sensorManager,
-    required List<SensorConfiguration> relatedConfigurations,
+    required super.relatedConfigurations,
   })  : _axisNames = axisNames,
         _axisUnits = axisUnits,
-        _sensorManager = sensorManager,
-        super(
-          sensorName: sensorName,
-          chartTitle: chartTitle,
-          shortChartTitle: shortChartTitle,
-          relatedConfigurations: relatedConfigurations,
-        );
+        _sensorManager = sensorManager;
 
   @override
   List<String> get axisNames => _axisNames;
