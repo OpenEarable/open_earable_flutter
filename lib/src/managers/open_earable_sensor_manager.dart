@@ -138,7 +138,7 @@ class OpenEarableSensorHandler extends SensorHandler<OpenEarableSensorConfig> {
   }
 
   /// Parses raw sensor data bytes into a [Map] of sensor values.
-  Future<List<Map<String, dynamic>>> _parseData(data) async {
+  Future<List<Map<String, dynamic>>> _parseData(List<int> data) async {
     ByteData byteData = ByteData.sublistView(Uint8List.fromList(data));
     
     return _sensorValueParser.parse(byteData, _sensorSchemes!);

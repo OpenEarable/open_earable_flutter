@@ -80,7 +80,7 @@ class V2SensorHandler extends SensorHandler<V2SensorConfig> {
   }
 
    /// Parses raw sensor data bytes into a [Map] of sensor values.
-  Future<List<Map<String, dynamic>>> _parseData(data) async {
+  Future<List<Map<String, dynamic>>> _parseData(List<int> data) async {
     ByteData byteData = ByteData.sublistView(Uint8List.fromList(data));
 
     if (_sensorSchemes == null) {

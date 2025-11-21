@@ -170,9 +170,9 @@ class _CosinussOneSensor extends Sensor<SensorDoubleValue> {
   final DiscoveredDevice _discoveredDevice;
 
   _CosinussOneSensor({
-    required String sensorName,
-    required String chartTitle,
-    required String shortChartTitle,
+    required super.sensorName,
+    required super.chartTitle,
+    required super.shortChartTitle,
     required List<String> axisNames,
     required List<String> axisUnits,
     required BleGattManager bleManager,
@@ -180,12 +180,7 @@ class _CosinussOneSensor extends Sensor<SensorDoubleValue> {
   })  : _axisNames = axisNames,
         _axisUnits = axisUnits,
         _bleManager = bleManager,
-        _discoveredDevice = discoveredDevice,
-        super(
-          sensorName: sensorName,
-          chartTitle: chartTitle,
-          shortChartTitle: shortChartTitle,
-        );
+        _discoveredDevice = discoveredDevice;
 
   @override
   List<String> get axisNames => _axisNames;

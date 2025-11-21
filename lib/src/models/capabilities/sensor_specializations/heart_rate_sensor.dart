@@ -25,10 +25,9 @@ abstract class HeartRateSensor extends Sensor<HeartRateSensorValue> {
 class HeartRateSensorValue extends SensorIntValue {
   HeartRateSensorValue({
     required int heartRateBpm,
-    required int timestamp,
+    required super.timestamp,
   }) : super(
           values: [heartRateBpm],
-          timestamp: timestamp,
         );
 
   int get heartRateBpm => values.first;

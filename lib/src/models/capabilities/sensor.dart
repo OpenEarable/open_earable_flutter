@@ -72,10 +72,9 @@ class SensorDoubleValue extends SensorValue {
 
   const SensorDoubleValue({
     required this.values,
-    required int timestamp,
+    required super.timestamp,
   })  : super(
           valueStrings: const [],
-          timestamp: timestamp,
         );
 
   @override
@@ -91,10 +90,9 @@ class SensorIntValue extends SensorValue {
 
   const SensorIntValue({
     required this.values,
-    required int timestamp,
+    required super.timestamp,
   })  : super(
     valueStrings: const [],
-    timestamp: timestamp,
   );
 
   @override

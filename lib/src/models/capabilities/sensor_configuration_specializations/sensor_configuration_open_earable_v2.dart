@@ -18,20 +18,15 @@ class SensorConfigurationOpenEarableV2 extends SensorFrequencyConfiguration<Sens
   Set<SensorConfigurationOption> get availableOptions => _availableOptions;
 
   SensorConfigurationOpenEarableV2({
-    required String name,
+    required super.name,
     required this.sensorId,
-    required List<SensorConfigurationOpenEarableV2Value> values,
+    required super.values,
     required this.maxStreamingFreqIndex,
     required V2SensorHandler sensorHandler,
     Set<SensorConfigurationOption> availableOptions = const {},
-    SensorConfigurationOpenEarableV2Value? offValue,
+    super.offValue,
   })  : _sensorHandler = sensorHandler,
-        _availableOptions = availableOptions,
-        super(
-          name: name,
-          values: values,
-          offValue: offValue,
-        );
+        _availableOptions = availableOptions;
 
   @override
   String toString() {
@@ -159,10 +154,10 @@ class SensorConfigurationOpenEarableV2Value
   final Set<SensorConfigurationOption> options;
 
   SensorConfigurationOpenEarableV2Value({
-    required double frequencyHz,
+    required super.frequencyHz,
     required this.frequencyIndex,
     this.options = const {},
-  }) : super(frequencyHz: frequencyHz, key: "${frequencyHz.toString()} ${_optionsToString(options)}");
+  }) : super(key: "${frequencyHz.toString()} ${_optionsToString(options)}");
 
   @override
   String toString() {
