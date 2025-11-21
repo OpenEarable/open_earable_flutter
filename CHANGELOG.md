@@ -31,3 +31,7 @@ README updates (example web app) and add supported platforms.
 ## 2.2.1
 
 * reintroduced support for OpenEarable on Firmware 2.1.*
+
+## 2.2.2
+
+* upgraded dependencies to newest versions
