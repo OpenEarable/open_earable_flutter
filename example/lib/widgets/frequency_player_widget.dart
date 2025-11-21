@@ -4,8 +4,7 @@ import 'package:open_earable_flutter/open_earable_flutter.dart';
 class FrequencyPlayerWidget extends StatefulWidget {
   final FrequencyPlayer frequencyPlayer;
 
-  const FrequencyPlayerWidget({Key? key, required this.frequencyPlayer})
-      : super(key:key);
+  const FrequencyPlayerWidget({super.key, required this.frequencyPlayer});
 
   @override
   State<FrequencyPlayerWidget> createState() => _FrequencyPlayerWidgetState();

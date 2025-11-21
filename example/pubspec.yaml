@@ -35,7 +35,7 @@ dependencies:
   open_earable_flutter:
     path: ../
   
-  permission_handler: ^11.3.1
+  permission_handler: ^12.0.1
 
 
   # The following adds the Cupertino Icons font to your application.
@@ -43,12 +43,12 @@ dependencies:
   cupertino_icons: ^1.0.2
   flutter_colorpicker: ^1.1.0
   meta: ^1.16.0
-  bloc: ^8.1.4
+  bloc: ^9.1.0
   flutter_svg: ^2.0.17
   provider: ^6.1.5
-  file_picker: ^8.3.7
-  mcumgr_flutter: ^0.4.2
-  flutter_bloc: ^8.1.6
+  file_picker: ^10.3.7
+  mcumgr_flutter: ^0.6.1
+  flutter_bloc: ^9.1.1
 
 dev_dependencies:
   flutter_test:
@@ -59,7 +59,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^2.0.0
+  flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

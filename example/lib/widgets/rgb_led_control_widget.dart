@@ -6,7 +6,7 @@ class RgbLedControlWidget extends StatefulWidget {
   final RgbLed rgbLed;
   final StatusLed? statusLed;
 
-  const RgbLedControlWidget({Key? key, required this.rgbLed, this.statusLed}) : super(key: key);
+  const RgbLedControlWidget({super.key, required this.rgbLed, this.statusLed});
 
   @override
   State<RgbLedControlWidget> createState() => _RgbLedControlWidgetState();

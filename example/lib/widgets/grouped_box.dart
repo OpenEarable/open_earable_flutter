@@ -5,10 +5,10 @@ class GroupedBox extends StatelessWidget {
   final Widget child;
 
   const GroupedBox({
-    Key? key,
+    super.key,
     required this.title,
     required this.child,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -4,8 +4,7 @@ import 'package:open_earable_flutter/open_earable_flutter.dart';
 class JinglePlayerWidget extends StatefulWidget {
   final JinglePlayer jinglePlayer;
 
-  const JinglePlayerWidget({Key? key, required this.jinglePlayer})
-      : super(key:key);
+  const JinglePlayerWidget({super.key, required this.jinglePlayer});
 
   @override
   State<JinglePlayerWidget> createState() => _JinglePlayerWidgetState();
