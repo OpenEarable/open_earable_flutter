@@ -36,7 +36,8 @@ const String _audioModeCharacteristicUuid =
 const String _buttonServiceUuid = "29c10bdc-4773-11ee-be56-0242ac120002";
 const String _buttonCharacteristicUuid = "29c10f38-4773-11ee-be56-0242ac120002";
 
-final VersionConstraint _versionConstraint = VersionConstraint.parse(">=2.1.0 <2.3.0");
+final VersionConstraint _versionConstraint =
+    VersionConstraint.parse(">=2.1.0 <2.3.0");
 
 // MARK: OpenEarableV2
 
@@ -91,11 +92,13 @@ class OpenEarableV2 extends Wearable
 
     _sensorConfigSubscription?.cancel();
 
-    _sensorConfigSubscription = _bleManager.subscribe(
+    _sensorConfigSubscription = _bleManager
+        .subscribe(
       deviceId: deviceId,
       serviceId: sensorServiceUuid,
       characteristicId: sensorConfigStateCharacteristicUuid,
-    ).listen(
+    )
+        .listen(
       (data) {
         controller.add(_parseConfigMap(data));
       },
@@ -112,11 +115,13 @@ class OpenEarableV2 extends Wearable
 
     controller.onListen = () {
       // Immediately read the current sensor configuration
-      _bleManager.read(
+      _bleManager
+          .read(
         deviceId: deviceId,
         serviceId: sensorServiceUuid,
         characteristicId: sensorConfigStateCharacteristicUuid,
-      ).then((data) {
+      )
+          .then((data) {
         controller.add(_parseConfigMap(data));
       }).catchError((error) {
         logger.e('Error reading initial sensor configuration: $error');
@@ -126,13 +131,14 @@ class OpenEarableV2 extends Wearable
     return controller.stream;
   }
 
-  Map<SensorConfiguration, SensorConfigurationValue> _parseConfigMap(List<int> data) {
+  Map<SensorConfiguration, SensorConfigurationValue> _parseConfigMap(
+      List<int> data) {
     List<V2SensorConfig> sensorConfigs =
         V2SensorConfig.listFromBytes(Uint8List.fromList(data));
     logger.d('Received sensor configuration data: $sensorConfigs');
-    
+
     Map<SensorConfiguration, SensorConfigurationValue> sensorConfigMap = {};
-    
+
     for (V2SensorConfig sensorConfig in sensorConfigs) {
       // Find the matching sensor configuration
       SensorConfiguration? matchingConfig = _sensorConfigurations.where(
@@ -143,16 +149,15 @@ class OpenEarableV2 extends Wearable
           return false;
         },
       ).firstOrNull;
-    
+
       if (matchingConfig == null) {
         logger.w(
           'No matching sensor configuration found for ID: ${sensorConfig.sensorId}',
         );
         continue;
       }
-    
-      SensorConfigurationValue? sensorConfigValue =
-          matchingConfig.values.where(
+
+      SensorConfigurationValue? sensorConfigValue = matchingConfig.values.where(
         (value) {
           if (value is SensorConfigurationOpenEarableV2Value) {
             return value.frequencyIndex == sensorConfig.sampleRateIndex &&
@@ -162,7 +167,7 @@ class OpenEarableV2 extends Wearable
           return false;
         },
       ).firstOrNull;
-    
+
       if (sensorConfigValue == null) {
         logger.w(
           'No matching sensor configuration value found for sensor ID: ${sensorConfig.sensorId}',
@@ -171,7 +176,7 @@ class OpenEarableV2 extends Wearable
       }
       sensorConfigMap[matchingConfig] = sensorConfigValue;
     }
-    
+
     return sensorConfigMap;
   }
 
@@ -198,16 +203,17 @@ class OpenEarableV2 extends Wearable
 
   @override
   Stream<ButtonEvent> get buttonEvents {
-    StreamController<ButtonEvent> controller =
-        StreamController<ButtonEvent>();
+    StreamController<ButtonEvent> controller = StreamController<ButtonEvent>();
 
     _buttonSubscription?.cancel();
 
-    _buttonSubscription = _bleManager.subscribe(
+    _buttonSubscription = _bleManager
+        .subscribe(
       deviceId: deviceId,
       serviceId: _buttonServiceUuid,
       characteristicId: _buttonCharacteristicUuid,
-    ).listen(
+    )
+        .listen(
       (data) {
         if (data.isNotEmpty) {
           int buttonState = data[0];
@@ -231,11 +237,13 @@ class OpenEarableV2 extends Wearable
 
     controller.onListen = () {
       // Immediately read current button state
-      _bleManager.read(
+      _bleManager
+          .read(
         deviceId: deviceId,
         serviceId: _buttonServiceUuid,
         characteristicId: _buttonCharacteristicUuid,
-      ).then((data) {
+      )
+          .then((data) {
         if (data.isNotEmpty) {
           int buttonState = data[0];
           if (buttonState == 0) {
@@ -750,15 +758,15 @@ class OpenEarableV2 extends Wearable
     List<int> positionBytes;
     try {
       positionBytes = await _bleManager.read(
-      deviceId: deviceId,
-      serviceId: "1410df95-5f68-4ebb-a7c7-5e0fb9ae7557",
-      characteristicId: "1410df98-5f68-4ebb-a7c7-5e0fb9ae7557",
-    );
+        deviceId: deviceId,
+        serviceId: "1410df95-5f68-4ebb-a7c7-5e0fb9ae7557",
+        characteristicId: "1410df98-5f68-4ebb-a7c7-5e0fb9ae7557",
+      );
     } catch (e) {
       logger.w("Failed to read position characteristic: $e");
       return _determinePositionFromName(name);
     }
-    
+
     if (positionBytes.length != 1) {
       logger.e("Expected 1 byte for position, but got ${positionBytes.length}");
       return null;
