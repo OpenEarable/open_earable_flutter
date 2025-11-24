@@ -6,7 +6,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 import '../../open_earable_flutter.dart';
-import '../constants.dart';
 
 /// A class that establishes and manages Bluetooth Low Energy (BLE)
 /// communication with OpenEarable devices.
@@ -111,7 +110,6 @@ class BleManager extends BleGattManager {
 
   /// Initiates the BLE device scan to discover nearby Bluetooth devices.
   Future<void> startScan({
-    bool filterByServices = false,
     bool checkAndRequestPermissions = true,
   }) async {
     bool? permGranted;
@@ -146,42 +144,29 @@ class BleManager extends BleGattManager {
         };
 
         if (!kIsWeb) {
-          List<DiscoveredDevice> devices =
-              await getSystemDevices(filterByServices: filterByServices);
+          List<DiscoveredDevice> devices = await getSystemDevices();
           for (var device in devices) {
             _scanStreamController?.add(device);
           }
         }
-
-        await UniversalBle.startScan(
-          scanFilter: ScanFilter(
-            // Needs to be passed for web, can be empty for the rest
-            withServices: (kIsWeb || filterByServices) ? allServiceUuids : [],
-          ),
-        );
+        await UniversalBle.startScan();
       }
       _firstScan = false;
     }
   }
 
   /// Retrieves a list of system devices.
-  /// If `filterByServices` is true, it filters devices by the predefined service UUIDs.
-  /// Returns a list of `BleDevice` objects.
   /// Throws an exception if called on web.
   /// If no devices are found, returns an empty list.
   /// If the platform is not web, it uses `UniversalBle.getSystemDevices`.
-  Future<List<DiscoveredDevice>> getSystemDevices({
-    bool filterByServices = false,
-  }) async {
+  Future<List<DiscoveredDevice>> getSystemDevices() async {
     if (!await checkAndRequestPermissions()) {
       throw Exception("Permissions not granted");
     }
     if (kIsWeb) {
       throw Exception("getSystemDevices is not supported on web");
     }
-    return UniversalBle.getSystemDevices(
-      withServices: filterByServices ? allServiceUuids : [],
-    ).then((devices) {
+    return UniversalBle.getSystemDevices().then((devices) {
       return devices.map((device) {
         return DiscoveredDevice(
           id: device.deviceId,
