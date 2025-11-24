@@ -29,7 +29,8 @@ export 'src/models/devices/polar.dart';
 
 export 'src/managers/wearable_disconnect_notifier.dart';
 
-export 'src/models/capabilities/device_firmware_version.dart' hide DeviceFirmwareVersionNumberExt;
+export 'src/models/capabilities/device_firmware_version.dart'
+    hide DeviceFirmwareVersionNumberExt;
 export 'src/models/capabilities/device_hardware_version.dart';
 export 'src/models/capabilities/device_identifier.dart';
 export 'src/models/capabilities/battery_level.dart';
@@ -81,9 +82,11 @@ class WearableManager {
   static final WearableManager _instance = WearableManager._internal();
 
   late final BleManager _bleManager;
-  final PairingManager _pairingManager = PairingManager(rules: [
-    OpenEarableV2PairingRule(),
-  ],);
+  final PairingManager _pairingManager = PairingManager(
+    rules: [
+      OpenEarableV2PairingRule(),
+    ],
+  );
 
   late final StreamController<Wearable> _connectStreamController;
   late final StreamController<DiscoveredDevice> _connectingStreamController;
@@ -143,9 +146,9 @@ class WearableManager {
   /// If `checkAndRequestPermissions` is true, it will check and request the necessary
   /// permissions before starting the scan.
   /// Returns a Future that completes when the scan starts.
-  /// 
+  ///
   /// The discovered devices can be listened to via the [scanStream].
-  /// 
+  ///
   /// Example usage:
   /// ```dart
   /// await WearableManager().startScan(excludeUnsupported: true);
@@ -180,7 +183,8 @@ class WearableManager {
   /// connected wearables list.
   /// If the device is not supported by any factory, it throws an exception.
   /// If the connection fails, it also throws an exception.
-  Future<Wearable> connectToDevice(DiscoveredDevice device, { Set<ConnectionOption> options = const {}}) async {
+  Future<Wearable> connectToDevice(DiscoveredDevice device,
+      {Set<ConnectionOption> options = const {}}) async {
     if (_connectedIds.contains(device.id)) {
       logger.w('Device ${device.id} is already connected');
       throw Exception('Device is already connected');
@@ -200,7 +204,8 @@ class WearableManager {
         wearableFactory.disconnectNotifier = disconnectNotifier;
         logger.t("checking factory: $wearableFactory");
         if (await wearableFactory.matches(device, connectionResult.$2)) {
-          Wearable wearable = await wearableFactory.createFromDevice(device, options: options);
+          Wearable wearable =
+              await wearableFactory.createFromDevice(device, options: options);
 
           _connectedIds.add(device.id);
           wearable.addDisconnectListener(() {
@@ -224,16 +229,19 @@ class WearableManager {
   /// Connects to all wearables that are currently discovered in the system.
   /// It retrieves the system devices and attempts to connect to each one.
   /// Returns a list of successfully connected wearables.
-  Future<List<Wearable>> connectToSystemDevices({List<String> ignoredDeviceIds = const []}) async {
+  Future<List<Wearable>> connectToSystemDevices(
+      {List<String> ignoredDeviceIds = const []}) async {
     List<DiscoveredDevice> systemDevices =
-        await _bleManager.getSystemDevices(filterByServices: true);
+        await _bleManager.getSystemDevices(filterByServices: false);
     List<Wearable> connectedWearables = [];
     for (DiscoveredDevice device in systemDevices) {
-      if (_connectedIds.contains(device.id) || ignoredDeviceIds.contains(device.id)) {
+      if (_connectedIds.contains(device.id) ||
+          ignoredDeviceIds.contains(device.id)) {
         continue;
       }
       try {
-        Wearable wearable = await connectToDevice(device, options: {const ConnectedViaSystem()});
+        Wearable wearable = await connectToDevice(device,
+            options: {const ConnectedViaSystem()});
         connectedWearables.add(wearable);
       } catch (e) {
         logger.e('Failed to connect to system device ${device.id}: $e');
@@ -247,11 +255,13 @@ class WearableManager {
   }
 
   /// Finds valid pairs of stereo devices based on the defined pairing rules.
-  Future<Map<StereoDevice, List<StereoDevice>>> findValidPairs(List<StereoDevice> devices) async {
+  Future<Map<StereoDevice, List<StereoDevice>>> findValidPairs(
+      List<StereoDevice> devices) async {
     return await _pairingManager.findValidPairs(devices);
   }
 
-  Future<List<StereoDevice>> findValidPairsFor(StereoDevice device, List<StereoDevice> devices) async {
+  Future<List<StereoDevice>> findValidPairsFor(
+      StereoDevice device, List<StereoDevice> devices) async {
     return await _pairingManager.findValidPairsFor(device, devices);
   }
 
