@@ -6,7 +6,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 import '../../open_earable_flutter.dart';
-import '../constants.dart';
 
 /// A class that establishes and manages Bluetooth Low Energy (BLE)
 /// communication with OpenEarable devices.
