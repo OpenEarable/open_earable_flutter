@@ -132,7 +132,8 @@ class OpenEarableV2 extends Wearable
   }
 
   Map<SensorConfiguration, SensorConfigurationValue> _parseConfigMap(
-      List<int> data) {
+    List<int> data,
+  ) {
     List<V2SensorConfig> sensorConfigs =
         V2SensorConfig.listFromBytes(Uint8List.fromList(data));
     logger.d('Received sensor configuration data: $sensorConfigs');
