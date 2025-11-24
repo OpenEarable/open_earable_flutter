@@ -104,8 +104,6 @@ class WearableManager {
   List<String> _autoConnectDeviceIds = [];
   StreamSubscription<DiscoveredDevice>? _autoconnectScanSubscription;
 
-  bool? _scanExcludeUnsupported;
-
   final List<WearableFactory> _wearableFactories = [
     OpenEarableFactory(),
     CosinussOneFactory(),
@@ -151,8 +149,6 @@ class WearableManager {
   }
 
   /// Starts scanning for BLE devices.
-  /// If `excludeUnsupported` is true, it will filter out devices that do not support
-  /// the required services.
   /// If `checkAndRequestPermissions` is true, it will check and request the necessary
   /// permissions before starting the scan.
   /// Returns a Future that completes when the scan starts.
@@ -161,15 +157,12 @@ class WearableManager {
   ///
   /// Example usage:
   /// ```dart
-  /// await WearableManager().startScan(excludeUnsupported: true);
+  /// await WearableManager().startScan();
   /// ```
   Future<void> startScan({
-    bool excludeUnsupported = false,
     bool checkAndRequestPermissions = true,
   }) {
-    _scanExcludeUnsupported = excludeUnsupported;
     return _bleManager.startScan(
-      filterByServices: excludeUnsupported,
       checkAndRequestPermissions: checkAndRequestPermissions,
     );
   }
@@ -296,11 +289,7 @@ class WearableManager {
         }
       });
 
-      if (_scanExcludeUnsupported == null) {
-        startScan();
-      } else {
-        startScan(excludeUnsupported: _scanExcludeUnsupported!);
-      }
+      startScan();
     }
   }
 

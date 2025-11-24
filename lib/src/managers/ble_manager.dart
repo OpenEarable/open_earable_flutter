@@ -111,7 +111,6 @@ class BleManager extends BleGattManager {
 
   /// Initiates the BLE device scan to discover nearby Bluetooth devices.
   Future<void> startScan({
-    bool filterByServices = false,
     bool checkAndRequestPermissions = true,
   }) async {
     bool? permGranted;
@@ -146,8 +145,7 @@ class BleManager extends BleGattManager {
         };
 
         if (!kIsWeb) {
-          List<DiscoveredDevice> devices =
-              await getSystemDevices(filterByServices: filterByServices);
+          List<DiscoveredDevice> devices = await getSystemDevices();
           for (var device in devices) {
             _scanStreamController?.add(device);
           }
@@ -159,14 +157,10 @@ class BleManager extends BleGattManager {
   }
 
   /// Retrieves a list of system devices.
-  /// If `filterByServices` is true, it filters devices by the predefined service UUIDs.
-  /// Returns a list of `BleDevice` objects.
   /// Throws an exception if called on web.
   /// If no devices are found, returns an empty list.
   /// If the platform is not web, it uses `UniversalBle.getSystemDevices`.
-  Future<List<DiscoveredDevice>> getSystemDevices({
-    bool filterByServices = false,
-  }) async {
+  Future<List<DiscoveredDevice>> getSystemDevices() async {
     if (!await checkAndRequestPermissions()) {
       throw Exception("Permissions not granted");
     }
