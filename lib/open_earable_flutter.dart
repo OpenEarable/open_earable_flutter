@@ -186,8 +186,10 @@ class WearableManager {
   /// connected wearables list.
   /// If the device is not supported by any factory, it throws an exception.
   /// If the connection fails, it also throws an exception.
-  Future<Wearable> connectToDevice(DiscoveredDevice device,
-      {Set<ConnectionOption> options = const {}}) async {
+  Future<Wearable> connectToDevice(
+    DiscoveredDevice device, {
+    Set<ConnectionOption> options = const {},
+  }) async {
     if (_connectedIds.contains(device.id)) {
       logger.w('Device ${device.id} is already connected');
       throw Exception('Device is already connected');
@@ -232,8 +234,9 @@ class WearableManager {
   /// Connects to all wearables that are currently discovered in the system.
   /// It retrieves the system devices and attempts to connect to each one.
   /// Returns a list of successfully connected wearables.
-  Future<List<Wearable>> connectToSystemDevices(
-      {List<String> ignoredDeviceIds = const []}) async {
+  Future<List<Wearable>> connectToSystemDevices({
+    List<String> ignoredDeviceIds = const [],
+  }) async {
     List<DiscoveredDevice> systemDevices = await _bleManager.getSystemDevices();
     List<Wearable> connectedWearables = [];
     for (DiscoveredDevice device in systemDevices) {
@@ -242,8 +245,10 @@ class WearableManager {
         continue;
       }
       try {
-        Wearable wearable = await connectToDevice(device,
-            options: {const ConnectedViaSystem()});
+        Wearable wearable = await connectToDevice(
+          device,
+          options: {const ConnectedViaSystem()},
+        );
         connectedWearables.add(wearable);
       } catch (e) {
         logger.e('Failed to connect to system device ${device.id}: $e');
@@ -258,12 +263,15 @@ class WearableManager {
 
   /// Finds valid pairs of stereo devices based on the defined pairing rules.
   Future<Map<StereoDevice, List<StereoDevice>>> findValidPairs(
-      List<StereoDevice> devices) async {
+    List<StereoDevice> devices,
+  ) async {
     return await _pairingManager.findValidPairs(devices);
   }
 
   Future<List<StereoDevice>> findValidPairsFor(
-      StereoDevice device, List<StereoDevice> devices) async {
+    StereoDevice device,
+    List<StereoDevice> devices,
+  ) async {
     return await _pairingManager.findValidPairsFor(device, devices);
   }
 
