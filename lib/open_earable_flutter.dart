@@ -3,6 +3,7 @@ library;
 import 'dart:async';
 
 import 'package:logger/logger.dart';
+import 'package:meta/meta.dart';
 import 'package:open_earable_flutter/src/models/devices/cosinuss_one_factory.dart';
 import 'package:open_earable_flutter/src/models/devices/open_earable_factory.dart';
 import 'package:open_earable_flutter/src/models/devices/open_earable_v2.dart';
@@ -70,7 +71,12 @@ export 'src/fota/fota.dart';
 )
 export 'src/models/capabilities/sensor_configuration_specializations/sensor_configuration_open_earable_v2.dart';
 
+@internal
 Logger logger = Logger();
+
+void initOpenWearableLogger(Logger newLogger) {
+  logger = newLogger;
+}
 
 /// WearableManager is a singleton class that manages the connection and interaction
 /// with wearable devices using Bluetooth Low Energy (BLE).
