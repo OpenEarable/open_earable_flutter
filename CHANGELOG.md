@@ -35,3 +35,8 @@ README updates (example web app) and add supported platforms.
 ## 2.2.2
 
 * upgraded dependencies to newest versions
+
+## 2.2.3
+
+* marked logger for internal use only
+* added function to set logger externally
