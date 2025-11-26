@@ -36,9 +36,9 @@ class TauSensorHandler extends SensorHandler<TauSensorConfig> {
       characteristicId: TauRingGatt.rxChar,
     ).listen(
       (data) async {
-        if (data.isNotEmpty && data[2] == sensorId) {
-          Map<String, dynamic> parsedData = await _parseData(data);
-          streamController.add(parsedData);
+        List<Map<String, dynamic>> parsedData = await _parseData(data);
+        for (var d in parsedData) {
+          streamController.add(d);
         }
       },
       onError: (error) {
@@ -66,7 +66,7 @@ class TauSensorHandler extends SensorHandler<TauSensorConfig> {
   }
 
    /// Parses raw sensor data bytes into a [Map] of sensor values.
-  Future<Map<String, dynamic>> _parseData(data) async {
+  Future<List<Map<String, dynamic>>> _parseData(List<int> data) async {
     ByteData byteData = ByteData.sublistView(Uint8List.fromList(data));
     
     return _sensorValueParser.parse(byteData, []);
