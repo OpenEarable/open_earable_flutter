@@ -232,7 +232,7 @@ class WearableManager {
   /// Returns a list of successfully connected wearables.
   Future<List<Wearable>> connectToSystemDevices({List<String> ignoredDeviceIds = const []}) async {
     List<DiscoveredDevice> systemDevices =
-        await _bleManager.getSystemDevices(filterByServices: true);
+        await _bleManager.getSystemDevices(filterByServices: false);
     List<Wearable> connectedWearables = [];
     for (DiscoveredDevice device in systemDevices) {
       if (_connectedIds.contains(device.id) || ignoredDeviceIds.contains(device.id)) {
