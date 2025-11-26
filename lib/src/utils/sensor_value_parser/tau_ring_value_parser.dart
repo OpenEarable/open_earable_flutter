@@ -1,96 +1,154 @@
 import 'dart:typed_data';
 
+import '../../../open_earable_flutter.dart' show logger;
 import '../sensor_scheme_parser/sensor_scheme_reader.dart';
 import 'sensor_value_parser.dart';
 
 class TauRingValueParser extends SensorValueParser {
-  @override
-  Map<String, dynamic> parse(ByteData data, List<SensorScheme> sensorSchemes) {
-    int baseTs = DateTime.now().millisecondsSinceEpoch;
+  // 100 Hz → 10 ms per sample
+  static const int _samplePeriodMs = 10;
 
-    int framePrefix = data.getUint8(0);
+  int _lastSeq = -1;
+  int _lastTs = 0;
+
+  @override
+  List<Map<String, dynamic>> parse(
+    ByteData data,
+    List<SensorScheme> sensorSchemes,
+  ) {
+    
+
+    logger.t("Received Tau Ring sensor data: size: ${data.lengthInBytes} ${data.buffer.asUint8List()}");
+
+
+    final int framePrefix = data.getUint8(0);
     if (framePrefix != 0x00) {
-      throw Exception("Invalid frame prefix: $framePrefix"); //TODO: use specific exception
+      throw Exception("Invalid frame prefix: $framePrefix"); // TODO: specific exception
     }
 
     if (data.lengthInBytes < 5) {
-      throw Exception("Data too short to parse"); //TODO: use specific exception
+      throw Exception("Data too short to parse"); // TODO: specific exception
     }
 
-    int sequenceNum = data.getUint8(1);
-    int cmd = data.getUint8(2);
-    int subOpcode = data.getUint8(3);
-    int status = data.getUint8(4);
-    ByteData payload = ByteData.sublistView(data, 5);
+    final int sequenceNum = data.getUint8(1);
+    final int cmd = data.getUint8(2);
+    final int subOpcode = data.getUint8(3);
+    final int status = data.getUint8(4);
+    final ByteData payload = ByteData.sublistView(data, 5);
 
-    Map<String, dynamic> dataHeader = {
-      "timestamp": baseTs,
+    logger.t("last sequenceNum: $_lastSeq, current sequenceNum: $sequenceNum");
+    if (sequenceNum != _lastSeq) {
+      _lastSeq = sequenceNum;
+      _lastTs = 0;
+      logger.d("Sequence number changed. Resetting last timestamp.");
+    }
+
+    // These header fields should go into every sample map
+    final Map<String, dynamic> baseHeader = {
       "sequenceNum": sequenceNum,
       "cmd": cmd,
       "subOpcode": subOpcode,
       "status": status,
     };
-
-    final List<Map<String, dynamic>> parsedData;
-
+  
+    List<Map<String, dynamic>> result;
     switch (cmd) {
       case 0x40: // IMU
         switch (subOpcode) {
-          case 0x01: // Accel only
-            parsedData = _parseAccel(payload);
-            break;
-          case 0x06: // Accel + Gyro
-            parsedData = _parseAccelGyro(payload);
-            break;
+          case 0x01: // Accel only (6 bytes per sample)
+            result = _parseAccel(
+              data: payload,
+              receiveTs: _lastTs,
+              baseHeader: baseHeader,
+            );
+          case 0x06: // Accel + Gyro (12 bytes per sample)
+            result = _parseAccelGyro(
+              data: payload,
+              receiveTs: _lastTs,
+              baseHeader: baseHeader,
+            );
           default:
             throw Exception("Unknown sub-opcode for sensor data: $subOpcode");
         }
+
       default:
         throw Exception("Unknown command: $cmd");
     }
-
-    return parsedData.map((m) => m..addAll(dataHeader)).toList().first; //TODO: return full list
+    if (result.isNotEmpty) {
+      _lastTs = result.last["timestamp"] as int;
+      logger.t("Updated last timestamp to $_lastTs");
+    }
+    return result;
   }
 
-  List<Map<String, dynamic>> _parseAccel(ByteData data) {
+  List<Map<String, dynamic>> _parseAccel({
+    required ByteData data,
+    required int receiveTs,
+    required Map<String, dynamic> baseHeader,
+  }) {
     if (data.lengthInBytes % 6 != 0) {
       throw Exception("Invalid data length for Accel: ${data.lengthInBytes}");
     }
-    List<Map<String, dynamic>> parsedData = [];
+
+    final int nSamples = data.lengthInBytes ~/ 6;
+    if (nSamples == 0) return const [];
+
+    final List<Map<String, dynamic>> parsedData = [];
     for (int i = 0; i < data.lengthInBytes; i += 6) {
-      if (i + 6 > data.lengthInBytes) break;
-      ByteData sample = ByteData.sublistView(data, i, i + 6);
-      Map<String, dynamic> accelData = _parseImuComp(sample);
-      parsedData.add({'Accelerometer': accelData});
+      final int sampleIndex = i ~/ 6;
+      final int ts = receiveTs + sampleIndex * _samplePeriodMs;
+
+      final ByteData sample = ByteData.sublistView(data, i, i + 6);
+      final Map<String, dynamic> accelData = _parseImuComp(sample);
+
+      parsedData.add({
+        ...baseHeader,
+        "timestamp": ts,
+        "Accelerometer": accelData,
+      });
     }
     return parsedData;
   }
 
-  List<Map<String, dynamic>> _parseAccelGyro(ByteData data) {
+  List<Map<String, dynamic>> _parseAccelGyro({
+    required ByteData data,
+    required int receiveTs,
+    required Map<String, dynamic> baseHeader,
+  }) {
     if (data.lengthInBytes % 12 != 0) {
       throw Exception("Invalid data length for Accel+Gyro: ${data.lengthInBytes}");
     }
-    List<Map<String, dynamic>> parsedData = [];
+
+    final int nSamples = data.lengthInBytes ~/ 12;
+    if (nSamples == 0) return const [];
+
+    final List<Map<String, dynamic>> parsedData = [];
     for (int i = 0; i < data.lengthInBytes; i += 12) {
-      if (i + 12 > data.lengthInBytes) break;
-      ByteData sample = ByteData.sublistView(data, i, i + 12);
-      Map<String, dynamic> accelData = _parseImuComp(ByteData.sublistView(sample, 0, 6));
-      Map<String, dynamic> gyroData = _parseImuComp(ByteData.sublistView(sample, 6));
+      final int sampleIndex = i ~/ 12;
+      final int ts = receiveTs + sampleIndex * _samplePeriodMs;
+
+      final ByteData sample = ByteData.sublistView(data, i, i + 12);
+      final ByteData accBytes = ByteData.sublistView(sample, 0, 6);
+      final ByteData gyroBytes = ByteData.sublistView(sample, 6);
+
+      final Map<String, dynamic> accelData = _parseImuComp(accBytes);
+      final Map<String, dynamic> gyroData = _parseImuComp(gyroBytes);
+
       parsedData.add({
-        'Accelerometer': accelData,
-        'Gyroscope': gyroData,
+        ...baseHeader,
+        "timestamp": ts,
+        "Accelerometer": accelData,
+        "Gyroscope": gyroData,
       });
     }
     return parsedData;
   }
 
   Map<String, dynamic> _parseImuComp(ByteData data) {
-    Map<String, dynamic> parsedComp = {};
-
-    parsedComp['X'] = data.getInt16(0, Endian.little);
-    parsedComp['Y'] = data.getInt16(2, Endian.little);
-    parsedComp['Z'] = data.getInt16(4, Endian.little);
-
-    return parsedComp;
+    return {
+      'X': data.getInt16(0, Endian.little),
+      'Y': data.getInt16(2, Endian.little),
+      'Z': data.getInt16(4, Endian.little),
+    };
   }
 }
