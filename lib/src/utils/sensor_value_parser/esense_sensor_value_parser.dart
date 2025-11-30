@@ -6,8 +6,8 @@ import 'sensor_value_parser.dart';
 
 class EsenseSensorValueParser extends SensorValueParser {
   // Maps to keep track of previous timestamps for sensors
-  // key: (sensorId, packetIndex), value: lastTimestamp
-  final Map<(int, int), int> _timestampMap = {};
+  // key: sensorId, value: lastTimestamp
+  final Map<int, int> _timestampMap = {};
 
   @override
   List<Map<String, dynamic>> parse(
@@ -60,12 +60,11 @@ class EsenseSensorValueParser extends SensorValueParser {
         double freq = frequencies.frequencies[frequencies.defaultFreqIndex];
         int tsIncrement = (1000 / freq).round();
         int lastTs = _timestampMap.putIfAbsent(
-          (cmdHead, packetIndex),
+          cmdHead,
           () => 0,
         );
         int ts = lastTs + tsIncrement;
-        _timestampMap[(cmdHead, packetIndex)] = ts;
-
+        _timestampMap[cmdHead] = ts;
         int rawGyroX = payloadData.getInt16(0, Endian.little);
         int rawGyroY = payloadData.getInt16(2, Endian.little);
         int rawGyroZ = payloadData.getInt16(4, Endian.little);
@@ -74,7 +73,7 @@ class EsenseSensorValueParser extends SensorValueParser {
         int rawAccelZ = payloadData.getInt16(10, Endian.little);
 
         Map<String, dynamic> output = {
-          "timestmap": ts,
+          "timestamp": ts,
           "Accelerometer": {
             "x": rawAccelX,
             "y": rawAccelY,
