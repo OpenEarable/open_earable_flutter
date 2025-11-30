@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:logger/logger.dart';
 import 'package:meta/meta.dart';
 import 'package:open_earable_flutter/src/models/devices/cosinuss_one_factory.dart';
+import 'package:open_earable_flutter/src/models/devices/esense_factory.dart';
 import 'package:open_earable_flutter/src/models/devices/open_earable_factory.dart';
 import 'package:open_earable_flutter/src/models/devices/open_earable_v2.dart';
 import 'package:open_earable_flutter/src/models/devices/polar_factory.dart';
@@ -108,6 +109,7 @@ class WearableManager {
     PolarFactory(),
     DevKitFactory(),
     TauRingFactory(),
+    EsenseFactory(),
   ];
 
   factory WearableManager() {
