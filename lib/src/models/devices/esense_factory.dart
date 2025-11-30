@@ -25,7 +25,6 @@ class EsenseFactory extends WearableFactory {
     );
 
     List<EsenseSensorConfigurationValue> imuConfigValues = [
-      EsenseSensorConfigurationValue(frequencyHz: 0.0),
       EsenseSensorConfigurationValue(frequencyHz: 25.0),
       EsenseSensorConfigurationValue(frequencyHz: 50.0),
       EsenseSensorConfigurationValue(frequencyHz: 100.0),
@@ -119,7 +118,13 @@ class EsenseSensor extends Sensor<SensorDoubleValue> {
             continue;
           }
 
-          values.add(entry.value);
+          if (entry.value is int) {
+            values.add((entry.value as int).toDouble());
+          } else if (entry.value is double) {
+            values.add(entry.value as double);
+          } else {
+            throw Exception("Unsupported sensor value type: ${entry.value.runtimeType}");
+          }
         }
 
         SensorDoubleValue sensorValue = SensorDoubleValue(
