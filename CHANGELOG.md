@@ -45,3 +45,7 @@ README updates (example web app) and add supported platforms.
 
 * added support for IMU of Tau-Ring
 * added support for IMU of eSense
+
+## 2.2.5
+
+* added related sensor configuration to esense sensors
