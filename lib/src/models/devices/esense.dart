@@ -11,6 +11,7 @@ import 'wearable.dart';
 const String esenseServiceUuid = "ff06";
 const String esenseSensorConfigCharacteristicUuid = "ff07";
 const String esenseSensorDataCharacteristicUuid = "0000ff08-0000-1000-8000-00805f9b34fb";
+const String esenseImuConfigCharacteristicUuid = "ff0e";
 
 class Esense extends Wearable
     implements SensorManager, SensorConfigurationManager {
@@ -48,11 +49,9 @@ class Esense extends Wearable
       Stream.empty();
 
   @override
-  // TODO: implement sensorConfigurations
   List<SensorConfiguration<SensorConfigurationValue>>
       get sensorConfigurations => _sensorConfigs;
 
   @override
-  // TODO: implement sensors
   List<Sensor<SensorValue>> get sensors => _sensors;
 }
