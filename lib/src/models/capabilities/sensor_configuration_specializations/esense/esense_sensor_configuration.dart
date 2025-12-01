@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:open_earable_flutter/src/models/devices/esense.dart';
 
 import '../../../../managers/esense_sensor_handler.dart';
 import '../../../../managers/sensor_handler.dart';
