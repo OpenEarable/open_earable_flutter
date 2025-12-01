@@ -40,3 +40,8 @@ README updates (example web app) and add supported platforms.
 
 * marked logger for internal use only
 * added function to set logger externally
+
+## 2.2.4
+
+* added support for IMU of Tau-Ring
+* added support for IMU of eSense
