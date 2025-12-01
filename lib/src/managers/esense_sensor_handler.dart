@@ -1,12 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:open_earable_flutter/src/utils/sensor_scheme_parser/sensor_scheme_reader.dart';
-import 'package:open_earable_flutter/src/utils/sensor_value_parser/sensor_value_parser.dart';
 
 import '../../open_earable_flutter.dart' show logger;
+import '../models/capabilities/sensor_configuration_specializations/esense/sensor_range_option.dart';
 import '../models/devices/discovered_device.dart';
 import '../models/devices/esense.dart';
+import '../utils/sensor_scheme_parser/sensor_scheme_reader.dart';
+import '../utils/sensor_value_parser/sensor_value_parser.dart';
 import 'ble_gatt_manager.dart';
 import 'sensor_handler.dart';
 
@@ -22,11 +23,27 @@ class EsenseSensorHandler extends SensorHandler<EsenseSensorConfig> {
     0x53: 0x55, // 9-axis IMU
   };
 
+  final Map<AccelRange, double> _accelScaleFactors = const {
+    AccelRange.range2G: 16384,
+    AccelRange.range4G: 8192,
+    AccelRange.range8G: 4096,
+    AccelRange.range16G: 2048,
+  };
+  final Map<GyroRange, double> _gyroScaleFactors = const {
+    GyroRange.range250DPS: 131,
+    GyroRange.range500DPS: 65.5,
+    GyroRange.range1000DPS: 32.8,
+    GyroRange.range2000DPS: 16.4,
+  };
+
   /// Last known sensor configuration (either written by us or read once).
   EsenseSensorConfig? _cachedSensorConfig;
 
   /// Cached SensorScheme built from [_cachedSensorConfig].
   SensorScheme? _cachedSensorScheme;
+
+  AccelRange? _cachedAccelRange;
+  GyroRange? _cachedGyroRange;
 
   EsenseSensorHandler({
     required BleGattManager bleGattManager,
@@ -34,7 +51,9 @@ class EsenseSensorHandler extends SensorHandler<EsenseSensorConfig> {
     required SensorValueParser sensorValueParser,
   })  : _bleGattManager = bleGattManager,
         _discoveredDevice = discoveredDevice,
-        _sensorValueParser = sensorValueParser;
+        _sensorValueParser = sensorValueParser {
+    _getImuRanges(); // prefetch ranges
+  }
 
   @override
   Stream<Map<String, dynamic>> subscribeToSensorData(int sensorId) {
@@ -83,7 +102,7 @@ class EsenseSensorHandler extends SensorHandler<EsenseSensorConfig> {
     );
 
     // Ensure BLE subscription is cancelled when the consumer cancels our stream.
-    streamController.onCancel = () => subscription.cancel();
+    streamController.onCancel = subscription.cancel;
 
     return streamController.stream;
   }
@@ -112,7 +131,7 @@ class EsenseSensorHandler extends SensorHandler<EsenseSensorConfig> {
       byteData: command,
     );
 
-    List<int> receivedCommand = await _bleGattManager.read(
+    final List<int> receivedCommand = await _bleGattManager.read(
       deviceId: _discoveredDevice.id,
       serviceId: esenseServiceUuid,
       characteristicId: esenseSensorConfigCharacteristicUuid,
@@ -173,13 +192,11 @@ class EsenseSensorHandler extends SensorHandler<EsenseSensorConfig> {
   /// Returns the current sensor config.
   /// Prefers local cache (what we last wrote). If none, reads once from the device.
   Future<EsenseSensorConfig> _getSensorConfig() async {
-    // 1. Use cached config if available (we wrote it ourselves).
     final cached = _cachedSensorConfig;
     if (cached != null) {
       return cached;
     }
 
-    // 2. Otherwise read once from the device and cache it.
     final commandData = await _bleGattManager.read(
       deviceId: _discoveredDevice.id,
       serviceId: esenseServiceUuid,
@@ -191,7 +208,7 @@ class EsenseSensorHandler extends SensorHandler<EsenseSensorConfig> {
     logger.t("Esense sensor config read from device: $config");
 
     _cachedSensorConfig = config;
-    _cachedSensorScheme = null; // rebuild scheme based on this config
+    _cachedSensorScheme = null;
 
     return config;
   }
@@ -230,18 +247,129 @@ class EsenseSensorHandler extends SensorHandler<EsenseSensorConfig> {
     return scheme;
   }
 
+  Future<(AccelRange, GyroRange)> _getImuRanges() async {
+    if (_cachedAccelRange != null && _cachedGyroRange != null) {
+      return (_cachedAccelRange!, _cachedGyroRange!);
+    }
+
+    final raw = await _bleGattManager.read(
+      deviceId: _discoveredDevice.id,
+      serviceId: esenseServiceUuid,
+      characteristicId: esenseImuConfigCharacteristicUuid,
+    );
+
+    if (raw.length != 7) {
+      throw Exception(
+        "Invalid IMU config data length: ${raw.length}. Expected 7.",
+      );
+    }
+
+    if (raw[0] != 0x59) {
+      throw Exception(
+        "Invalid IMU config header: 0x${raw[0].toRadixString(16).toUpperCase()}. Expected 0x59.",
+      );
+    }
+
+    final int dataSize = raw[2];
+    if (dataSize != 4) {
+      throw Exception(
+        "Invalid IMU config data size: $dataSize. Expected 4.",
+      );
+    }
+
+    final accelRangeByte = raw[5];
+    final gyroRangeByte = raw[4];
+
+    switch ((accelRangeByte >> 3) & 0x03) {
+      case 0x00:
+        _cachedAccelRange = AccelRange.range2G;
+      case 0x01:
+        _cachedAccelRange = AccelRange.range4G;
+      case 0x02:
+        _cachedAccelRange = AccelRange.range8G;
+      case 0x03:
+        _cachedAccelRange = AccelRange.range16G;
+      default:
+        throw Exception(
+          "Unknown accelerometer range byte: 0x${accelRangeByte.toRadixString(16).toUpperCase()}",
+        );
+    }
+
+    switch ((gyroRangeByte >> 3) & 0x03) {
+      case 0x00:
+        _cachedGyroRange = GyroRange.range250DPS;
+      case 0x01:
+        _cachedGyroRange = GyroRange.range500DPS;
+      case 0x02:
+        _cachedGyroRange = GyroRange.range1000DPS;
+      case 0x03:
+        _cachedGyroRange = GyroRange.range2000DPS;
+      default:
+        throw Exception(
+          "Unknown gyroscope range byte: 0x${gyroRangeByte.toRadixString(16).toUpperCase()}",
+        );
+    }
+
+    logger.t("Loaded IMU ranges: Accel=$_cachedAccelRange, Gyro=$_cachedGyroRange");
+
+    return (_cachedAccelRange!, _cachedGyroRange!);
+  }
+
+  /// Parse raw notification bytes, then convert accel to g and gyro to deg/s.
   Future<List<Map<String, dynamic>>> _parseData(List<int> data) async {
     final scheme = await _getSensorScheme();
+    final (accelRange, gyroRange) = await _getImuRanges();
 
     final parsedData = _sensorValueParser.parse(
       ByteData.sublistView(Uint8List.fromList(data)),
       [scheme],
     );
 
-    logger.t("Parsed Esense sensor data: $parsedData");
-    // TODO: scale raw values according to sensor specifications
+    final scaled = <Map<String, dynamic>>[];
+    for (final sample in parsedData) {
+      scaled.add(_applyImuScaling(sample, accelRange, gyroRange));
+    }
 
-    return parsedData;
+    logger.t("Parsed & scaled Esense sensor data: $scaled");
+
+    return scaled;
+  }
+
+  /// Applies scaling to convert ADC values to g / deg/s.
+  /// Adjust the keys ("acc_x", "gyro_x", ...) to match what your SensorValueParser produces.
+  Map<String, dynamic> _applyImuScaling(
+    Map<String, dynamic> sample,
+    AccelRange accelRange,
+    GyroRange gyroRange,
+  ) {
+    // Shallow copy of outer map
+    final result = Map<String, dynamic>.from(sample);
+
+    // Make *new* mutable, dynamic-typed inner maps
+    final accel = Map<String, dynamic>.from(result['Accelerometer'] as Map);
+    final gyro  = Map<String, dynamic>.from(result['Gyroscope'] as Map);
+
+    // Accelerometer to g
+    for (final key in const ['x', 'y', 'z']) {
+      final raw = accel[key];
+      if (raw is num) {
+        accel[key] = raw.toDouble() / _accelScaleFactors[accelRange]!;
+      }
+    }
+
+    // Gyroscope to deg/s
+    for (final key in const ['x', 'y', 'z']) {
+      final raw = gyro[key];
+      if (raw is num) {
+        gyro[key] = raw.toDouble() / _gyroScaleFactors[gyroRange]!;
+      }
+    }
+
+    // Put updated inner maps back
+    result['Accelerometer'] = accel;
+    result['Gyroscope'] = gyro;
+
+    return result;
   }
 }
 
@@ -265,7 +393,8 @@ class EsenseSensorConfig extends SensorConfig {
         other.sampleRate == sampleRate &&
         other.streamData == streamData;
   }
-  
+
   @override
-  int get hashCode => sensorId.hashCode ^ sampleRate.hashCode ^ streamData.hashCode;
+  int get hashCode =>
+      sensorId.hashCode ^ sampleRate.hashCode ^ streamData.hashCode;
 }
