@@ -65,12 +65,12 @@ class EsenseSensorValueParser extends SensorValueParser {
         );
         int ts = lastTs + tsIncrement;
         _timestampMap[cmdHead] = ts;
-        int rawGyroX = payloadData.getInt16(0, Endian.little);
-        int rawGyroY = payloadData.getInt16(2, Endian.little);
-        int rawGyroZ = payloadData.getInt16(4, Endian.little);
-        int rawAccelX = payloadData.getInt16(6, Endian.little);
-        int rawAccelY = payloadData.getInt16(8, Endian.little);
-        int rawAccelZ = payloadData.getInt16(10, Endian.little);
+        int rawGyroX = payloadData.getInt16(0, Endian.big);
+        int rawGyroY = payloadData.getInt16(2, Endian.big);
+        int rawGyroZ = payloadData.getInt16(4, Endian.big);
+        int rawAccelX = payloadData.getInt16(6, Endian.big);
+        int rawAccelY = payloadData.getInt16(8, Endian.big);
+        int rawAccelZ = payloadData.getInt16(10, Endian.big);
 
         Map<String, dynamic> output = {
           "timestamp": ts,
