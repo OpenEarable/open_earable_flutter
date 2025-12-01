@@ -31,22 +31,22 @@ class EsenseFactory extends WearableFactory {
       EsenseSensorConfigurationValue(frequencyHz: 200.0),
     ].expand((v) => [v, v.copyWith(options: {StreamSensorConfigOption()})]).toList();
     
+    final imuConfig = EsenseSensorConfiguration(
+        name: "9-axis IMU",
+        values: imuConfigValues,
+        sensorCommand: 0x53,
+        sensorHandler: sensorHandler,
+        availableOptions: {
+          StreamSensorConfigOption(),
+        },
+      );
+
     Esense esense = Esense(
       name: device.name,
       bleManager: bleManager!,
       discoveredDevice: device,
       disconnectNotifier: disconnectNotifier!,
-      sensorConfigurations: [
-        EsenseSensorConfiguration(
-          name: "9-axis IMU",
-          values: imuConfigValues,
-          sensorCommand: 0x53,
-          sensorHandler: sensorHandler,
-          availableOptions: {
-            StreamSensorConfigOption(),
-          },
-        ),
-      ],
+      sensorConfigurations: [imuConfig],
       sensors: [
         EsenseSensor(
           sensorId: 0x55,
@@ -56,6 +56,7 @@ class EsenseFactory extends WearableFactory {
           axisNames: ["X", "Y", "Z"],
           axisUnits: ["g", "g", "g"],
           sensorHandler: sensorHandler,
+          relatedConfigurations: [imuConfig],
         ),
         EsenseSensor(
           sensorId: 0x55,
@@ -65,6 +66,7 @@ class EsenseFactory extends WearableFactory {
           axisNames: ["X", "Y", "Z"],
           axisUnits: ["dps", "dps", "dps"],
           sensorHandler: sensorHandler,
+          relatedConfigurations: [imuConfig],
         ),
       ],
     );
@@ -94,6 +96,7 @@ class EsenseSensor extends Sensor<SensorDoubleValue> {
     required List<String> axisNames,
     required List<String> axisUnits,
     required SensorHandler sensorHandler,
+    super.relatedConfigurations,
   })  : _axisNames = axisNames,
         _axisUnits = axisUnits,
         _sensorId = sensorId,
