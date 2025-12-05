@@ -36,6 +36,12 @@ const String _audioModeCharacteristicUuid =
 const String _buttonServiceUuid = "29c10bdc-4773-11ee-be56-0242ac120002";
 const String _buttonCharacteristicUuid = "29c10f38-4773-11ee-be56-0242ac120002";
 
+const String _timeSynchronizationServiceUuid = "2e04cbf7-939d-4be5-823e-271838b75259";
+const String _timeSyncTimeMappingCharacteristicUuid =
+    "2e04cbf8-939d-4be5-823e-271838b75259";
+const String _timeSyncRttCharacteristicUuid =
+    "2e04cbf9-939d-4be5-823e-271838b75259";
+
 final VersionConstraint _versionConstraint =
     VersionConstraint.parse(">=2.1.0 <2.3.0");
 
@@ -70,7 +76,8 @@ class OpenEarableV2 extends Wearable
         EdgeRecorderManager,
         ButtonManager,
         StereoDevice,
-        SystemDevice {
+        SystemDevice,
+        TimeSynchronizable {
   static const String deviceInfoServiceUuid =
       "45622510-6468-465a-b141-0b9b0f96b468";
   static const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
@@ -809,6 +816,74 @@ class OpenEarableV2 extends Wearable
     _pairedDevice?.unpair();
     _pairedDevice = null;
   }
+
+  // MARK: TimeSynchronizable
+
+  @override
+  bool get isTimeSynchronized {
+    // Placeholder implementation
+    return true;
+  }
+
+  @override
+  Future<void> synchronizeTime() async {
+    logger.i("Synchronizing time with OpenEarable V2 device...");
+
+    _bleManager.subscribe(
+      deviceId: deviceId,
+      serviceId: _timeSynchronizationServiceUuid,
+      characteristicId: _timeSyncRttCharacteristicUuid,
+    ).listen((data) {
+      final t4 = DateTime.now().microsecondsSinceEpoch;
+      final pkt = _SyncTimePacket.fromBytes(Uint8List.fromList(data));
+
+      if (pkt.op == _TimeSyncOperation.response) {
+        logger.d("Received time sync response packet: $pkt");
+
+        final t1 = pkt.timePhoneSend;        // request send time on phone
+        final t3 = pkt.timeDeviceSend;       // device send
+
+        // Approximate the phone time that corresponds to device send (T3)
+        // Use midpoint between T1 and T4 as estimate for when the device was "in the middle":
+        final unixAtMid = t1 + ((t4 - t1) ~/ 2);
+
+        // Use device send time as devTimeUs
+        final devTimeUs = t3;
+
+        final mapping = _SyncedTimeMapping(
+          deviceTime: devTimeUs,
+          unixTime: unixAtMid,
+        );
+
+        logger.i(
+          "Writing time mapping: devTime=$devTimeUs, unixTime=$unixAtMid",
+        );
+
+        _bleManager.write(
+          deviceId: deviceId,
+          serviceId: _timeSynchronizationServiceUuid,
+          characteristicId: _timeSyncTimeMappingCharacteristicUuid,
+          byteData: mapping.toBytes(),
+        );
+      }
+    });
+
+    _bleManager.write(
+      deviceId: deviceId,
+      serviceId: _timeSynchronizationServiceUuid,
+      characteristicId: _timeSyncRttCharacteristicUuid,
+      byteData: _SyncTimePacket(
+        version: 1,
+        op: _TimeSyncOperation.request,
+        seq: 0,
+        timePhoneSend: DateTime.now().microsecondsSinceEpoch,
+        timeDeviceReceive: 0,
+        timeDeviceSend: 0,
+      ).toBytes(),
+    );
+    await Future.delayed(const Duration(seconds: 1));
+    logger.i("Time synchronized.");
+  }
 }
 
 // MARK: OpenEarableV2Mic
@@ -836,5 +911,106 @@ class OpenEarableV2PairingRule extends PairingRule<OpenEarableV2> {
     }
 
     return left.name == right.name;
+  }
+}
+
+// MARK: OpenEarable Sync Time packet
+
+enum _TimeSyncOperation {
+  request(0x00),
+  response(0x01);
+
+  final int value;
+  const _TimeSyncOperation(this.value);
+}
+
+class _SyncTimePacket {
+  final int version;
+  final _TimeSyncOperation op;
+  final int seq;
+  final int timePhoneSend;
+  final int timeDeviceReceive;
+  final int timeDeviceSend;
+
+  factory _SyncTimePacket.fromBytes(Uint8List bytes) {
+    if (bytes.length < 15) {
+      throw ArgumentError.value(
+        bytes,
+        'bytes',
+        'Byte array too short to be a valid SyncTimePacket',
+      );
+    }
+
+    ByteData bd = ByteData.sublistView(bytes);
+    int version = bd.getUint8(0);
+    _TimeSyncOperation op =
+        _TimeSyncOperation.values.firstWhere((e) => e.value == bd.getUint8(1));
+    int seq = bd.getUint16(2, Endian.little);
+    int timePhoneSend = bd.getUint64(4, Endian.little);
+    int timeDeviceReceive = bd.getUint64(12, Endian.little);
+    int timeDeviceSend = bd.getUint64(20, Endian.little);
+
+    return _SyncTimePacket(
+      version: version,
+      op: op,
+      seq: seq,
+      timePhoneSend: timePhoneSend,
+      timeDeviceReceive: timeDeviceReceive,
+      timeDeviceSend: timeDeviceSend,
+    );
+  }
+
+  const _SyncTimePacket({
+    required this.version,
+    required this.op,
+    required this.seq,
+    required this.timePhoneSend,
+    required this.timeDeviceReceive,
+    required this.timeDeviceSend,
+  });
+
+  /// Serialize packet to bytes.
+  /// Layout (little-endian):
+  /// [0]    : version (1 byte)
+  /// [1]    : operation (1 byte)
+  /// [2]    : sequence (2 byte)
+  /// [3..6] : timePhoneSend (uint64)
+  /// [7..10]: timeDeviceReceive (uint64)
+  /// [11..14]: timeDeviceSend (uint64)
+  Uint8List toBytes() {
+    if (seq < 0 || seq > 0xFFFF) {
+      throw ArgumentError.value(seq, 'seq', 'Must fit in two bytes (0..65535)');
+    }
+
+    final ByteData bd = ByteData(28);
+    bd.setUint8(0, version & 0xFF);
+    bd.setUint8(1, op.value & 0xFF);
+    bd.setUint16(2, seq & 0xFFFF, Endian.little);
+    bd.setUint64(4, timePhoneSend & 0xFFFFFFFFFFFFFFFF, Endian.little);
+    bd.setUint64(12, timeDeviceReceive & 0xFFFFFFFFFFFFFFFF, Endian.little);
+    bd.setUint64(20, timeDeviceSend & 0xFFFFFFFFFFFFFFFF, Endian.little);
+    return bd.buffer.asUint8List();
+  }
+
+  @override
+  String toString() {
+    return '_SyncTimePacket(version: $version, op: $op, seq: $seq, timePhoneSend: $timePhoneSend, timeDeviceReceive: $timeDeviceReceive, timeDeviceSend: $timeDeviceSend)';
+  }
+}
+
+class _SyncedTimeMapping {
+  final int deviceTime;
+  final int unixTime;
+
+  const _SyncedTimeMapping({
+    required this.deviceTime,
+    required this.unixTime,
+  });
+
+  Uint8List toBytes() {
+    final ByteData bd = ByteData(16);
+    bd.setUint64(0, deviceTime & 0xFFFFFFFFFFFFFFFF, Endian.little);
+    bd.setUint64(8, unixTime & 0xFFFFFFFFFFFFFFFF, Endian.little);
+    return bd.buffer.asUint8List();
   }
 }
