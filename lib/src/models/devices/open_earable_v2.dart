@@ -840,30 +840,26 @@ class OpenEarableV2 extends Wearable
       if (pkt.op == _TimeSyncOperation.response) {
         logger.d("Received time sync response packet: $pkt");
 
-        final t1 = pkt.timePhoneSend;        // request send time on phone
-        final t3 = pkt.timeDeviceSend;       // device send
+        final t1 = pkt.timePhoneSend;       // phone send timestamp
+        final t3 = pkt.timeDeviceSend;      // device send timestamp
 
-        // Approximate the phone time that corresponds to device send (T3)
-        // Use midpoint between T1 and T4 as estimate for when the device was "in the middle":
-        final unixAtMid = t1 + ((t4 - t1) ~/ 2);
+        // Estimate Unix time at moment device sent response
+        final unixAtT3 = t1 + ((t4 - t1) ~/ 2);
 
-        // Use device send time as devTimeUs
-        final devTimeUs = t3;
+        // offset = unix_time - device_time
+        final offset = unixAtT3 - t3;
 
-        final mapping = _SyncedTimeMapping(
-          deviceTime: devTimeUs,
-          unixTime: unixAtMid,
-        );
+        logger.i("Calculated offset to send: $offset µs");
 
-        logger.i(
-          "Writing time mapping: devTime=$devTimeUs, unixTime=$unixAtMid",
-        );
+        // Convert to bytes (signed int64)
+        final offsetBytes = ByteData(8)..setInt64(0, offset, Endian.little);
 
+        // Write the offset to the device
         _bleManager.write(
           deviceId: deviceId,
           serviceId: _timeSynchronizationServiceUuid,
           characteristicId: _timeSyncTimeMappingCharacteristicUuid,
-          byteData: mapping.toBytes(),
+          byteData: offsetBytes.buffer.asUint8List(),
         );
       }
     });
@@ -995,22 +991,5 @@ class _SyncTimePacket {
   @override
   String toString() {
     return '_SyncTimePacket(version: $version, op: $op, seq: $seq, timePhoneSend: $timePhoneSend, timeDeviceReceive: $timeDeviceReceive, timeDeviceSend: $timeDeviceSend)';
-  }
-}
-
-class _SyncedTimeMapping {
-  final int deviceTime;
-  final int unixTime;
-
-  const _SyncedTimeMapping({
-    required this.deviceTime,
-    required this.unixTime,
-  });
-
-  Uint8List toBytes() {
-    final ByteData bd = ByteData(16);
-    bd.setUint64(0, deviceTime & 0xFFFFFFFFFFFFFFFF, Endian.little);
-    bd.setUint64(8, unixTime & 0xFFFFFFFFFFFFFFFF, Endian.little);
-    return bd.buffer.asUint8List();
   }
 }
