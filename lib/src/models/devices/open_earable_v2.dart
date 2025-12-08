@@ -825,60 +825,126 @@ class OpenEarableV2 extends Wearable
     return true;
   }
 
+  /// How many RTT samples to collect before computing the median offset.
+  static const int _timeSyncSampleCount = 7;
+
   @override
   Future<void> synchronizeTime() async {
     logger.i("Synchronizing time with OpenEarable V2 device...");
 
-    _bleManager.subscribe(
-      deviceId: deviceId,
-      serviceId: _timeSynchronizationServiceUuid,
-      characteristicId: _timeSyncRttCharacteristicUuid,
-    ).listen((data) {
-      final t4 = DateTime.now().microsecondsSinceEpoch;
-      final pkt = _SyncTimePacket.fromBytes(Uint8List.fromList(data));
+    // Will complete when we have enough samples and wrote the final offset.
+    final completer = Completer<void>();
 
-      if (pkt.op == _TimeSyncOperation.response) {
+    // Collected offset estimates (µs).
+    final offsets = <int>[];
+
+    // Subscribe to RTT responses
+    late final StreamSubscription<List<int>> rttSub;
+    rttSub = _bleManager
+        .subscribe(
+          deviceId: deviceId,
+          serviceId: _timeSynchronizationServiceUuid,
+          characteristicId: _timeSyncRttCharacteristicUuid,
+        )
+        .listen(
+      (data) async {
+        final t4 = DateTime.now().microsecondsSinceEpoch;
+        final pkt = _SyncTimePacket.fromBytes(Uint8List.fromList(data));
+
+        if (pkt.op != _TimeSyncOperation.response) {
+          return; // ignore anything that's not a response
+        }
+
         logger.d("Received time sync response packet: $pkt");
 
-        final t1 = pkt.timePhoneSend;       // phone send timestamp
-        final t3 = pkt.timeDeviceSend;      // device send timestamp
+        final t1 = pkt.timePhoneSend;   // phone send timestamp (µs)
+        final t3 = pkt.timeDeviceSend;  // device send timestamp (µs, device clock)
 
-        // Estimate Unix time at moment device sent response
+        // Estimate Unix time at the moment the device sent the response.
+        // Use midpoint between T1 and T4 as an estimate of when the device was "in the middle".
         final unixAtT3 = t1 + ((t4 - t1) ~/ 2);
 
         // offset = unix_time - device_time
         final offset = unixAtT3 - t3;
+        offsets.add(offset);
 
-        logger.i("Calculated offset to send: $offset µs");
+        logger.i("Time sync sample #${offsets.length}: offset=$offset µs");
 
-        // Convert to bytes (signed int64)
-        final offsetBytes = ByteData(8)..setInt64(0, offset, Endian.little);
+        if (offsets.length >= _timeSyncSampleCount && !completer.isCompleted) {
+          await rttSub.cancel();
 
-        // Write the offset to the device
-        _bleManager.write(
-          deviceId: deviceId,
-          serviceId: _timeSynchronizationServiceUuid,
-          characteristicId: _timeSyncTimeMappingCharacteristicUuid,
-          byteData: offsetBytes.buffer.asUint8List(),
-        );
-      }
-    });
+          final medianOffset = _computeMedian(offsets);
+          logger.i(
+            "Collected ${offsets.length} samples. Median offset: $medianOffset µs",
+          );
 
-    _bleManager.write(
-      deviceId: deviceId,
-      serviceId: _timeSynchronizationServiceUuid,
-      characteristicId: _timeSyncRttCharacteristicUuid,
-      byteData: _SyncTimePacket(
+          // Convert to bytes (signed int64, little endian)
+          final offsetBytes = ByteData(8)
+            ..setInt64(0, medianOffset, Endian.little);
+
+          // Write the final median offset to the device
+          await _bleManager.write(
+            deviceId: deviceId,
+            serviceId: _timeSynchronizationServiceUuid,
+            characteristicId: _timeSyncTimeMappingCharacteristicUuid,
+            byteData: offsetBytes.buffer.asUint8List(),
+          );
+
+          logger.i("Median offset written to device. Time sync complete.");
+
+          completer.complete();
+        }
+      },
+      onError: (error, stack) async {
+        logger.e("Error during time sync subscription $error, $stack",);
+        if (!completer.isCompleted) {
+          completer.completeError(error, stack);
+        }
+      },
+    );
+
+    // Send multiple RTT requests.
+    // Each request carries its own send timestamp (T1) inside the packet.
+    for (var i = 0; i < _timeSyncSampleCount; i++) {
+      final t1 = DateTime.now().microsecondsSinceEpoch;
+
+      final request = _SyncTimePacket(
         version: 1,
         op: _TimeSyncOperation.request,
-        seq: 0,
-        timePhoneSend: DateTime.now().microsecondsSinceEpoch,
+        seq: i, // optional: use i to correlate if you want
+        timePhoneSend: t1,
         timeDeviceReceive: 0,
         timeDeviceSend: 0,
-      ).toBytes(),
-    );
-    await Future.delayed(const Duration(seconds: 1));
-    logger.i("Time synchronized.");
+      );
+
+      logger.d("Sending time sync request seq=$i, t1=$t1");
+
+      await _bleManager.write(
+        deviceId: deviceId,
+        serviceId: _timeSynchronizationServiceUuid,
+        characteristicId: _timeSyncRttCharacteristicUuid,
+        byteData: request.toBytes(),
+      );
+
+      // Short delay between requests to avoid overloading BLE
+      await Future.delayed(const Duration(milliseconds: 50));
+    }
+
+    // Wait until enough responses arrive and median is written
+    await completer.future;
+  }
+
+  /// Compute the median of a non-empty list of integers.
+  int _computeMedian(List<int> values) {
+    final sorted = List<int>.from(values)..sort();
+    final mid = sorted.length ~/ 2;
+
+    if (sorted.length.isOdd) {
+      return sorted[mid];
+    } else {
+      // average of the two middle values (integer division)
+      return ((sorted[mid - 1] + sorted[mid]) ~/ 2);
+    }
   }
 }
 
