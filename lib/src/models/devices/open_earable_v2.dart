@@ -1045,12 +1045,12 @@ class _SyncTimePacket {
     }
 
     final ByteData bd = ByteData(28);
-    bd.setUint8(0, version & 0xFF);
-    bd.setUint8(1, op.value & 0xFF);
-    bd.setUint16(2, seq & 0xFFFF, Endian.little);
-    bd.setUint64(4, timePhoneSend & 0xFFFFFFFFFFFFFFFF, Endian.little);
-    bd.setUint64(12, timeDeviceReceive & 0xFFFFFFFFFFFFFFFF, Endian.little);
-    bd.setUint64(20, timeDeviceSend & 0xFFFFFFFFFFFFFFFF, Endian.little);
+    bd.setUint8(0, version);
+    bd.setUint8(1, op.value);
+    bd.setUint16(2, seq, Endian.little);
+    bd.setUint64(4, timePhoneSend, Endian.little);
+    bd.setUint64(12, timeDeviceReceive, Endian.little);
+    bd.setUint64(20, timeDeviceSend, Endian.little);
     return bd.buffer.asUint8List();
   }
 
