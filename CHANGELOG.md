@@ -49,3 +49,9 @@ README updates (example web app) and add supported platforms.
 ## 2.2.5
 
 * added related sensor configuration to esense sensors
+
+## 2.2.6
+
+* fixed some issues with the auto-reconnect logic
+* introduced time sync capability
+* implemented time sync for OpenEarable v2 devices
