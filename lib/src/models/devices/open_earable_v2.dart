@@ -41,6 +41,10 @@ const String _timeSyncTimeMappingCharacteristicUuid =
 const String _timeSyncRttCharacteristicUuid =
     "2e04cbf9-939d-4be5-823e-271838b75259";
 
+const String _audioResponseServiceUuid = "12345678-1234-5678-9abc-def123456789";
+const String _audioResponseControlCharacteristicUuid = "12345679-1234-5678-9abc-def123456789";
+const String _audioResponseDataCharacteristicUuid = "1234567a-1234-5678-9abc-def123456789";
+
 final VersionConstraint _versionConstraint =
     VersionConstraint.parse(">=2.1.0 <2.3.0");
 
@@ -77,7 +81,8 @@ class OpenEarableV2 extends BluetoothWearable
         EdgeRecorderManager,
         ButtonManager,
         StereoDevice,
-        SystemDevice {
+        SystemDevice,
+        AudioResponseManager {
   static const String deviceInfoServiceUuid =
       "45622510-6468-465a-b141-0b9b0f96b468";
   static const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
@@ -535,6 +540,132 @@ class OpenEarableV2 extends BluetoothWearable
     if (await pairedDevice == null) return;
     _pairedDevice?.unpair();
     _pairedDevice = null;
+  }
+
+  // MARK: AudioResponseManager
+
+  void _triggerAudioResponseMeasurement() {
+    bleManager.write(
+      deviceId: deviceId,
+      serviceId: _audioResponseServiceUuid,
+      characteristicId: _audioResponseControlCharacteristicUuid,
+      byteData: [0xFF], // Command to start audio response measurement
+    );
+  }
+
+  Future<Map<String, dynamic>> _parseAudioResponseData(Uint8List data) async {
+    if (data.isEmpty) {
+      throw StateError('Audio response data is empty');
+    }
+
+    // New v1 payload size:
+    // 1 (version) + 1 (quality) + 1 (mean_magnitude) + 1 (num_peaks)
+    // + 9*2 (frequencies) + 9*2 (magnitudes) = 40 bytes
+    const int expectedLenV1 = 40;
+
+    if (data.length < expectedLenV1) {
+      throw StateError(
+        'Audio response data too short: ${data.length} bytes (expected $expectedLenV1)',
+      );
+    }
+
+    final int version = data[0];
+    if (version != 1) {
+      throw StateError('Unsupported audio response data version: $version');
+    }
+
+    if (data.length != expectedLenV1) {
+      throw StateError(
+        'Unexpected audio response data length for version 1: ${data.length} bytes (expected $expectedLenV1)',
+      );
+    }
+
+    final int quality = data[1];
+    final int meanMagnitude = data[2];
+    final int numPeaks = data[3];
+
+    // Frequencies: 9 * uint16_t (12.4 fixed point) starting at offset 4
+    // NOTE: Endianness: this uses big-endian to match your previous implementation.
+    // If firmware sends little-endian, swap the byte order.
+    const int freqBase = 4;
+    final List<int> frequenciesRaw = List<int>.filled(9, 0);
+    final List<double> frequenciesHz = List<double>.filled(9, 0);
+    for (int i = 0; i < 9; i++) {
+      final int off = freqBase + i * 2;
+      final int raw = (data[off + 1] << 8) | data[off];
+      frequenciesRaw[i] = raw;
+      frequenciesHz[i] = raw / 16.0; // 12.4 fixed point -> Hz
+    }
+
+    // Magnitudes: 9 * uint16_t starting at offset 4 + 18 = 22
+    const int magBase = freqBase + 9 * 2; // 22
+    final List<int> magnitudes = List<int>.filled(9, 0);
+    for (int i = 0; i < 9; i++) {
+      final int off = magBase + i * 2;
+      final int mag = (data[off + 1] << 8) | data[off];
+      magnitudes[i] = mag;
+    }
+
+    final List<Map<String, dynamic>> points = List.generate(9, (i) {
+      return {
+        'frequency_hz': frequenciesHz[i],
+        'frequency_raw_q12_4': frequenciesRaw[i],
+        'magnitude': magnitudes[i],
+      };
+    });
+
+    return {
+      'version': version,
+      'quality': quality,
+      'mean_magnitude': meanMagnitude,
+      'num_peaks': numPeaks,
+      'frequencies_hz': frequenciesHz,
+      'frequencies_raw_q12_4': frequenciesRaw,
+      'magnitudes': magnitudes,
+      'points': points,
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> measureAudioResponse(Map<String, dynamic> parameters) async {
+    _triggerAudioResponseMeasurement();
+
+    // Wait for the result via notification
+    final completer = Completer<Map<String, dynamic>>();
+
+    late final StreamSubscription<List<int>> audioRespSub;
+    audioRespSub = bleManager
+        .subscribe(
+          deviceId: deviceId,
+          serviceId: _audioResponseServiceUuid,
+          characteristicId: _audioResponseDataCharacteristicUuid,
+        )
+        .listen(
+      (data) async {
+        logger.d("Received audio response data: $data");
+        try {
+          final parsed = await _parseAudioResponseData(Uint8List.fromList(data));
+          if (!completer.isCompleted) {
+            completer.complete(parsed);
+          }
+        } catch (e, stack) {
+          logger.e("Error parsing audio response data: $e, $stack");
+          if (!completer.isCompleted) {
+            completer.completeError(e, stack);
+          }
+        } finally {
+          await audioRespSub.cancel();
+        }
+      },
+      onError: (error, stack) async {
+        logger.e("Error during audio response subscription: $error, $stack");
+        if (!completer.isCompleted) {
+          completer.completeError(error, stack);
+        }
+      },
+    );
+
+    return completer.future;
   }
 }
 
