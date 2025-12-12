@@ -991,7 +991,8 @@ class OpenEarableV2 extends Wearable
     }
 
     final int quality = data[1];
-    final int meanMagnitude = data[2];
+    final int meanMagnitudeRaw = data[2];
+    final double meanMagnitude = meanMagnitudeRaw / 8.0;
     final int numPeaks = data[3];
 
     // Frequencies: 9 * uint16_t (12.4 fixed point) starting at offset 4
@@ -1028,6 +1029,7 @@ class OpenEarableV2 extends Wearable
       'version': version,
       'quality': quality,
       'mean_magnitude': meanMagnitude,
+      'mean_magnitude_raw': meanMagnitudeRaw,
       'num_peaks': numPeaks,
       'frequencies_hz': frequenciesHz,
       'frequencies_raw_q12_4': frequenciesRaw,
