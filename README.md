@@ -4,7 +4,6 @@
 ![Pub Points](https://img.shields.io/pub/points/open_earable_flutter)
 ![Pub Version (including pre-releases)](https://img.shields.io/pub/v/open_earable_flutter)
 
-
 This Dart package provides functionality for interacting with OpenEarable devices and some other wearables.  
   
 [Try it online](https://lib-example.open-earable.teco.edu/), provided your browser supports [Web Bluetooth](https://caniuse.com/web-bluetooth).
