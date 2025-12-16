@@ -108,7 +108,7 @@ class _PolarHeartRateSensor extends HeartRateSensor {
       streamController.add(
         HeartRateSensorValue(
           heartRateBpm: heartRate,
-          timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
+          timestamp: BigInt.from(DateTime.now().millisecondsSinceEpoch - startTime),
         ),
       );
     });

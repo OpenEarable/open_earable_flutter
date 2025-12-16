@@ -113,7 +113,7 @@ class EsenseSensor extends Sensor<SensorDoubleValue> {
         StreamController<SensorDoubleValue>();
     _sensorHandler.subscribeToSensorData(_sensorId).listen(
       (data) {
-        int timestamp = data["timestamp"];
+        BigInt timestamp = data["timestamp"];
 
         List<double> values = [];
         for (var entry in (data[sensorName] as Map).entries) {
@@ -121,8 +121,8 @@ class EsenseSensor extends Sensor<SensorDoubleValue> {
             continue;
           }
 
-          if (entry.value is int) {
-            values.add((entry.value as int).toDouble());
+          if (entry.value is BigInt) {
+            values.add((entry.value as BigInt).toDouble());
           } else if (entry.value is double) {
             values.add(entry.value as double);
           } else {

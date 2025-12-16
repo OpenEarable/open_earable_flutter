@@ -50,7 +50,7 @@ class SensorValue {
   //TODO: adjust for v2 that uses uint64 timestamp
   /// The timestamp of the sensor value, represented as an integer.
   /// The unit of the timestamp is determined by the [Sensor.timestampExponent].
-  final int timestamp;
+  final BigInt timestamp;
 
   /// The number of dimensions of the sensor value.
   /// This value is equal to the number of axes of the sensor.

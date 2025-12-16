@@ -272,7 +272,7 @@ class _OpenEarableSensorV2 extends Sensor<SensorDoubleValue> {
 
     StreamSubscription subscription =
         _sensorManager.subscribeToSensorData(_sensorId).listen((data) {
-      int timestamp = data["timestamp"];
+      BigInt timestamp = data["timestamp"];
       logger.t("SensorData: $data");
 
       logger.t("componentData of $componentName: ${data[componentName]}");

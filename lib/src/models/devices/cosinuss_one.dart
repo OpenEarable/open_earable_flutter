@@ -225,7 +225,7 @@ class _CosinussOneSensor extends Sensor<SensorDoubleValue> {
       streamController.add(
         SensorDoubleValue(
           values: [accX.toDouble(), accY.toDouble(), accZ.toDouble()],
-          timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
+          timestamp: BigInt.from(DateTime.now().millisecondsSinceEpoch - startTime),
         ),
       );
     });
@@ -286,7 +286,7 @@ class _CosinussOneSensor extends Sensor<SensorDoubleValue> {
             ppgGreen.toDouble(),
             ppgGreenAmbient.toDouble(),
           ],
-          timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
+          timestamp: BigInt.from(DateTime.now().millisecondsSinceEpoch - startTime),
         ),
       );
     });
@@ -326,7 +326,7 @@ class _CosinussOneSensor extends Sensor<SensorDoubleValue> {
       streamController.add(
         SensorDoubleValue(
           values: [temperature],
-          timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
+          timestamp: BigInt.from(DateTime.now().millisecondsSinceEpoch - startTime),
         ),
       );
     });
@@ -391,7 +391,7 @@ class _CosinussOneHeartRateSensor extends HeartRateSensor {
       streamController.add(
         HeartRateSensorValue(
           heartRateBpm: bpm,
-          timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
+          timestamp: BigInt.from(DateTime.now().millisecondsSinceEpoch - startTime),
         ),
       );
     });

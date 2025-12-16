@@ -50,7 +50,7 @@ class HeartRateVariabilitySensor extends Sensor<HeartRateVariabilitySensorValue>
         rrIntervalsMs: rrIntervalsMs,
         rmssd: _calculateRmssd(allRecentRrIntervalsMs),
         sdnn: _calculateSDNN(allRecentRrIntervalsMs),
-        timestamp: timestamp,
+        timestamp: BigInt.from(timestamp),
       );
       _streamController.add(value);
     });

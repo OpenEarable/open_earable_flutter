@@ -474,7 +474,7 @@ class _OpenEarableSensor extends Sensor<SensorDoubleValue> {
 
     StreamSubscription subscription =
         _sensorManager.subscribeToSensorData(0).listen((data) {
-      int timestamp = data["timestamp"];
+      BigInt timestamp = data["timestamp"];
 
       SensorDoubleValue sensorValue = SensorDoubleValue(
         values: [
@@ -503,7 +503,7 @@ class _OpenEarableSensor extends Sensor<SensorDoubleValue> {
 
     StreamSubscription subscription =
         _sensorManager.subscribeToSensorData(1).listen((data) {
-      int timestamp = data["timestamp"];
+      BigInt timestamp = data["timestamp"];
 
       SensorDoubleValue sensorValue = SensorDoubleValue(
         values: [data[sensorName][componentName]],

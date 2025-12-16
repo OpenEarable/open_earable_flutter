@@ -35,7 +35,7 @@ class TauRingSensor extends Sensor<SensorIntValue> {
     StreamController<SensorIntValue> streamController = StreamController();
     sensorHandler.subscribeToSensorData(sensorId).listen(
       (data) {
-        int timestamp = data["timestamp"];
+        BigInt timestamp = BigInt.from(data["timestamp"]);
 
         List<int> values = [];
         for (var entry in (data[sensorName] as Map).entries) {
