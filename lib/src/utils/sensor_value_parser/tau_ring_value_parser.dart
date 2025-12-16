@@ -23,11 +23,11 @@ class TauRingValueParser extends SensorValueParser {
 
     final int framePrefix = data.getUint8(0);
     if (framePrefix != 0x00) {
-      throw Exception("Invalid frame prefix: $framePrefix"); // TODO: specific exception
+      throw FormatException("Invalid frame prefix: $framePrefix"); 
     }
 
     if (data.lengthInBytes < 5) {
-      throw Exception("Data too short to parse"); // TODO: specific exception
+      throw FormatException("Data too short to parse"); 
     }
 
     final int sequenceNum = data.getUint8(1);
