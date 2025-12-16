@@ -47,7 +47,6 @@ abstract class Sensor<SV extends SensorValue> {
 /// It is designed to be extended by specific sensor value implementations.
 class SensorValue {
   final List<String> _valuesStrings;
-  //TODO: adjust for v2 that uses uint64 timestamp
   /// The timestamp of the sensor value, represented as an integer.
   /// The unit of the timestamp is determined by the [Sensor.timestampExponent].
   final BigInt timestamp;
