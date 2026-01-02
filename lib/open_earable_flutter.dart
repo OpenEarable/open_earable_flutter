@@ -4,7 +4,6 @@ import 'dart:async';
 
 import 'package:logger/logger.dart';
 import 'package:meta/meta.dart';
-import 'package:open_earable_flutter/src/exceptions/device_exception.dart';
 import 'package:open_earable_flutter/src/managers/exg/exg_factory.dart';
 import 'package:open_earable_flutter/src/models/devices/cosinuss_one_factory.dart';
 import 'package:open_earable_flutter/src/models/devices/esense_factory.dart';
@@ -196,7 +195,7 @@ class WearableManager {
   }) async {
     if (_connectedIds.contains(device.id)) {
       logger.w('Device ${device.id} is already connected');
-      throw AlreadyConnectedException();
+      throw Exception('Device is already connected');
     }
     _connectingStreamController.add(device);
 
@@ -229,9 +228,9 @@ class WearableManager {
       }
       _connectedIds.remove(device.id);
       await _bleManager.disconnect(device.id);
-      throw UnsupportedDeviceException();
+      throw Exception('Device is currently not supported');
     } else {
-      throw ConnectionFailedException();
+      throw Exception('Failed to connect to device');
     }
   }
 
@@ -255,23 +254,10 @@ class WearableManager {
         );
         connectedWearables.add(wearable);
       } catch (e) {
-        logger.e(
-          'Failed to connect to system device ${device.id}: ${deviceErrorMessage(e, device.name)}',
-        );
+        logger.e('Failed to connect to system device ${device.id}: $e');
       }
     }
     return connectedWearables;
-  }
-
-  String deviceErrorMessage(dynamic e, String deviceName) {
-    return switch (e) {
-      UnsupportedDeviceException _ => 'Device "$deviceName" is not supported.',
-      AlreadyConnectedException _ =>
-        'Device "$deviceName" is already connected.',
-      ConnectionFailedException _ =>
-        'Failed to connect to device "$deviceName". Please try again.',
-      _ => e.toString(),
-    };
   }
 
   void addPairingRule(PairingRule rule) {
@@ -308,9 +294,7 @@ class WearableManager {
           try {
             await connectToDevice(discoveredDevice);
           } catch (e) {
-            logger.e(
-              'Error auto connecting device ${discoveredDevice.id}: ${deviceErrorMessage(e, discoveredDevice.name)}',
-            );
+            logger.e('Error auto connecting device ${discoveredDevice.id}: $e');
           }
         }
       });
