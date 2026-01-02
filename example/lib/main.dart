@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:example/widgets/button_state_widget.dart';
 import 'package:example/widgets/fota/firmware_update.dart';
+import 'package:flutter_platform_widgets/flutter_platform_widgets.dart';
 import 'package:open_earable_flutter/open_earable_flutter.dart';
 import 'package:example/global_theme.dart';
 import 'package:flutter/material.dart';
@@ -152,9 +153,30 @@ class MyAppState extends State<MyApp> {
                             trailing: _buildTrailingWidget(device.id,
                                 Theme.of(context).colorScheme.secondary),
                             onTap: () async {
-                              Wearable wearable = await _wearableManager
-                                  .connectToDevice(device);
-                              provider.setSelectedPeripheral(wearable);
+                              try {
+                                Wearable wearable = await _wearableManager
+                                    .connectToDevice(device);
+                                provider.setSelectedPeripheral(wearable);
+                              } catch (e) {
+                                String message = _wearableManager
+                                    .deviceErrorMessage(e, device.name);
+                                if (context.mounted) {
+                                  showPlatformDialog(
+                                    context: context,
+                                    builder: (context) => PlatformAlertDialog(
+                                      title: PlatformText('Connection Error'),
+                                      content: PlatformText(message),
+                                      actions: [
+                                        PlatformDialogAction(
+                                          onPressed: () =>
+                                              Navigator.of(context).pop(),
+                                          child: PlatformText('OK'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+                              }
                             },
                           ),
                           if (index != discoveredDevices.length - 1)
@@ -246,7 +268,8 @@ class MyAppState extends State<MyApp> {
               if (_connectedDevice is ButtonManager)
                 GroupedBox(
                   title: "Button State",
-                  child: ButtonStateWidget(buttonManager: _connectedDevice as ButtonManager),
+                  child: ButtonStateWidget(
+                      buttonManager: _connectedDevice as ButtonManager),
                 ),
               if (_connectedDevice is FrequencyPlayer)
                 GroupedBox(
