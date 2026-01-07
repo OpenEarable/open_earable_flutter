@@ -56,7 +56,7 @@ class ExGWearable extends Wearable implements
       bleManager: _bleManager,
       discoveredDevice: _discoveredDevice,
       sensorManager: sensorManager,
-    ));
+    ),);
 
     _seedInitialConfigValues(); // <— important
   }
@@ -311,9 +311,7 @@ class _ExGSensor extends Sensor<SensorDoubleValue> {
       }
     });
 
-    controller.onCancel = () {
-      subscription.cancel();
-    };
+    controller.onCancel = subscription.cancel;
     return controller.stream;
   }
 
@@ -343,9 +341,7 @@ class _ExGSensor extends Sensor<SensorDoubleValue> {
           return biopotentialFilter.filter(notchFilter.filter(x));
         };
       } else {
-        return (double x) {
-          return biopotentialFilter.filter(x);
-        };
+        return biopotentialFilter.filter;
       }
     } else {
       throw UnimplementedError("Filter type '$btype' or cutoff configuration is not supported.");
@@ -442,5 +438,3 @@ class _ExGOrderSensorConfiguration extends SensorConfiguration {
     wearable._notifyConfigChanged(this, configuration);
   }
 }
-
-

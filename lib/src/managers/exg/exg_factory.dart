@@ -1,4 +1,3 @@
-import 'package:open_earable_flutter/src/models/devices/cosinuss_one.dart';
 import 'package:open_earable_flutter/src/models/devices/discovered_device.dart';
 import 'package:open_earable_flutter/src/models/devices/wearable.dart';
 import 'package:open_earable_flutter/src/models/wearable_factory.dart';
@@ -12,7 +11,7 @@ class ExGFactory extends WearableFactory {
 
   @override
   Future<bool> matches(DiscoveredDevice device, List<BleService> services) async {
-    final name = (device.name ?? '').trim();
+    final name = device.name.trim();
     return _nameRegex.hasMatch(name);
   }
 
@@ -25,7 +24,7 @@ class ExGFactory extends WearableFactory {
       throw Exception("disconnectNotifier needs to be set before using the factory");
     }
 
-    final name = (device.name ?? '').trim();
+    final name = device.name.trim();
     if (!_nameRegex.hasMatch(name)) {
       throw Exception("device is not an exg device");
     }
