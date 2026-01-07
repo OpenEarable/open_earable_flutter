@@ -8,6 +8,22 @@ permissions:
   contents: read
   pull-requests: write
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get flutter version
+        run: echo "flutter_version=`cat .flutter_version`" >> $GITHUB_ENV
+        id: flutter_version
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+          flutter-version: ${{ env.flutter_version }}
+      - run: flutter analyze
+      - run: (cd example && flutter build web --dart-define=BUILD_COMMIT=$(git
+          rev-parse --short HEAD) --dart-define=BUILD_BRANCH=$(git rev-parse
+          --abbrev-ref HEAD))
   build_and_preview:
     if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
