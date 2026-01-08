@@ -222,6 +222,50 @@ class BleManager extends BleGattManager {
     return completer.future;
   }
 
+  /// Checks if the connected device has a specific service.
+  @override
+  Future<bool> hasService({
+    required String deviceId,
+    required String serviceId,
+  }) async {
+
+
+    if (!isConnected(deviceId)) {
+      throw Exception("Device is not connected");
+    }
+
+    List<BleService> services = await UniversalBle.discoverServices(deviceId);
+    for (final service in services) {
+      if (service.uuid.toLowerCase() == serviceId.toLowerCase()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Checks if the connected device has a specific characteristic.
+  @override
+  Future<bool> hasCharacteristic({
+    required String deviceId,
+    required String serviceId,
+    required String characteristicId,
+  }) async {
+    if (!isConnected(deviceId)) {
+      throw Exception("Device is not connected");
+    }
+    List<BleService> services = await UniversalBle.discoverServices(deviceId);
+    for (final service in services) {
+      if (service.uuid.toLowerCase() == serviceId.toLowerCase()) {
+        for (final characteristic in service.characteristics) {
+          if (characteristic.uuid.toLowerCase() == characteristicId.toLowerCase()) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
   /// Writes byte data to a specific characteristic of the connected Earable device.
   @override
   Future<void> write({
