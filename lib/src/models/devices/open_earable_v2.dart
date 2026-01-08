@@ -1,19 +1,18 @@
 import 'dart:async';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:open_earable_flutter/src/constants.dart';
+import 'package:open_earable_flutter/src/models/devices/bluetooth_wearable.dart';
 import 'package:pub_semver/pub_semver.dart';
 
 import '../../../open_earable_flutter.dart' hide Version;
 import '../../managers/v2_sensor_handler.dart';
 import '../capabilities/device_firmware_version.dart';
 import '../capabilities/sensor_configuration_specializations/sensor_configuration_open_earable_v2.dart';
-
-const String _batteryLevelCharacteristicUuid = "2A19";
-const String _batteryLevelStatusCharacteristicUuid = "2BED";
-const String _batteryHealthStatusCharacteristicUuid = "2BEA";
-const String _batteryEnergyStatusCharacteristicUuid = "2BF0";
+import 'battery_gatt_reader/battery_energy_status_gatt_reader.dart';
+import 'battery_gatt_reader/battery_health_status_gatt_reader.dart';
+import 'battery_gatt_reader/battery_level_status_gatt_reader.dart';
+import 'battery_gatt_reader/battery_level_status_service_gatt_reader.dart';
 
 const String _ledSetColorCharacteristic =
     "81040e7a-4819-11ee-be56-0242ac120002";
@@ -57,16 +56,18 @@ final VersionConstraint _versionConstraint =
 /// manage sensors, control LEDs, and retrieve battery and device information.
 /// The class also provides streams for monitoring battery and power status,
 /// as well as health and energy status.
-class OpenEarableV2 extends Wearable
-    with DeviceFirmwareVersionNumberExt
+class OpenEarableV2 extends BluetoothWearable
+    with
+      DeviceFirmwareVersionNumberExt,
+      BatteryLevelStatusGattReader,
+      BatteryLevelStatusServiceGattReader,
+      BatteryHealthStatusGattReader,
+      BatteryEnergyStatusGattReader
     implements
         SensorManager,
         SensorConfigurationManager,
         RgbLed,
         StatusLed,
-        BatteryLevelStatus,
-        BatteryLevelStatusService,
-        BatteryHealthStatusService,
         BatteryEnergyStatusService,
         DeviceIdentifier,
         DeviceFirmwareVersion,
@@ -99,7 +100,7 @@ class OpenEarableV2 extends Wearable
 
     _sensorConfigSubscription?.cancel();
 
-    _sensorConfigSubscription = _bleManager
+    _sensorConfigSubscription = bleManager
         .subscribe(
       deviceId: deviceId,
       serviceId: sensorServiceUuid,
@@ -122,7 +123,7 @@ class OpenEarableV2 extends Wearable
 
     controller.onListen = () {
       // Immediately read the current sensor configuration
-      _bleManager
+      bleManager
           .read(
         deviceId: deviceId,
         serviceId: sensorServiceUuid,
@@ -191,8 +192,6 @@ class OpenEarableV2 extends Wearable
   StreamSubscription? _sensorConfigSubscription;
   StreamSubscription? _buttonSubscription;
 
-  final BleGattManager _bleManager;
-  final DiscoveredDevice _discoveredDevice;
 
   @override
   final Set<OpenEarableV2Mic> availableMicrophones;
@@ -201,7 +200,7 @@ class OpenEarableV2 extends Wearable
 
   @override
   Future<String> get filePrefix async {
-    List<int> prefixBytes = await _bleManager.read(
+    List<int> prefixBytes = await bleManager.read(
       deviceId: deviceId,
       serviceId: sensorServiceUuid,
       characteristicId: sensorEdgeRecorderFilePrefixCharacteristicUuid,
@@ -215,7 +214,7 @@ class OpenEarableV2 extends Wearable
 
     _buttonSubscription?.cancel();
 
-    _buttonSubscription = _bleManager
+    _buttonSubscription = bleManager
         .subscribe(
       deviceId: deviceId,
       serviceId: _buttonServiceUuid,
@@ -245,7 +244,7 @@ class OpenEarableV2 extends Wearable
 
     controller.onListen = () {
       // Immediately read current button state
-      _bleManager
+      bleManager
           .read(
         deviceId: deviceId,
         serviceId: _buttonServiceUuid,
@@ -274,19 +273,17 @@ class OpenEarableV2 extends Wearable
     required super.disconnectNotifier,
     required List<Sensor> sensors,
     required List<SensorConfiguration> sensorConfigurations,
-    required BleGattManager bleManager,
-    required DiscoveredDevice discoveredDevice,
+    required super.bleManager,
+    required super.discoveredDevice,
     this.availableMicrophones = const {},
     this.availableAudioModes = const {},
     bool isConnectedViaSystem = false,
   })  : _sensors = sensors,
         _sensorConfigurations = sensorConfigurations,
-        _bleManager = bleManager,
-        _discoveredDevice = discoveredDevice,
         _isConnectedViaSystem = isConnectedViaSystem;
 
   @override
-  String get deviceId => _discoveredDevice.id;
+  String get deviceId => discoveredDevice.id;
 
   @override
   String? getWearableIconPath({bool darkmode = false}) {
@@ -313,8 +310,8 @@ class OpenEarableV2 extends Wearable
     data.setUint8(0, r);
     data.setUint8(1, g);
     data.setUint8(2, b);
-    await _bleManager.write(
-      deviceId: _discoveredDevice.id,
+    await bleManager.write(
+      deviceId: discoveredDevice.id,
       serviceId: ledServiceUuid,
       characteristicId: _ledSetColorCharacteristic,
       byteData: data.buffer.asUint8List(),
@@ -325,8 +322,8 @@ class OpenEarableV2 extends Wearable
   Future<void> showStatus(bool status) async {
     ByteData statusData = ByteData(1);
     statusData.setUint8(0, status ? 0 : 1);
-    await _bleManager.write(
-      deviceId: _discoveredDevice.id,
+    await bleManager.write(
+      deviceId: discoveredDevice.id,
       serviceId: ledServiceUuid,
       characteristicId: _ledSetStateCharacteristic,
       byteData: statusData.buffer.asUint8List(),
@@ -340,8 +337,8 @@ class OpenEarableV2 extends Wearable
   /// Returns a `Future` that completes with the device identifier as a `String`.
   @override
   Future<String?> readDeviceIdentifier() async {
-    List<int> deviceIdentifierBytes = await _bleManager.read(
-      deviceId: _discoveredDevice.id,
+    List<int> deviceIdentifierBytes = await bleManager.read(
+      deviceId: discoveredDevice.id,
       serviceId: deviceInfoServiceUuid,
       characteristicId: _deviceIdentifierCharacteristicUuid,
     );
@@ -357,8 +354,8 @@ class OpenEarableV2 extends Wearable
   /// Returns a `Future` that completes with the device firmware version as a `String`.
   @override
   Future<String?> readDeviceFirmwareVersion() async {
-    List<int> deviceGenerationBytes = await _bleManager.read(
-      deviceId: _discoveredDevice.id,
+    List<int> deviceGenerationBytes = await bleManager.read(
+      deviceId: discoveredDevice.id,
       serviceId: deviceInfoServiceUuid,
       characteristicId: _deviceFirmwareVersionCharacteristicUuid,
     );
@@ -377,8 +374,8 @@ class OpenEarableV2 extends Wearable
   /// Returns a `Future` that completes with the device firmware version as a `String`.
   @override
   Future<String?> readDeviceHardwareVersion() async {
-    List<int> hardwareGenerationBytes = await _bleManager.read(
-      deviceId: _discoveredDevice.id,
+    List<int> hardwareGenerationBytes = await bleManager.read(
+      deviceId: discoveredDevice.id,
       serviceId: deviceInfoServiceUuid,
       characteristicId: _deviceHardwareVersionCharacteristicUuid,
     );
@@ -393,7 +390,7 @@ class OpenEarableV2 extends Wearable
 
   @override
   Future<void> disconnect() {
-    return _bleManager.disconnect(_discoveredDevice.id);
+    return bleManager.disconnect(discoveredDevice.id);
   }
 
   @override
@@ -403,282 +400,6 @@ class OpenEarableV2 extends Wearable
   @override
   List<Sensor> get sensors => List.unmodifiable(_sensors);
 
-  // MARK: Battery
-
-  @override
-  Future<int> readBatteryPercentage() async {
-    List<int> batteryLevelList = await _bleManager.read(
-      deviceId: _discoveredDevice.id,
-      serviceId: batteryServiceUuid,
-      characteristicId: _batteryLevelCharacteristicUuid,
-    );
-
-    logger.t("Battery level bytes: $batteryLevelList");
-
-    if (batteryLevelList.length != 1) {
-      throw StateError(
-        'Battery level characteristic expected 1 value, but got ${batteryLevelList.length}',
-      );
-    }
-
-    return batteryLevelList[0];
-  }
-
-  @override
-  Future<BatteryEnergyStatus> readEnergyStatus() async {
-    List<int> energyStatusList = await _bleManager.read(
-      deviceId: _discoveredDevice.id,
-      serviceId: batteryServiceUuid,
-      characteristicId: _batteryEnergyStatusCharacteristicUuid,
-    );
-
-    logger.t("Battery energy status bytes: $energyStatusList");
-
-    if (energyStatusList.length != 7) {
-      throw StateError(
-        'Battery energy status characteristic expected 7 values, but got ${energyStatusList.length}',
-      );
-    }
-
-    int rawVoltage = (energyStatusList[2] << 8) | energyStatusList[1];
-    double voltage = _convertSFloat(rawVoltage);
-
-    int rawAvailableCapacity = (energyStatusList[4] << 8) | energyStatusList[3];
-    double availableCapacity = _convertSFloat(rawAvailableCapacity);
-
-    int rawChargeRate = (energyStatusList[6] << 8) | energyStatusList[5];
-    double chargeRate = _convertSFloat(rawChargeRate);
-
-    BatteryEnergyStatus batteryEnergyStatus = BatteryEnergyStatus(
-      voltage: voltage,
-      availableCapacity: availableCapacity,
-      chargeRate: chargeRate,
-    );
-
-    logger.d('Battery energy status: $batteryEnergyStatus');
-
-    return batteryEnergyStatus;
-  }
-
-  double _convertSFloat(int rawBits) {
-    int exponent = ((rawBits & 0xF000) >> 12) - 16;
-    int mantissa = rawBits & 0x0FFF;
-
-    if (mantissa >= 0x800) {
-      mantissa = -((0x1000) - mantissa);
-    }
-    logger.t("Exponent: $exponent, Mantissa: $mantissa");
-    double result = mantissa.toDouble() * pow(10.0, exponent.toDouble());
-    return result;
-  }
-
-  @override
-  Future<BatteryHealthStatus> readHealthStatus() async {
-    List<int> healthStatusList = await _bleManager.read(
-      deviceId: _discoveredDevice.id,
-      serviceId: batteryServiceUuid,
-      characteristicId: _batteryHealthStatusCharacteristicUuid,
-    );
-
-    logger.t("Battery health status bytes: $healthStatusList");
-
-    if (healthStatusList.length != 5) {
-      throw StateError(
-        'Battery health status characteristic expected 5 values, but got ${healthStatusList.length}',
-      );
-    }
-
-    int healthSummary = healthStatusList[1];
-    int cycleCount = (healthStatusList[2] << 8) | healthStatusList[3];
-    int currentTemperature = healthStatusList[4];
-
-    BatteryHealthStatus batteryHealthStatus = BatteryHealthStatus(
-      healthSummary: healthSummary,
-      cycleCount: cycleCount,
-      currentTemperature: currentTemperature,
-    );
-
-    logger.d('Battery health status: $batteryHealthStatus');
-
-    return batteryHealthStatus;
-  }
-
-  @override
-  Future<BatteryPowerStatus> readPowerStatus() async {
-    List<int> powerStateList = await _bleManager.read(
-      deviceId: _discoveredDevice.id,
-      serviceId: batteryServiceUuid,
-      characteristicId: _batteryLevelStatusCharacteristicUuid,
-    );
-
-    int powerState = (powerStateList[1] << 8) | powerStateList[2];
-    logger.d("Battery power status bits: ${powerState.toRadixString(2)}");
-
-    bool batteryPresent = powerState >> 15 & 0x1 != 0;
-
-    int wiredExternalPowerSourceConnectedRaw = (powerState >> 13) & 0x3;
-    ExternalPowerSourceConnected wiredExternalPowerSourceConnected =
-        ExternalPowerSourceConnected
-            .values[wiredExternalPowerSourceConnectedRaw];
-
-    int wirelessExternalPowerSourceConnectedRaw = (powerState >> 11) & 0x3;
-    ExternalPowerSourceConnected wirelessExternalPowerSourceConnected =
-        ExternalPowerSourceConnected
-            .values[wirelessExternalPowerSourceConnectedRaw];
-
-    int chargeStateRaw = (powerState >> 9) & 0x3;
-    ChargeState chargeState = ChargeState.values[chargeStateRaw];
-
-    int chargeLevelRaw = (powerState >> 7) & 0x3;
-    BatteryChargeLevel chargeLevel = BatteryChargeLevel.values[chargeLevelRaw];
-
-    int chargingTypeRaw = (powerState >> 5) & 0x7;
-    BatteryChargingType chargingType =
-        BatteryChargingType.values[chargingTypeRaw];
-
-    int chargingFaultReasonRaw = (powerState >> 2) & 0x5;
-    List<ChargingFaultReason> chargingFaultReason = [];
-    if ((chargingFaultReasonRaw & 0x1) != 0) {
-      chargingFaultReason.add(ChargingFaultReason.other);
-    }
-    if ((chargingFaultReasonRaw & 0x2) != 0) {
-      chargingFaultReason.add(ChargingFaultReason.externalPowerSource);
-    }
-    if ((chargingFaultReasonRaw & 0x4) != 0) {
-      chargingFaultReason.add(ChargingFaultReason.battery);
-    }
-
-    BatteryPowerStatus batteryPowerStatus = BatteryPowerStatus(
-      batteryPresent: batteryPresent,
-      wiredExternalPowerSourceConnected: wiredExternalPowerSourceConnected,
-      wirelessExternalPowerSourceConnected:
-          wirelessExternalPowerSourceConnected,
-      chargeState: chargeState,
-      chargeLevel: chargeLevel,
-      chargingType: chargingType,
-      chargingFaultReason: chargingFaultReason,
-    );
-
-    logger.d('Battery power status: $batteryPowerStatus');
-
-    return batteryPowerStatus;
-  }
-
-  @override
-  Stream<int> get batteryPercentageStream {
-    StreamController<int> controller = StreamController<int>();
-    Timer? batteryPollingTimer;
-
-    controller.onCancel = () {
-      batteryPollingTimer?.cancel();
-    };
-
-    controller.onListen = () {
-      batteryPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-        readBatteryPercentage().then((batteryPercentage) {
-          controller.add(batteryPercentage);
-        }).catchError((e) {
-          logger.e('Error reading battery percentage: $e');
-        });
-      });
-
-      readBatteryPercentage().then((batteryPercentage) {
-        controller.add(batteryPercentage);
-      }).catchError((e) {
-        logger.e('Error reading battery percentage: $e');
-      });
-    };
-
-    return controller.stream;
-  }
-
-  @override
-  Stream<BatteryPowerStatus> get powerStatusStream {
-    StreamController<BatteryPowerStatus> controller =
-        StreamController<BatteryPowerStatus>();
-    Timer? powerPollingTimer;
-
-    controller.onCancel = () {
-      powerPollingTimer?.cancel();
-    };
-
-    controller.onListen = () {
-      powerPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-        readPowerStatus().then((powerStatus) {
-          controller.add(powerStatus);
-        }).catchError((e) {
-          logger.e('Error reading power status: $e');
-        });
-      });
-
-      readPowerStatus().then((powerStatus) {
-        controller.add(powerStatus);
-      }).catchError((e) {
-        logger.e('Error reading power status: $e');
-      });
-    };
-
-    return controller.stream;
-  }
-
-  @override
-  Stream<BatteryEnergyStatus> get energyStatusStream {
-    StreamController<BatteryEnergyStatus> controller =
-        StreamController<BatteryEnergyStatus>();
-    Timer? energyPollingTimer;
-
-    controller.onCancel = () {
-      energyPollingTimer?.cancel();
-    };
-
-    controller.onListen = () {
-      energyPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-        readEnergyStatus().then((energyStatus) {
-          controller.add(energyStatus);
-        }).catchError((e) {
-          logger.e('Error reading energy status: $e');
-        });
-      });
-
-      readEnergyStatus().then((energyStatus) {
-        controller.add(energyStatus);
-      }).catchError((e) {
-        logger.e('Error reading energy status: $e');
-      });
-    };
-
-    return controller.stream;
-  }
-
-  @override
-  Stream<BatteryHealthStatus> get healthStatusStream {
-    StreamController<BatteryHealthStatus> controller =
-        StreamController<BatteryHealthStatus>();
-    Timer? healthPollingTimer;
-
-    controller.onCancel = () {
-      healthPollingTimer?.cancel();
-    };
-
-    controller.onListen = () {
-      healthPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-        readHealthStatus().then((healthStatus) {
-          controller.add(healthStatus);
-        }).catchError((e) {
-          logger.e('Error reading health status: $e');
-        });
-      });
-
-      readHealthStatus().then((healthStatus) {
-        controller.add(healthStatus);
-      }).catchError((e) {
-        logger.e('Error reading health status: $e');
-      });
-    };
-
-    return controller.stream;
-  }
-
   // MARK: MicrophoneManager
 
   @override
@@ -687,7 +408,7 @@ class OpenEarableV2 extends Wearable
       throw ArgumentError('Microphone not available: ${microphone.key}');
     }
 
-    _bleManager.write(
+    bleManager.write(
       deviceId: deviceId,
       serviceId: _audioConfigServiceUuid,
       characteristicId: _micSelectCharacteristicUuid,
@@ -697,7 +418,7 @@ class OpenEarableV2 extends Wearable
 
   @override
   Future<OpenEarableV2Mic> getMicrophone() async {
-    List<int> microphoneBytes = await _bleManager.read(
+    List<int> microphoneBytes = await bleManager.read(
       deviceId: deviceId,
       serviceId: _audioConfigServiceUuid,
       characteristicId: _micSelectCharacteristicUuid,
@@ -721,7 +442,7 @@ class OpenEarableV2 extends Wearable
       throw ArgumentError('Audio mode not available: ${audioMode.key}');
     }
 
-    _bleManager.write(
+    bleManager.write(
       deviceId: deviceId,
       serviceId: _audioConfigServiceUuid,
       characteristicId: _audioModeCharacteristicUuid,
@@ -731,7 +452,7 @@ class OpenEarableV2 extends Wearable
 
   @override
   Future<AudioMode> getAudioMode() async {
-    List<int> audioModeBytes = await _bleManager.read(
+    List<int> audioModeBytes = await bleManager.read(
       deviceId: deviceId,
       serviceId: _audioConfigServiceUuid,
       characteristicId: _audioModeCharacteristicUuid,
@@ -751,7 +472,7 @@ class OpenEarableV2 extends Wearable
 
   @override
   Future<void> setFilePrefix(String prefix) {
-    return _bleManager.write(
+    return bleManager.write(
       deviceId: deviceId,
       serviceId: sensorServiceUuid,
       characteristicId: sensorEdgeRecorderFilePrefixCharacteristicUuid,
@@ -765,7 +486,7 @@ class OpenEarableV2 extends Wearable
   Future<DevicePosition?> get position async {
     List<int> positionBytes;
     try {
-      positionBytes = await _bleManager.read(
+      positionBytes = await bleManager.read(
         deviceId: deviceId,
         serviceId: "1410df95-5f68-4ebb-a7c7-5e0fb9ae7557",
         characteristicId: "1410df98-5f68-4ebb-a7c7-5e0fb9ae7557",
@@ -840,7 +561,7 @@ class OpenEarableV2 extends Wearable
 
     // Subscribe to RTT responses
     late final StreamSubscription<List<int>> rttSub;
-    rttSub = _bleManager
+    rttSub = bleManager
         .subscribe(
           deviceId: deviceId,
           serviceId: _timeSynchronizationServiceUuid,
@@ -883,7 +604,7 @@ class OpenEarableV2 extends Wearable
             ..setInt64(0, medianOffset, Endian.little);
 
           // Write the final median offset to the device
-          await _bleManager.write(
+          await bleManager.write(
             deviceId: deviceId,
             serviceId: _timeSynchronizationServiceUuid,
             characteristicId: _timeSyncTimeMappingCharacteristicUuid,
@@ -919,7 +640,7 @@ class OpenEarableV2 extends Wearable
 
       logger.d("Sending time sync request seq=$i, t1=$t1");
 
-      await _bleManager.write(
+      await bleManager.write(
         deviceId: deviceId,
         serviceId: _timeSynchronizationServiceUuid,
         characteristicId: _timeSyncRttCharacteristicUuid,
