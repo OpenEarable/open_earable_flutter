@@ -5,30 +5,29 @@ import '../../managers/wearable_disconnect_notifier.dart';
 abstract class Wearable {
   final String name;
 
-  final List<dynamic> _capabilities = [];
+  // final List<Object> _capabilities = [];
+  final Map<Type, Object> _capabilities = {};
 
   Wearable({
     required this.name,
     required WearableDisconnectNotifier disconnectNotifier,
   }) {
     disconnectNotifier.addListener(_notifyDisconnectListeners);
-    _capabilities.add(this);
   }
 
   bool hasCapability<T>() {
-    for (final capability in _capabilities) {
-      if (capability is T) {
-        return true;
-      }
+    if (_capabilities.containsKey(T)) {
+      return true;
     }
-    return false;
+    return this is T;
   }
 
   T? getCapability<T>() {
-    for (final capability in _capabilities) {
-      if (capability is T) {
-        return capability;
-      }
+    if (_capabilities.containsKey(T)) {
+      return _capabilities[T] as T;
+    }
+    if (this is T) {
+      return this as T;
     }
     return null;
   }
@@ -45,7 +44,7 @@ abstract class Wearable {
     if (hasCapability<T>()) {
       throw StateError('Wearable already has capability: $T');
     }
-    _capabilities.add(capability);
+    _capabilities[T] = capability as Object;
   }
 
   /// Gets path to an icon representing the wearable.
