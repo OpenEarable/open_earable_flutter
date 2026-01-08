@@ -16,6 +16,7 @@ import '../capabilities/sensor_configuration_specializations/recordable_sensor_c
 import '../capabilities/sensor_configuration_specializations/sensor_configuration_open_earable_v2.dart';
 import '../capabilities/sensor_configuration_specializations/streamable_sensor_configuration.dart';
 import '../capabilities/system_device.dart';
+import '../capabilities/time_synchronizable.dart';
 import 'discovered_device.dart';
 import 'open_earable_v1.dart';
 import 'open_earable_v2.dart';
@@ -69,7 +70,7 @@ class OpenEarableFactory extends WearableFactory {
     } else if (_v2Regex.hasMatch(firmwareVersion)) {
       (List<Sensor>, List<SensorConfiguration>) sensorInfo =
           await _initSensors(device);
-      return OpenEarableV2(
+      final wearable = OpenEarableV2(
         name: device.name,
         disconnectNotifier: disconnectNotifier!,
         sensors: sensorInfo.$1,
@@ -87,6 +88,15 @@ class OpenEarableFactory extends WearableFactory {
         },
         isConnectedViaSystem: options.contains(const ConnectedViaSystem()),
       );
+      if (await bleManager!.hasService(deviceId: device.id, serviceId: timeSynchronizationServiceUuid)) {
+        wearable.registerCapability<TimeSynchronizable>(
+          OpenEarableV2TimeSyncImp(
+            bleManager: bleManager!,
+            deviceId: device.id,
+          ),
+        );
+      }
+      return wearable;
     } else {
       throw Exception('OpenEarable version is not supported');
     }
