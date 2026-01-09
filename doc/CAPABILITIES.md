@@ -2,7 +2,21 @@
 
 Wearable functionality in the Open Earable Flutter package is modular and extensible through the use of **capabilities**. Capabilities are abstract interfaces that define specific features (like sensor access, battery info, button interaction, etc.). Each `Wearable` can implement any combination of these capabilities depending on its hardware and firmware support.
 
-This guide outlines the most common capabilities and how to use them.
+This guide outlines the most common capabilities and how to use them with the new capability lookup helpers.
+
+Use `hasCapability<T>()` to check support and `getCapability<T>()` or `requireCapability<T>()` to fetch an instance:
+
+```dart
+if (wearable.hasCapability<SensorManager>()) {
+  final sensorManager = wearable.requireCapability<SensorManager>();
+  final sensors = sensorManager.sensors;
+}
+```
+
+The difference between `getCapability<T>()` and `requireCapability<T>()` is that the latter throws an exception if the capability is not supported, while the former returns `null`.
+
+[!WARNING]
+The old way of checking capabilities using `is <Capability>` is deprecated. Please use `hasCapability<T>()` instead.
 
 ---
 
@@ -15,8 +29,9 @@ Some of the most commonly used capabilities include:
 Enables access to available sensors on the wearable.
 
 ```dart
-if (wearable is SensorManager) {
-  List<Sensor> sensors = wearable.sensors;
+final sensorManager = wearable.getCapability<SensorManager>();
+if (sensorManager != null) {
+  List<Sensor> sensors = sensorManager.sensors;
 }
 ```
 
@@ -27,8 +42,9 @@ if (wearable is SensorManager) {
 Allows configuration of the wearable’s sensors, including setting sampling rates or modes.
 
 ```dart
-if (wearable is SensorConfigurationManager) {
-  List<SensorConfiguration> configurations = wearable.sensorConfigurations;
+final configurationManager = wearable.getCapability<SensorConfigurationManager>();
+if (configurationManager != null) {
+  List<SensorConfiguration> configurations = configurationManager.sensorConfigurations;
 }
 ```
 
@@ -41,8 +57,9 @@ if (wearable is SensorConfigurationManager) {
 Provides access to battery energy data.
 
 ```dart
-if (wearable is BatteryEnergyStatusService) {
-  BatteryEnergyStatus status = await wearable.readEnergyStatus();
+final energyStatusService = wearable.getCapability<BatteryEnergyStatusService>();
+if (energyStatusService != null) {
+  BatteryEnergyStatus status = await energyStatusService.readEnergyStatus();
 }
 ```
 
@@ -51,8 +68,9 @@ if (wearable is BatteryEnergyStatusService) {
 Reads battery health and performance metrics.
 
 ```dart
-if (wearable is BatteryHealthStatusService) {
-  BatteryHealthStatus healthStatus = await wearable.readHealthStatus();
+final healthStatusService = wearable.getCapability<BatteryHealthStatusService>();
+if (healthStatusService != null) {
+  BatteryHealthStatus healthStatus = await healthStatusService.readHealthStatus();
 }
 ```
 
@@ -61,8 +79,9 @@ if (wearable is BatteryHealthStatusService) {
 Gives the current battery level as a percentage or unit.
 
 ```dart
-if (wearable is BatteryLevelStatusService) {
-  BatteryPowerStatus levelStatus = await wearable.readPowerStatus();
+final levelStatusService = wearable.getCapability<BatteryLevelStatusService>();
+if (levelStatusService != null) {
+  BatteryPowerStatus levelStatus = await levelStatusService.readPowerStatus();
 }
 ```
 
@@ -73,8 +92,9 @@ if (wearable is BatteryLevelStatusService) {
 Enables listening to hardware button events on the wearable.
 
 ```dart
-if (wearable is ButtonManager) {
-  wearable.buttonEvents.listen((buttonEvent) {
+final buttonManager = wearable.getCapability<ButtonManager>();
+if (buttonManager != null) {
+  buttonManager.buttonEvents.listen((buttonEvent) {
     // Handle button events
   });
 }
@@ -87,8 +107,9 @@ if (wearable is ButtonManager) {
 Controls on-device recording. You can specify filename prefixes or manage session behaviors.
 
 ```dart
-if (wearable is EdgeRecorderManager) {
-  wearable.setFilePrefix("my_recording");
+final edgeRecorder = wearable.getCapability<EdgeRecorderManager>();
+if (edgeRecorder != null) {
+  edgeRecorder.setFilePrefix("my_recording");
 }
 ```
 
@@ -99,9 +120,10 @@ if (wearable is EdgeRecorderManager) {
 Lets you select the active microphone (if the device has multiple).
 
 ```dart
-if (wearable is MicrophoneManager) {
-  List<Microphone> microphones = wearable.availableMicrophones;
-  wearable.setMicrophone(microphones.first);
+final microphoneManager = wearable.getCapability<MicrophoneManager>();
+if (microphoneManager != null) {
+  List<Microphone> microphones = microphoneManager.availableMicrophones;
+  microphoneManager.setMicrophone(microphones.first);
 }
 ```
 
@@ -112,9 +134,10 @@ if (wearable is MicrophoneManager) {
 Allows switching between different audio modes (e.g., mono, stereo, streaming).
 
 ```dart
-if (wearable is AudioModeManager) {
-  List<AudioMode> audioModes = wearable.availableAudioModes;
-  wearable.setAudioMode(audioModes.first);
+final audioModeManager = wearable.getCapability<AudioModeManager>();
+if (audioModeManager != null) {
+  List<AudioMode> audioModes = audioModeManager.availableAudioModes;
+  audioModeManager.setAudioMode(audioModes.first);
 }
 ```
 
@@ -127,8 +150,9 @@ if (wearable is AudioModeManager) {
 Reads the current firmware version of the device.
 
 ```dart
-if (wearable is DeviceFirmwareVersion) {
-  String firmwareVersion = await wearable.readDeviceFirmwareVersion();
+final firmwareVersionService = wearable.getCapability<DeviceFirmwareVersion>();
+if (firmwareVersionService != null) {
+  String firmwareVersion = await firmwareVersionService.readDeviceFirmwareVersion();
 }
 ```
 
@@ -137,8 +161,9 @@ if (wearable is DeviceFirmwareVersion) {
 Reads the hardware version of the device.
 
 ```dart
-if (wearable is DeviceHardwareVersion) {
-  String hardwareVersion = await wearable.readDeviceHardwareVersion();
+final hardwareVersionService = wearable.getCapability<DeviceHardwareVersion>();
+if (hardwareVersionService != null) {
+  String hardwareVersion = await hardwareVersionService.readDeviceHardwareVersion();
 }
 ```
 
@@ -147,8 +172,9 @@ if (wearable is DeviceHardwareVersion) {
 Retrieves the device’s unique ID.
 
 ```dart
-if (wearable is DeviceIdentifier) {
-  String deviceId = await wearable.readDeviceIdentifier();
+final deviceIdentifierService = wearable.getCapability<DeviceIdentifier>();
+if (deviceIdentifierService != null) {
+  String deviceId = await deviceIdentifierService.readDeviceIdentifier();
 }
 ```
 
@@ -156,4 +182,4 @@ if (wearable is DeviceIdentifier) {
 
 ## Summary
 
-Capabilities are the building blocks of wearable functionality. You can dynamically check for and use any supported capability through simple type checks (`if (wearable is SomeCapability)`). This enables modular development and ensures your app only uses features supported by the connected device.
+Capabilities are the building blocks of wearable functionality. Use `hasCapability<T>()` to check support and `getCapability<T>()` to access a capability instance. This enables modular development and ensures your app only uses features supported by the connected device.

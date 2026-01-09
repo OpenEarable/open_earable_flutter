@@ -17,8 +17,9 @@ To configure sensors, you first need to access the `SensorConfiguration` you wan
    If you have a `Wearable` that implements `SensorConfigurationManager`, you can access the configurations like this:
 
    ```dart
-   if (wearable is SensorConfigurationManager) {
-     List<SensorConfiguration> configurations = wearable.sensorConfigurations;
+   final sensorConfigurationManager = wearable.getCapability<SensorConfigurationManager>();
+   if (sensorConfigurationManager != null) {
+     List<SensorConfiguration> configurations = sensorConfigurationManager.sensorConfigurations;
    }
    ```
 
