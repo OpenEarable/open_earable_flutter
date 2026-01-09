@@ -15,8 +15,8 @@ if (wearable.hasCapability<SensorManager>()) {
 
 The difference between `getCapability<T>()` and `requireCapability<T>()` is that the latter throws an exception if the capability is not supported, while the former returns `null`.
 
-[!WARNING]
-The old way of checking capabilities using `is <Capability>` is deprecated. Please use `hasCapability<T>()` instead.
+> [!WARNING]
+> The old way of checking capabilities using `is <Capability>` is deprecated. Please use `hasCapability<T>()` instead.
 
 ---
 
