@@ -41,7 +41,7 @@ const String _timeSyncTimeMappingCharacteristicUuid =
 const String _timeSyncRttCharacteristicUuid =
     "2e04cbf9-939d-4be5-823e-271838b75259";
 
-const String _audioResponseServiceUuid = "12345678-1234-5678-9abc-def123456789";
+const String audioResponseServiceUuid = "12345678-1234-5678-9abc-def123456789";
 const String _audioResponseControlCharacteristicUuid = "12345679-1234-5678-9abc-def123456789";
 const String _audioResponseDataCharacteristicUuid = "1234567a-1234-5678-9abc-def123456789";
 
@@ -81,8 +81,7 @@ class OpenEarableV2 extends BluetoothWearable
         EdgeRecorderManager,
         ButtonManager,
         StereoDevice,
-        SystemDevice,
-        AudioResponseManager {
+        SystemDevice {
   static const String deviceInfoServiceUuid =
       "45622510-6468-465a-b141-0b9b0f96b468";
   static const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
@@ -542,12 +541,23 @@ class OpenEarableV2 extends BluetoothWearable
     _pairedDevice = null;
   }
 
-  // MARK: AudioResponseManager
+}
+
+// MARK: AudioResponseManager
+
+class OpenEarableV2AudioResponseManager implements AudioResponseManager {
+  final BleGattManager bleManager;
+  final String deviceId;
+
+  OpenEarableV2AudioResponseManager({
+    required this.bleManager,
+    required this.deviceId,
+  });
 
   void _triggerAudioResponseMeasurement() {
     bleManager.write(
       deviceId: deviceId,
-      serviceId: _audioResponseServiceUuid,
+      serviceId: audioResponseServiceUuid,
       characteristicId: _audioResponseControlCharacteristicUuid,
       byteData: [0xFF], // Command to start audio response measurement
     );
@@ -629,7 +639,9 @@ class OpenEarableV2 extends BluetoothWearable
   }
 
   @override
-  Future<Map<String, dynamic>> measureAudioResponse(Map<String, dynamic> parameters) async {
+  Future<Map<String, dynamic>> measureAudioResponse(
+    Map<String, dynamic> parameters,
+  ) async {
     _triggerAudioResponseMeasurement();
 
     // Wait for the result via notification
@@ -639,7 +651,7 @@ class OpenEarableV2 extends BluetoothWearable
     audioRespSub = bleManager
         .subscribe(
           deviceId: deviceId,
-          serviceId: _audioResponseServiceUuid,
+          serviceId: audioResponseServiceUuid,
           characteristicId: _audioResponseDataCharacteristicUuid,
         )
         .listen(
