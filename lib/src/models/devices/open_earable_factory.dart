@@ -12,6 +12,7 @@ import '../../constants.dart';
 import '../../managers/v2_sensor_handler.dart';
 import '../../utils/sensor_value_parser/v2_sensor_value_parser.dart';
 import '../capabilities/audio_mode_manager.dart';
+import '../capabilities/audio_response_manager.dart';
 import '../capabilities/fota_capability.dart';
 import '../capabilities/fota_slot_info_capability.dart';
 import '../capabilities/power_saving_mode_manager.dart';
@@ -111,6 +112,14 @@ class OpenEarableFactory extends WearableFactory {
       )) {
         wearable.registerCapability<TimeSynchronizable>(
           OpenEarableV2TimeSyncImp(
+            bleManager: bleManager!,
+            deviceId: device.id,
+          ),
+        );
+      }
+      if (await bleManager!.hasService(deviceId: device.id, serviceId: audioResponseServiceUuid)) {
+        wearable.registerCapability<AudioResponseManager>(
+          OpenEarableV2AudioResponseManager(
             bleManager: bleManager!,
             deviceId: device.id,
           ),
