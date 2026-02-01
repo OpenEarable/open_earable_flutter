@@ -10,6 +10,7 @@ import '../../../open_earable_flutter.dart' show logger;
 import '../../managers/v2_sensor_handler.dart';
 import '../../utils/sensor_value_parser/v2_sensor_value_parser.dart';
 import '../capabilities/audio_mode_manager.dart';
+import '../capabilities/audio_response_manager.dart';
 import '../capabilities/sensor.dart';
 import '../capabilities/sensor_configuration.dart';
 import '../capabilities/sensor_configuration_specializations/recordable_sensor_configuration.dart';
@@ -91,6 +92,14 @@ class OpenEarableFactory extends WearableFactory {
       if (await bleManager!.hasService(deviceId: device.id, serviceId: timeSynchronizationServiceUuid)) {
         wearable.registerCapability<TimeSynchronizable>(
           OpenEarableV2TimeSyncImp(
+            bleManager: bleManager!,
+            deviceId: device.id,
+          ),
+        );
+      }
+      if (await bleManager!.hasService(deviceId: device.id, serviceId: audioResponseServiceUuid)) {
+        wearable.registerCapability<AudioResponseManager>(
+          OpenEarableV2AudioResponseManager(
             bleManager: bleManager!,
             deviceId: device.id,
           ),
