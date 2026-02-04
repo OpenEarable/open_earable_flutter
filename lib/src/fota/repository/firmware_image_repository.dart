@@ -15,7 +15,12 @@ class FirmwareImageRepository {
       throw Exception('Failed to fetch release data');
     }
 
-    final releases = jsonDecode(response.body);
+    final releases = (jsonDecode(response.body) as List)
+        .where(
+          (release) =>
+              release['prerelease'] != true && release['draft'] != true,
+        )
+        .toList();
     List<RemoteFirmware> firmwares = [];
     for (final release in releases) {
       final assets = release['assets'] as List;
