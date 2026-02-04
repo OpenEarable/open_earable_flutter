@@ -1,3 +1,7 @@
+## 2.3.1
+
+* added Beta firmware support for OpenEarable v2 devices
+
 ## 2.3.0
 
 * BREAKING CHANGE: introduced new capability system
