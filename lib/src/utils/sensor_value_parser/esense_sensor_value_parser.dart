@@ -9,6 +9,8 @@ class EsenseSensorValueParser extends SensorValueParser {
   // key: sensorId, value: lastTimestamp
   final Map<int, int> _timestampMap = {};
 
+  final Map<int, int> _lastPacketIndexMap = {};
+
   @override
   List<Map<String, dynamic>> parse(
     ByteData data,
@@ -63,8 +65,14 @@ class EsenseSensorValueParser extends SensorValueParser {
           cmdHead,
           () => 0,
         );
-        int ts = lastTs + tsIncrement;
+        int ts;
+        if (_lastPacketIndexMap[cmdHead] != packetIndex) {
+          ts = lastTs + tsIncrement;
+        } else {
+          ts = lastTs;
+        }
         _timestampMap[cmdHead] = ts;
+        _lastPacketIndexMap[cmdHead] = packetIndex;
         int rawGyroX = payloadData.getInt16(0, Endian.big);
         int rawGyroY = payloadData.getInt16(2, Endian.big);
         int rawGyroZ = payloadData.getInt16(4, Endian.big);
