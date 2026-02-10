@@ -1,3 +1,10 @@
+## 2.3.2
+
+* fixed some bugs with Esense devices
+    * renamed IMU sensor of Esense to "6-axis IMU" to properly reflect the sensor values that are provided by the device
+    * fixed timestamps of Esense sensor values being incorrect
+    * assign off value for Esense IMU sensor
+
 ## 2.3.1
 
 * added Beta firmware support for OpenEarable v2 devices
