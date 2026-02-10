@@ -32,13 +32,14 @@ class EsenseFactory extends WearableFactory {
     ].expand((v) => [v, v.copyWith(options: {StreamSensorConfigOption()})]).toList();
     
     final imuConfig = EsenseSensorConfiguration(
-        name: "9-axis IMU",
+        name: "6-axis IMU",
         values: imuConfigValues,
         sensorCommand: 0x53,
         sensorHandler: sensorHandler,
         availableOptions: {
           StreamSensorConfigOption(),
         },
+        offValue: imuConfigValues.firstWhere((v) => v.options.isEmpty),
       );
 
     Esense esense = Esense(
