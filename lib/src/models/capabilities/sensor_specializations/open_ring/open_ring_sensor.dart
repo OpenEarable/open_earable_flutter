@@ -1,11 +1,10 @@
 import 'dart:async';
 
-import '../../../../../open_earable_flutter.dart' show logger;
 import '../../../../managers/sensor_handler.dart';
 import '../../sensor.dart';
 
 class OpenRingSensor extends Sensor<SensorIntValue> {
-  const OpenRingSensor({
+  OpenRingSensor({
     required this.sensorId,
     required super.sensorName,
     required super.chartTitle,
@@ -14,13 +13,16 @@ class OpenRingSensor extends Sensor<SensorIntValue> {
     required List<String> axisUnits,
     required this.sensorHandler,
     super.relatedConfigurations = const [],
-  }) : _axisNames = axisNames, _axisUnits = axisUnits;
+  }) : _axisNames = axisNames,
+       _axisUnits = axisUnits;
 
   final int sensorId;
   final List<String> _axisNames;
   final List<String> _axisUnits;
 
   final SensorHandler sensorHandler;
+
+  late final Stream<SensorIntValue> _cachedSensorStream = _createSensorStream();
 
   @override
   List<String> get axisNames => _axisNames;
@@ -32,9 +34,13 @@ class OpenRingSensor extends Sensor<SensorIntValue> {
   int get axisCount => _axisNames.length;
 
   @override
-  Stream<SensorIntValue> get sensorStream {
-    StreamController<SensorIntValue> streamController = StreamController();
-    sensorHandler.subscribeToSensorData(sensorId).listen((data) {
+  Stream<SensorIntValue> get sensorStream => _cachedSensorStream;
+
+  Stream<SensorIntValue> _createSensorStream() {
+    final streamController = StreamController<SensorIntValue>();
+    final subscription = sensorHandler.subscribeToSensorData(sensorId).listen((
+      data,
+    ) {
       if (!data.containsKey(sensorName)) {
         return;
       }
@@ -69,10 +75,6 @@ class OpenRingSensor extends Sensor<SensorIntValue> {
         return;
       }
 
-      logger.t(
-        "OpenRingSensor[$sensorName] emit timestamp=$timestamp values=$values raw=$sensorDataMap",
-      );
-
       SensorIntValue sensorValue = SensorIntValue(
         values: values,
         timestamp: timestamp,
@@ -80,6 +82,11 @@ class OpenRingSensor extends Sensor<SensorIntValue> {
 
       streamController.add(sensorValue);
     });
+
+    streamController.onCancel = () {
+      unawaited(subscription.cancel());
+    };
+
     return streamController.stream;
   }
 }
