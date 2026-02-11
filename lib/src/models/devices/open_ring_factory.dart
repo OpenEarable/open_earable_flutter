@@ -18,7 +18,9 @@ class OpenRingFactory extends WearableFactory {
     Set<ConnectionOption> options = const {},
   }) {
     if (bleManager == null) {
-      throw Exception("Can't create OpenRing instance: bleManager not set in factory");
+      throw Exception(
+        "Can't create OpenRing instance: bleManager not set in factory",
+      );
     }
     if (disconnectNotifier == null) {
       throw Exception(
@@ -56,8 +58,8 @@ class OpenRingFactory extends WearableFactory {
             key: "On",
             cmd: OpenRingGatt.cmdPPGQ2,
             payload: [
-              0x01, // start
-              0x00, // collectionTime (continuous)
+              0x00, // start Q2 collection (LmAPI GET_HEART_Q2)
+              0x1E, // collectionTime = 30s (LmAPI default)
               0x19, // acquisition parameter (firmware-fixed)
               0x01, // enable waveform streaming
               0x01, // enable progress packets
@@ -67,11 +69,7 @@ class OpenRingFactory extends WearableFactory {
             key: "Off",
             cmd: OpenRingGatt.cmdPPGQ2,
             payload: [
-              0x00, // stop
-              0x00, // collectionTime
-              0x19, // acquisition parameter
-              0x00, // disable waveform streaming
-              0x00, // disable progress packets
+              0x06, // stop Q2 collection (LmAPI STOP_Q2)
             ],
           ),
         ],
@@ -102,8 +100,8 @@ class OpenRingFactory extends WearableFactory {
         sensorName: "PPG",
         chartTitle: "PPG",
         shortChartTitle: "PPG",
-        axisNames: ["Red", "Infrared", "AccX", "AccY", "AccZ"],
-        axisUnits: ["raw", "raw", "raw", "raw", "raw"],
+        axisNames: ["Infrared", "Red", "Green"],
+        axisUnits: ["raw", "raw", "raw"],
         sensorHandler: sensorHandler,
       ),
     ];
@@ -121,7 +119,10 @@ class OpenRingFactory extends WearableFactory {
   }
 
   @override
-  Future<bool> matches(DiscoveredDevice device, List<BleService> services) async {
+  Future<bool> matches(
+    DiscoveredDevice device,
+    List<BleService> services,
+  ) async {
     return services.any((s) => s.uuid.toLowerCase() == OpenRingGatt.service);
   }
 }
