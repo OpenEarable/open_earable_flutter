@@ -100,8 +100,8 @@ class OpenRingFactory extends WearableFactory {
         sensorName: "PPG",
         chartTitle: "PPG",
         shortChartTitle: "PPG",
-        axisNames: ["Green", "Red", "Infrared"],
-        axisUnits: ["raw", "raw", "raw"],
+        axisNames: ["Red", "Infrared", "AccX", "AccY", "AccZ"],
+        axisUnits: ["raw", "raw", "raw", "raw", "raw"],
         sensorHandler: sensorHandler,
       ),
     ];
