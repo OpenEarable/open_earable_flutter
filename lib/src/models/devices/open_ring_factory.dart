@@ -13,14 +13,17 @@ import 'wearable.dart';
 
 class OpenRingFactory extends WearableFactory {
   @override
-  Future<Wearable> createFromDevice(DiscoveredDevice device, {Set<ConnectionOption> options = const {}}) {
+  Future<Wearable> createFromDevice(
+    DiscoveredDevice device, {
+    Set<ConnectionOption> options = const {},
+  }) {
     if (bleManager == null) {
       throw Exception("Can't create OpenRing instance: bleManager not set in factory");
     }
     if (disconnectNotifier == null) {
       throw Exception("Can't create OpenRing instance: disconnectNotifier not set in factory");
     }
-  
+
     final sensorHandler = OpenRingSensorHandler(
       discoveredDevice: device,
       bleManager: bleManager!,
@@ -31,16 +34,44 @@ class OpenRingFactory extends WearableFactory {
       OpenRingSensorConfiguration(
         name: "6-Axis IMU",
         values: [
-          OpenRingSensorConfigurationValue(key: "On", cmd: 0x40, subOpcode: 0x06),
-          OpenRingSensorConfigurationValue(key: "Off", cmd: 0x40, subOpcode: 0x00),
+          OpenRingSensorConfigurationValue(
+            key: "On",
+            cmd: 0x40,
+            payload: [0x06],
+          ),
+          OpenRingSensorConfigurationValue(
+            key: "Off",
+            cmd: 0x40,
+            payload: [0x00],
+          ),
         ],
         sensorHandler: sensorHandler,
       ),
       OpenRingSensorConfiguration(
         name: "PPG",
         values: [
-          OpenRingSensorConfigurationValue(key: "On", cmd: OpenRingGatt.cmdPPGQ2, subOpcode: 0x01),
-          OpenRingSensorConfigurationValue(key: "Off", cmd: OpenRingGatt.cmdPPGQ2, subOpcode: 0x00),
+          OpenRingSensorConfigurationValue(
+            key: "On",
+            cmd: OpenRingGatt.cmdPPGQ2,
+            payload: [
+              0x00, // start
+              0x00, // collectionTime (continuous)
+              0x19, // acquisition parameter (firmware-fixed)
+              0x01, // enable waveform streaming
+              0x01, // enable progress packets
+            ],
+          ),
+          OpenRingSensorConfigurationValue(
+            key: "Off",
+            cmd: OpenRingGatt.cmdPPGQ2,
+            payload: [
+              0x01, // stop
+              0x00, // collectionTime
+              0x19, // acquisition parameter
+              0x00, // disable waveform streaming
+              0x00, // disable progress packets
+            ],
+          ),
         ],
         sensorHandler: sensorHandler,
       ),
@@ -86,7 +117,7 @@ class OpenRingFactory extends WearableFactory {
     );
     return Future.value(w);
   }
-  
+
   @override
   Future<bool> matches(DiscoveredDevice device, List<BleService> services) async {
     return services.any((s) => s.uuid.toLowerCase() == OpenRingGatt.service);
