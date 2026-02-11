@@ -16,25 +16,21 @@ class OpenRingValueParser extends SensorValueParser {
     ByteData data,
     List<SensorScheme> sensorSchemes,
   ) {
-    
+    logger.t(
+      "Received Open Ring sensor data: size: ${data.lengthInBytes} ${data.buffer.asUint8List()}",
+    );
 
-    logger.t("Received Open Ring sensor data: size: ${data.lengthInBytes} ${data.buffer.asUint8List()}");
-
+    if (data.lengthInBytes < 4) {
+      throw Exception("Data too short to parse");
+    }
 
     final int framePrefix = data.getUint8(0);
     if (framePrefix != 0x00) {
-      throw Exception("Invalid frame prefix: $framePrefix"); // TODO: specific exception
-    }
-
-    if (data.lengthInBytes < 5) {
-      throw Exception("Data too short to parse"); // TODO: specific exception
+      throw Exception("Invalid frame prefix: $framePrefix");
     }
 
     final int sequenceNum = data.getUint8(1);
     final int cmd = data.getUint8(2);
-    final int subOpcode = data.getUint8(3);
-    final int status = data.getUint8(4);
-    final ByteData payload = ByteData.sublistView(data, 5);
 
     logger.t("last sequenceNum: $_lastSeq, current sequenceNum: $sequenceNum");
     if (sequenceNum != _lastSeq) {
@@ -43,55 +39,125 @@ class OpenRingValueParser extends SensorValueParser {
       logger.d("Sequence number changed. Resetting last timestamp.");
     }
 
-    // These header fields should go into every sample map
-    final Map<String, dynamic> baseHeader = {
-      "sequenceNum": sequenceNum,
-      "cmd": cmd,
-      "subOpcode": subOpcode,
-      "status": status,
-    };
-  
     List<Map<String, dynamic>> result;
     switch (cmd) {
       case 0x40: // IMU
-        switch (subOpcode) {
-          case 0x01: // Accel only (6 bytes per sample)
-            result = _parseAccel(
-              data: payload,
-              receiveTs: _lastTs,
-              baseHeader: baseHeader,
-            );
-          case 0x06: // Accel + Gyro (12 bytes per sample)
-            result = _parseAccelGyro(
-              data: payload,
-              receiveTs: _lastTs,
-              baseHeader: baseHeader,
-            );
-          default:
-            throw Exception("Unknown sub-opcode for sensor data: $subOpcode");
-        }
+        result = _parseImuFrame(data, sequenceNum, cmd);
+        break;
       case 0x32: // PPG Q2
-        switch (subOpcode) {
-          case 0x00:
-            result = const [];
-          case 0x01:
-            result = _parsePpg(
-              data: payload,
-              receiveTs: _lastTs,
-              baseHeader: baseHeader,
-            );
-          default:
-            throw Exception("Unknown sub-opcode for PPG data: $subOpcode");
-        }
-
+        result = _parsePpgFrame(data, sequenceNum, cmd);
+        break;
       default:
         throw Exception("Unknown command: $cmd");
     }
+
     if (result.isNotEmpty) {
       _lastTs = result.last["timestamp"] as int;
       logger.t("Updated last timestamp to $_lastTs");
     }
+
     return result;
+  }
+
+  List<Map<String, dynamic>> _parseImuFrame(
+    ByteData frame,
+    int sequenceNum,
+    int cmd,
+  ) {
+    final int subOpcode = frame.getUint8(3);
+    final ByteData payload = ByteData.sublistView(frame, 4);
+
+    final Map<String, dynamic> baseHeader = {
+      "sequenceNum": sequenceNum,
+      "cmd": cmd,
+      "subOpcode": subOpcode,
+    };
+
+    switch (subOpcode) {
+      case 0x01: // Accel only (6 bytes per sample)
+        return _parseAccel(
+          data: payload,
+          receiveTs: _lastTs,
+          baseHeader: baseHeader,
+        );
+      case 0x06: // Accel + Gyro (12 bytes per sample)
+        return _parseAccelGyro(
+          data: payload,
+          receiveTs: _lastTs,
+          baseHeader: baseHeader,
+        );
+      default:
+        throw Exception("Unknown sub-opcode for IMU data: $subOpcode");
+    }
+  }
+
+  List<Map<String, dynamic>> _parsePpgFrame(
+    ByteData frame,
+    int sequenceNum,
+    int cmd,
+  ) {
+    if (frame.lengthInBytes < 5) {
+      throw Exception("PPG frame too short: ${frame.lengthInBytes}");
+    }
+
+    final int type = frame.getUint8(3);
+    final int value = frame.getUint8(4);
+
+    final Map<String, dynamic> baseHeader = {
+      "sequenceNum": sequenceNum,
+      "cmd": cmd,
+      "type": type,
+      "value": value,
+    };
+
+    if (type == 0xFF) {
+      logger.d("OpenRing PPG progress: $value%");
+      if (value >= 100) {
+        logger.d("OpenRing PPG progress complete");
+      }
+      return const [];
+    }
+
+    if (type == 0x00) {
+      if (value == 0 || value == 2 || value == 4) {
+        logger.w("OpenRing PPG error packet received: code=$value");
+        return const [];
+      }
+
+      if (value == 3) {
+        if (frame.lengthInBytes < 9) {
+          throw Exception("Invalid final PPG result length: ${frame.lengthInBytes}");
+        }
+
+        final int heart = frame.getUint8(5);
+        final int q2 = frame.getUint8(6);
+        final int temp = frame.getInt16(7, Endian.little);
+
+        logger.d("OpenRing PPG result received: heart=$heart q2=$q2 temp=$temp");
+        return const [];
+      }
+
+      logger.w("OpenRing PPG result packet with unknown value=$value");
+      return const [];
+    }
+
+    if (type == 0x01) {
+      if (frame.lengthInBytes < 6) {
+        throw Exception("PPG waveform frame too short: ${frame.lengthInBytes}");
+      }
+
+      final int nSamples = frame.getUint8(5);
+      final ByteData waveformPayload = ByteData.sublistView(frame, 6);
+
+      return _parsePpgWaveform(
+        data: waveformPayload,
+        nSamples: nSamples,
+        receiveTs: _lastTs,
+        baseHeader: baseHeader,
+      );
+    }
+
+    throw Exception("Unknown PPG packet type: $type");
   }
 
   List<Map<String, dynamic>> _parseAccel({
@@ -103,8 +169,7 @@ class OpenRingValueParser extends SensorValueParser {
       throw Exception("Invalid data length for Accel: ${data.lengthInBytes}");
     }
 
-    final int nSamples = data.lengthInBytes ~/ 6;
-    if (nSamples == 0) return const [];
+    if (data.lengthInBytes == 0) return const [];
 
     final List<Map<String, dynamic>> parsedData = [];
     for (int i = 0; i < data.lengthInBytes; i += 6) {
@@ -132,8 +197,7 @@ class OpenRingValueParser extends SensorValueParser {
       throw Exception("Invalid data length for Accel+Gyro: ${data.lengthInBytes}");
     }
 
-    final int nSamples = data.lengthInBytes ~/ 12;
-    if (nSamples == 0) return const [];
+    if (data.lengthInBytes == 0) return const [];
 
     final List<Map<String, dynamic>> parsedData = [];
     for (int i = 0; i < data.lengthInBytes; i += 12) {
@@ -165,32 +229,34 @@ class OpenRingValueParser extends SensorValueParser {
     };
   }
 
-  List<Map<String, dynamic>> _parsePpg({
+  List<Map<String, dynamic>> _parsePpgWaveform({
     required ByteData data,
+    required int nSamples,
     required int receiveTs,
     required Map<String, dynamic> baseHeader,
   }) {
-    if (data.lengthInBytes % 12 != 0) {
-      throw Exception("Invalid data length for PPG: ${data.lengthInBytes}");
+    if (data.lengthInBytes != nSamples * 14) {
+      throw Exception(
+        "Invalid data length for PPG waveform: ${data.lengthInBytes}, expected ${nSamples * 14}",
+      );
     }
 
-    final int nSamples = data.lengthInBytes ~/ 12;
     if (nSamples == 0) return const [];
 
     final List<Map<String, dynamic>> parsedData = [];
-    for (int i = 0; i < data.lengthInBytes; i += 12) {
-      final int sampleIndex = i ~/ 12;
-      final int ts = receiveTs + sampleIndex * _samplePeriodMs;
-
-      final ByteData sample = ByteData.sublistView(data, i, i + 12);
+    for (int i = 0; i < nSamples; i++) {
+      final int offset = i * 14;
+      final int ts = receiveTs + i * _samplePeriodMs;
 
       parsedData.add({
         ...baseHeader,
         "timestamp": ts,
         "PPG": {
-          "Green": sample.getInt32(0, Endian.little),
-          "Red": sample.getInt32(4, Endian.little),
-          "Infrared": sample.getInt32(8, Endian.little),
+          "Red": data.getInt32(offset, Endian.little),
+          "Infrared": data.getInt32(offset + 4, Endian.little),
+          "AccX": data.getInt16(offset + 8, Endian.little),
+          "AccY": data.getInt16(offset + 10, Endian.little),
+          "AccZ": data.getInt16(offset + 12, Endian.little),
         },
       });
     }
