@@ -32,14 +32,15 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
   int _ppgBusyRetryCount = 0;
   Timer? _ppgBusyRetryTimer;
   bool _temperatureStreamEnabled = true;
+  final Set<int> _activeRealtimeStreamingCommands = {};
 
   OpenRingSensorHandler({
     required DiscoveredDevice discoveredDevice,
     required BleGattManager bleManager,
     required SensorValueParser sensorValueParser,
-  }) : _discoveredDevice = discoveredDevice,
-       _bleManager = bleManager,
-       _sensorValueParser = sensorValueParser;
+  })  : _discoveredDevice = discoveredDevice,
+        _bleManager = bleManager,
+        _sensorValueParser = sensorValueParser;
 
   @override
   Stream<Map<String, dynamic>> subscribeToSensorData(int sensorId) {
@@ -61,13 +62,15 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
       throw Exception("Can't write sensor config. Earable not connected");
     }
 
+    final bool isRealtimeStreamingStart =
+        _isRealtimeStreamingStart(sensorConfig);
+    final bool isRealtimeStreamingStop = _isRealtimeStreamingStop(sensorConfig);
+
     final bool isPpgCmd = sensorConfig.cmd == OpenRingGatt.cmdPPGQ2;
-    final bool isPpgStart =
-        isPpgCmd &&
+    final bool isPpgStart = isPpgCmd &&
         sensorConfig.payload.isNotEmpty &&
         sensorConfig.payload[0] == 0x00;
-    final bool isPpgStop =
-        isPpgCmd &&
+    final bool isPpgStop = isPpgCmd &&
         sensorConfig.payload.isNotEmpty &&
         sensorConfig.payload[0] == 0x06;
 
@@ -76,6 +79,9 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
       _ppgBusyRetryCount = 0;
       _cancelPpgBusyRetry();
       await _writeCommand(sensorConfig);
+      if (isRealtimeStreamingStart) {
+        _activeRealtimeStreamingCommands.add(sensorConfig.cmd);
+      }
       return;
     }
 
@@ -86,6 +92,11 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
     }
 
     await _writeCommand(sensorConfig);
+    if (isRealtimeStreamingStart) {
+      _activeRealtimeStreamingCommands.add(sensorConfig.cmd);
+    } else if (isRealtimeStreamingStop) {
+      _activeRealtimeStreamingCommands.remove(sensorConfig.cmd);
+    }
   }
 
   Future<List<Map<String, dynamic>>> _parseData(List<int> data) async {
@@ -97,6 +108,9 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
     _temperatureStreamEnabled = enabled;
     logger.d('OpenRing software toggle: temperatureStream=$enabled');
   }
+
+  bool get hasActiveRealtimeStreaming =>
+      _activeRealtimeStreamingCommands.isNotEmpty;
 
   Map<String, dynamic> _filterTemperature(Map<String, dynamic> sample) {
     if (!_temperatureStreamEnabled) {
@@ -258,42 +272,42 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
       onListen: () {
         bleSubscription ??= _bleManager
             .subscribe(
-              deviceId: _discoveredDevice.id,
-              serviceId: OpenRingGatt.service,
-              characteristicId: OpenRingGatt.rxChar,
-            )
+          deviceId: _discoveredDevice.id,
+          serviceId: OpenRingGatt.service,
+          characteristicId: OpenRingGatt.rxChar,
+        )
             .listen(
-              (data) {
-                if (_isPpgBusyResponse(data)) {
-                  _schedulePpgBusyRetry();
-                }
+          (data) {
+            if (_isPpgBusyResponse(data)) {
+              _schedulePpgBusyRetry();
+            }
 
-                final int? rawCmd = data.length > 2 ? data[2] : null;
-                if (rawCmd != null) {
-                  pendingPacketsByCmd[rawCmd] =
-                      (pendingPacketsByCmd[rawCmd] ?? 0) + 1;
-                }
+            final int? rawCmd = data.length > 2 ? data[2] : null;
+            if (rawCmd != null) {
+              pendingPacketsByCmd[rawCmd] =
+                  (pendingPacketsByCmd[rawCmd] ?? 0) + 1;
+            }
 
-                final int arrivalMs = clock.elapsedMilliseconds;
-                final int queueKey = rawCmd ?? -1;
-                final Future<void> previousQueue =
-                    processingQueueByCmd[queueKey] ?? Future<void>.value();
+            final int arrivalMs = clock.elapsedMilliseconds;
+            final int queueKey = rawCmd ?? -1;
+            final Future<void> previousQueue =
+                processingQueueByCmd[queueKey] ?? Future<void>.value();
 
-                processingQueueByCmd[queueKey] = previousQueue
-                    .then((_) => processPacket(data, arrivalMs, rawCmd))
-                    .catchError((error) {
-                      logger.e(
-                        'Error while parsing OpenRing sensor packet: $error',
-                      );
-                    });
-              },
-              onError: (error) {
-                logger.e('Error while subscribing to sensor data: $error');
-                if (!streamController.isClosed) {
-                  streamController.addError(error);
-                }
-              },
-            );
+            processingQueueByCmd[queueKey] = previousQueue
+                .then((_) => processPacket(data, arrivalMs, rawCmd))
+                .catchError((error) {
+              logger.e(
+                'Error while parsing OpenRing sensor packet: $error',
+              );
+            });
+          },
+          onError: (error) {
+            logger.e('Error while subscribing to sensor data: $error');
+            if (!streamController.isClosed) {
+              streamController.addError(error);
+            }
+          },
+        );
       },
       onCancel: () {
         if (!streamController.hasListener) {
@@ -327,6 +341,38 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
       characteristicId: OpenRingGatt.txChar,
       byteData: sensorConfigBytes,
     );
+  }
+
+  bool _isRealtimeStreamingStart(OpenRingSensorConfig sensorConfig) {
+    if (sensorConfig.payload.isEmpty) {
+      return false;
+    }
+
+    if (sensorConfig.cmd == OpenRingGatt.cmdPPGQ2) {
+      return sensorConfig.payload[0] == 0x00;
+    }
+
+    if (sensorConfig.cmd == OpenRingGatt.cmdIMU) {
+      return sensorConfig.payload[0] != 0x00;
+    }
+
+    return false;
+  }
+
+  bool _isRealtimeStreamingStop(OpenRingSensorConfig sensorConfig) {
+    if (sensorConfig.payload.isEmpty) {
+      return false;
+    }
+
+    if (sensorConfig.cmd == OpenRingGatt.cmdPPGQ2) {
+      return sensorConfig.payload[0] == 0x06;
+    }
+
+    if (sensorConfig.cmd == OpenRingGatt.cmdIMU) {
+      return sensorConfig.payload[0] == 0x00;
+    }
+
+    return false;
   }
 
   bool _isPpgBusyResponse(List<int> data) {
