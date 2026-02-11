@@ -162,6 +162,22 @@ class OpenRingValueParser extends SensorValueParser {
       );
     }
 
+    if (type == 0x02) {
+      if (frame.lengthInBytes < 6) {
+        throw Exception("PPG extended waveform frame too short: ${frame.lengthInBytes}");
+      }
+
+      final int nSamples = frame.getUint8(5);
+      final ByteData waveformPayload = ByteData.sublistView(frame, 6);
+
+      return _parsePpgWaveformType2(
+        data: waveformPayload,
+        nSamples: nSamples,
+        receiveTs: _lastTs,
+        baseHeader: baseHeader,
+      );
+    }
+
     logger.t(
       "Ignoring unsupported PPG packet type: $type, frame=${frame.buffer.asUint8List()}"
     );
@@ -294,4 +310,60 @@ class OpenRingValueParser extends SensorValueParser {
 
     return parsedData;
   }
+
+  List<Map<String, dynamic>> _parsePpgWaveformType2({
+    required ByteData data,
+    required int nSamples,
+    required int receiveTs,
+    required Map<String, dynamic> baseHeader,
+  }) {
+    // Observed packet type 0x02 layout:
+    // [sampleCount][n * 34-byte samples]
+    // sample bytes (LE):
+    //   0..3   unknown int32
+    //   4..7   red int32
+    //   8..11  infrared int32
+    //   12..19 unknown int32 x2
+    //   20..25 accX/accY/accZ int16
+    //   26..33 unknown tail (4x int16/uint16)
+    const int sampleSize = 34;
+
+    final int expectedBytes = nSamples * sampleSize;
+    final int usableBytes = data.lengthInBytes - (data.lengthInBytes % sampleSize);
+    if (usableBytes == 0 || nSamples == 0) {
+      return const [];
+    }
+
+    int usableSamples = usableBytes ~/ sampleSize;
+    if (usableSamples > nSamples) {
+      usableSamples = nSamples;
+    }
+
+    if (data.lengthInBytes != expectedBytes) {
+      logger.t(
+        "PPG type2 length mismatch len=${data.lengthInBytes} expected=$expectedBytes; parsing $usableSamples sample(s)",
+      );
+    }
+
+    final List<Map<String, dynamic>> parsedData = [];
+    for (int i = 0; i < usableSamples; i++) {
+      final int offset = i * sampleSize;
+      final int ts = receiveTs + i * _samplePeriodMs;
+
+      parsedData.add({
+        ...baseHeader,
+        "timestamp": ts,
+        "PPG": {
+          "Red": data.getInt32(offset + 4, Endian.little),
+          "Infrared": data.getInt32(offset + 8, Endian.little),
+          "AccX": data.getInt16(offset + 20, Endian.little),
+          "AccY": data.getInt16(offset + 22, Endian.little),
+          "AccZ": data.getInt16(offset + 24, Endian.little),
+        },
+      });
+    }
+
+    return parsedData;
+  }
+
 }
