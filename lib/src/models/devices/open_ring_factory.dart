@@ -31,7 +31,7 @@ class OpenRingFactory extends WearableFactory {
     );
 
     List<SensorConfiguration> sensorConfigs = [
-      OpenRingSensorConfiguration(
+        OpenRingSensorConfiguration(
         name: "6-Axis IMU",
         values: [
           OpenRingSensorConfigurationValue(
@@ -78,19 +78,19 @@ class OpenRingFactory extends WearableFactory {
     ];
     List<Sensor> sensors = [
       OpenRingSensor(
-        sensorId: 0x40,
+        sensorId: OpenRingGatt.cmdIMU,
         sensorName: "Accelerometer",
         chartTitle: "Accelerometer",
-        shortChartTitle: "Accel",
+        shortChartTitle: "Acc.",
         axisNames: ["X", "Y", "Z"],
         axisUnits: ["g", "g", "g"],
         sensorHandler: sensorHandler,
       ),
       OpenRingSensor(
-        sensorId: 0x40,
+        sensorId: OpenRingGatt.cmdIMU,
         sensorName: "Gyroscope",
         chartTitle: "Gyroscope",
-        shortChartTitle: "Gyro",
+        shortChartTitle: "Gyr.",
         axisNames: ["X", "Y", "Z"],
         axisUnits: ["dps", "dps", "dps"],
         sensorHandler: sensorHandler,
