@@ -74,7 +74,14 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
   Future<List<Map<String, dynamic>>> _parseData(List<int> data) async {
     ByteData byteData = ByteData.sublistView(Uint8List.fromList(data));
 
-    return _sensorValueParser.parse(byteData, []);
+    final parsed = _sensorValueParser.parse(byteData, []);
+    if (parsed.isNotEmpty) {
+      logger.t(
+        "OpenRingSensorHandler parsed ${parsed.length} sample(s), first=${parsed.first}, last=${parsed.last}",
+      );
+    }
+
+    return parsed;
   }
 }
 

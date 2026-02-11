@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../../../../../open_earable_flutter.dart' show logger;
 import '../../../../managers/sensor_handler.dart';
 import '../../sensor.dart';
 
@@ -44,19 +45,33 @@ class OpenRingSensor extends Sensor<SensorIntValue> {
         return;
       }
 
+      final Map sensorDataMap = sensorData;
       List<int> values = [];
-      for (var entry in sensorData.entries) {
-        if (entry.key == 'units') {
-          continue;
+      for (final axisName in _axisNames) {
+        final dynamic axisValue = sensorDataMap[axisName];
+        if (axisValue is int) {
+          values.add(axisValue);
         }
-        if (entry.value is int) {
-          values.add(entry.value as int);
+      }
+
+      if (values.isEmpty) {
+        for (var entry in sensorDataMap.entries) {
+          if (entry.key == 'units') {
+            continue;
+          }
+          if (entry.value is int) {
+            values.add(entry.value as int);
+          }
         }
       }
 
       if (values.isEmpty) {
         return;
       }
+
+      logger.t(
+        "OpenRingSensor[$sensorName] emit timestamp=$timestamp values=$values raw=$sensorDataMap",
+      );
 
       SensorIntValue sensorValue = SensorIntValue(
         values: values,

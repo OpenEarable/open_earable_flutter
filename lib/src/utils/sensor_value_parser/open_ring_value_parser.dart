@@ -8,8 +8,8 @@ class OpenRingValueParser extends SensorValueParser {
   // 100 Hz → 10 ms per sample
   static const int _samplePeriodMs = 10;
 
-  int _lastSeq = -1;
-  int _lastTs = 0;
+  final Map<int, int> _lastSeqByCmd = {};
+  final Map<int, int> _lastTsByCmd = {};
 
   @override
   List<Map<String, dynamic>> parse(
@@ -32,20 +32,20 @@ class OpenRingValueParser extends SensorValueParser {
     final int sequenceNum = data.getUint8(1);
     final int cmd = data.getUint8(2);
 
-    logger.t("last sequenceNum: $_lastSeq, current sequenceNum: $sequenceNum");
-    if (sequenceNum != _lastSeq) {
-      _lastSeq = sequenceNum;
-      _lastTs = 0;
-      logger.d("Sequence number changed. Resetting last timestamp.");
-    }
+    final int lastSeq = _lastSeqByCmd[cmd] ?? -1;
+    final int receiveTs = _lastTsByCmd[cmd] ?? 0;
+    logger.t(
+      "cmd=$cmd last sequenceNum: $lastSeq, current sequenceNum: $sequenceNum, receiveTs: $receiveTs",
+    );
+    _lastSeqByCmd[cmd] = sequenceNum;
 
     List<Map<String, dynamic>> result;
     switch (cmd) {
       case 0x40: // IMU
-        result = _parseImuFrame(data, sequenceNum, cmd);
+        result = _parseImuFrame(data, sequenceNum, cmd, receiveTs);
         break;
       case 0x32: // PPG Q2
-        result = _parsePpgFrame(data, sequenceNum, cmd);
+        result = _parsePpgFrame(data, sequenceNum, cmd, receiveTs);
         break;
       default:
         logger.t("Ignoring unsupported OpenRing command: $cmd");
@@ -53,8 +53,15 @@ class OpenRingValueParser extends SensorValueParser {
     }
 
     if (result.isNotEmpty) {
-      _lastTs = result.last["timestamp"] as int;
-      logger.t("Updated last timestamp to $_lastTs");
+      final int updatedTs = result.last["timestamp"] as int;
+      _lastTsByCmd[cmd] = updatedTs;
+      logger.t("cmd=$cmd Updated last timestamp to $updatedTs");
+
+      final Map<String, dynamic> first = result.first;
+      final Map<String, dynamic> last = result.last;
+      logger.t(
+        "cmd=$cmd parsed ${result.length} sample(s) ts ${first['timestamp']}..${last['timestamp']} firstPayload=${_extractSensorPayload(first)}",
+      );
     }
 
     return result;
@@ -64,6 +71,7 @@ class OpenRingValueParser extends SensorValueParser {
     ByteData frame,
     int sequenceNum,
     int cmd,
+    int receiveTs,
   ) {
     if (frame.lengthInBytes < 4) {
       throw Exception("IMU frame too short: ${frame.lengthInBytes}");
@@ -99,7 +107,7 @@ class OpenRingValueParser extends SensorValueParser {
         }
         return _parseAccel(
           data: payload,
-          receiveTs: _lastTs,
+          receiveTs: receiveTs,
           baseHeader: baseHeader,
         );
       case 0x06: // Accel + Gyro (12 bytes per sample)
@@ -109,7 +117,7 @@ class OpenRingValueParser extends SensorValueParser {
         }
         return _parseAccelGyro(
           data: payload,
-          receiveTs: _lastTs,
+          receiveTs: receiveTs,
           baseHeader: baseHeader,
         );
       case 0x00:
@@ -125,6 +133,7 @@ class OpenRingValueParser extends SensorValueParser {
     ByteData frame,
     int sequenceNum,
     int cmd,
+    int receiveTs,
   ) {
     if (frame.lengthInBytes < 5) {
       throw Exception("PPG frame too short: ${frame.lengthInBytes}");
@@ -182,7 +191,7 @@ class OpenRingValueParser extends SensorValueParser {
       return _parsePpgWaveform(
         data: waveformPayload,
         nSamples: nSamples,
-        receiveTs: _lastTs,
+        receiveTs: receiveTs,
         baseHeader: baseHeader,
       );
     }
@@ -198,7 +207,7 @@ class OpenRingValueParser extends SensorValueParser {
       return _parsePpgWaveformType2(
         data: waveformPayload,
         nSamples: nSamples,
-        receiveTs: _lastTs,
+        receiveTs: receiveTs,
         baseHeader: baseHeader,
       );
     }
@@ -389,6 +398,16 @@ class OpenRingValueParser extends SensorValueParser {
     }
 
     return parsedData;
+  }
+
+  Map<String, dynamic>? _extractSensorPayload(Map<String, dynamic> sample) {
+    if (sample['Accelerometer'] is Map<String, dynamic>) {
+      return sample['Accelerometer'] as Map<String, dynamic>;
+    }
+    if (sample['PPG'] is Map<String, dynamic>) {
+      return sample['PPG'] as Map<String, dynamic>;
+    }
+    return null;
   }
 
 }
