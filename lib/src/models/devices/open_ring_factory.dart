@@ -147,6 +147,7 @@ class OpenRingFactory extends WearableFactory {
       sensorConfigs: sensorConfigs,
       disconnectNotifier: disconnectNotifier!,
       bleManager: bleManager!,
+      isSensorStreamingActive: () => sensorHandler.hasActiveRealtimeStreaming,
     );
 
     final timeSync = OpenRingTimeSyncImp(

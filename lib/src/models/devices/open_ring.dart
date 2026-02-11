@@ -14,16 +14,21 @@ class OpenRing extends Wearable
     List<SensorConfiguration> sensorConfigs = const [],
     required BleGattManager bleManager,
     required super.disconnectNotifier,
+    bool Function()? isSensorStreamingActive,
   })  : _sensors = sensors,
         _sensorConfigs = sensorConfigs,
         _bleManager = bleManager,
-        _discoveredDevice = discoveredDevice;
+        _discoveredDevice = discoveredDevice,
+        _isSensorStreamingActive = isSensorStreamingActive;
 
   final DiscoveredDevice _discoveredDevice;
 
   final List<Sensor> _sensors;
   final List<SensorConfiguration> _sensorConfigs;
   final BleGattManager _bleManager;
+  final bool Function()? _isSensorStreamingActive;
+
+  bool _batteryPollingWasSkippedForStreaming = false;
 
   static const int _batteryReadType = 0x00;
   static const int _batteryPushType = 0x02;
@@ -125,6 +130,21 @@ class OpenRing extends Wearable
       if (batteryPollingInFlight) {
         return;
       }
+      final bool streamingActive = _isSensorStreamingActive?.call() ?? false;
+      if (streamingActive) {
+        if (!_batteryPollingWasSkippedForStreaming) {
+          logger.d(
+            'Skipping OpenRing battery poll while realtime sensor streaming is active',
+          );
+          _batteryPollingWasSkippedForStreaming = true;
+        }
+        return;
+      }
+      if (_batteryPollingWasSkippedForStreaming) {
+        logger.d('Resuming OpenRing battery polling after sensor streaming');
+        _batteryPollingWasSkippedForStreaming = false;
+      }
+
       batteryPollingInFlight = true;
       try {
         final int batteryPercentage = await readBatteryPercentage();
