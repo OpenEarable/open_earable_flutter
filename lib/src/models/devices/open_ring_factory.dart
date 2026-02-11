@@ -36,6 +36,14 @@ class OpenRingFactory extends WearableFactory {
         ],
         sensorHandler: sensorHandler,
       ),
+      OpenRingSensorConfiguration(
+        name: "PPG",
+        values: [
+          OpenRingSensorConfigurationValue(key: "On", cmd: OpenRingGatt.cmdPPGQ2, subOpcode: 0x01),
+          OpenRingSensorConfigurationValue(key: "Off", cmd: OpenRingGatt.cmdPPGQ2, subOpcode: 0x00),
+        ],
+        sensorHandler: sensorHandler,
+      ),
     ];
     List<Sensor> sensors = [
       OpenRingSensor(
@@ -54,6 +62,15 @@ class OpenRingFactory extends WearableFactory {
         shortChartTitle: "Gyro",
         axisNames: ["X", "Y", "Z"],
         axisUnits: ["dps", "dps", "dps"],
+        sensorHandler: sensorHandler,
+      ),
+      OpenRingSensor(
+        sensorId: OpenRingGatt.cmdPPGQ2,
+        sensorName: "PPG",
+        chartTitle: "PPG",
+        shortChartTitle: "PPG",
+        axisNames: ["Green", "Red", "Infrared"],
+        axisUnits: ["raw", "raw", "raw"],
         sensorHandler: sensorHandler,
       ),
     ];

@@ -70,6 +70,19 @@ class OpenRingValueParser extends SensorValueParser {
           default:
             throw Exception("Unknown sub-opcode for sensor data: $subOpcode");
         }
+      case 0x32: // PPG Q2
+        switch (subOpcode) {
+          case 0x00:
+            result = const [];
+          case 0x01:
+            result = _parsePpg(
+              data: payload,
+              receiveTs: _lastTs,
+              baseHeader: baseHeader,
+            );
+          default:
+            throw Exception("Unknown sub-opcode for PPG data: $subOpcode");
+        }
 
       default:
         throw Exception("Unknown command: $cmd");
@@ -150,5 +163,38 @@ class OpenRingValueParser extends SensorValueParser {
       'Y': data.getInt16(2, Endian.little),
       'Z': data.getInt16(4, Endian.little),
     };
+  }
+
+  List<Map<String, dynamic>> _parsePpg({
+    required ByteData data,
+    required int receiveTs,
+    required Map<String, dynamic> baseHeader,
+  }) {
+    if (data.lengthInBytes % 12 != 0) {
+      throw Exception("Invalid data length for PPG: ${data.lengthInBytes}");
+    }
+
+    final int nSamples = data.lengthInBytes ~/ 12;
+    if (nSamples == 0) return const [];
+
+    final List<Map<String, dynamic>> parsedData = [];
+    for (int i = 0; i < data.lengthInBytes; i += 12) {
+      final int sampleIndex = i ~/ 12;
+      final int ts = receiveTs + sampleIndex * _samplePeriodMs;
+
+      final ByteData sample = ByteData.sublistView(data, i, i + 12);
+
+      parsedData.add({
+        ...baseHeader,
+        "timestamp": ts,
+        "PPG": {
+          "Green": sample.getInt32(0, Endian.little),
+          "Red": sample.getInt32(4, Endian.little),
+          "Infrared": sample.getInt32(8, Endian.little),
+        },
+      });
+    }
+
+    return parsedData;
   }
 }
