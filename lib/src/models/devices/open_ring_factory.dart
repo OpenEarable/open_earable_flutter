@@ -1,9 +1,11 @@
 import 'package:open_earable_flutter/src/models/capabilities/sensor_configuration_specializations/open_ring_sensor_configuration.dart';
 import 'package:open_earable_flutter/src/models/capabilities/sensor_specializations/open_ring/open_ring_sensor.dart';
 import 'package:universal_ble/universal_ble.dart';
+import '../../../open_earable_flutter.dart' show logger;
 
 import '../../managers/open_ring_sensor_handler.dart';
 import '../../utils/sensor_value_parser/open_ring_value_parser.dart';
+import '../capabilities/time_synchronizable.dart';
 import '../capabilities/sensor.dart';
 import '../capabilities/sensor_configuration.dart';
 import '../wearable_factory.dart';
@@ -16,7 +18,7 @@ class OpenRingFactory extends WearableFactory {
   Future<Wearable> createFromDevice(
     DiscoveredDevice device, {
     Set<ConnectionOption> options = const {},
-  }) {
+  }) async {
     if (bleManager == null) {
       throw Exception(
         "Can't create OpenRing instance: bleManager not set in factory",
@@ -146,7 +148,22 @@ class OpenRingFactory extends WearableFactory {
       disconnectNotifier: disconnectNotifier!,
       bleManager: bleManager!,
     );
-    return Future.value(w);
+
+    final timeSync = OpenRingTimeSyncImp(
+      bleManager: bleManager!,
+      deviceId: device.id,
+    );
+    w.registerCapability<TimeSynchronizable>(timeSync);
+
+    try {
+      await timeSync.synchronizeTime();
+      logger.i('OpenRing time synchronized on connect for ${device.id}');
+    } catch (error, stack) {
+      logger.w('OpenRing time sync on connect failed for ${device.id}: $error');
+      logger.t(stack);
+    }
+
+    return w;
   }
 
   @override
