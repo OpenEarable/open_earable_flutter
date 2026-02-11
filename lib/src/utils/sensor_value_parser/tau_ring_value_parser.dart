@@ -4,7 +4,7 @@ import '../../../open_earable_flutter.dart' show logger;
 import '../sensor_scheme_parser/sensor_scheme_reader.dart';
 import 'sensor_value_parser.dart';
 
-class TauRingValueParser extends SensorValueParser {
+class OpenRingValueParser extends SensorValueParser {
   // 100 Hz → 10 ms per sample
   static const int _samplePeriodMs = 10;
 

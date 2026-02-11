@@ -1,19 +1,19 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:open_earable_flutter/src/models/devices/tau_ring.dart';
+import 'package:open_earable_flutter/src/models/devices/open_ring.dart';
 
 import '../../open_earable_flutter.dart';
 import 'sensor_handler.dart';
 import '../utils/sensor_value_parser/sensor_value_parser.dart';
 
-class TauSensorHandler extends SensorHandler<TauSensorConfig> {
+class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
   final DiscoveredDevice _discoveredDevice;
   final BleGattManager _bleManager;
 
   final SensorValueParser _sensorValueParser;
 
-  TauSensorHandler({
+  OpenRingSensorHandler({
     required DiscoveredDevice discoveredDevice,
     required BleGattManager bleManager,
     required SensorValueParser sensorValueParser,
@@ -32,8 +32,8 @@ class TauSensorHandler extends SensorHandler<TauSensorConfig> {
     _bleManager
         .subscribe(
       deviceId: _discoveredDevice.id,
-      serviceId: TauRingGatt.service,
-      characteristicId: TauRingGatt.rxChar,
+      serviceId: OpenRingGatt.service,
+      characteristicId: OpenRingGatt.rxChar,
     ).listen(
       (data) async {
         List<Map<String, dynamic>> parsedData = await _parseData(data);
@@ -50,7 +50,7 @@ class TauSensorHandler extends SensorHandler<TauSensorConfig> {
   }
 
   @override
-  Future<void> writeSensorConfig(TauSensorConfig sensorConfig) async {
+  Future<void> writeSensorConfig(OpenRingSensorConfig sensorConfig) async {
     if (!_bleManager.isConnected(_discoveredDevice.id)) {
       Exception("Can't write sensor config. Earable not connected");
     }
@@ -59,8 +59,8 @@ class TauSensorHandler extends SensorHandler<TauSensorConfig> {
 
     await _bleManager.write(
       deviceId: _discoveredDevice.id,
-      serviceId: TauRingGatt.service,
-      characteristicId: TauRingGatt.txChar,
+      serviceId: OpenRingGatt.service,
+      characteristicId: OpenRingGatt.txChar,
       byteData: sensorConfigBytes,
     );
   }
@@ -73,11 +73,11 @@ class TauSensorHandler extends SensorHandler<TauSensorConfig> {
   }
 }
 
-class TauSensorConfig extends SensorConfig {
+class OpenRingSensorConfig extends SensorConfig {
   int cmd;
   int subOpcode;
 
-  TauSensorConfig({
+  OpenRingSensorConfig({
     required this.cmd,
     required this.subOpcode,
   });

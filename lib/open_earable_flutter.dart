@@ -21,7 +21,7 @@ import 'src/managers/wearable_disconnect_notifier.dart';
 import 'src/models/capabilities/stereo_device.dart';
 import 'src/models/capabilities/system_device.dart';
 import 'src/models/devices/discovered_device.dart';
-import 'src/models/devices/tau_ring_factory.dart';
+import 'src/models/devices/open_ring_factory.dart';
 import 'src/models/devices/wearable.dart';
 
 export 'src/models/devices/discovered_device.dart';
@@ -111,7 +111,7 @@ class WearableManager {
     CosinussOneFactory(),
     PolarFactory(),
     DevKitFactory(),
-    TauRingFactory(),
+    OpenRingFactory(),
     EsenseFactory(),
   ];
 

@@ -1,3 +1,7 @@
+## 2.3.3
+
+* renamed TauRing to OpenRing
+
 ## 2.3.2
 
 * fixed some bugs with Esense devices

@@ -3,8 +3,8 @@ import '../../../open_earable_flutter.dart';
 
 /// τ-Ring integration for OpenEarable.
 /// Implements Wearable (mandatory) + SensorManager (exposes sensors).
-class TauRing extends Wearable implements SensorManager, SensorConfigurationManager {
-  TauRing({
+class OpenRing extends Wearable implements SensorManager, SensorConfigurationManager {
+  OpenRing({
     required DiscoveredDevice discoveredDevice,
     required this.deviceId,
     required super.name,
@@ -41,7 +41,7 @@ class TauRing extends Wearable implements SensorManager, SensorConfigurationMana
 }
 
 // τ-Ring GATT constants (from the vendor AAR)
-class TauRingGatt {
+class OpenRingGatt {
   static const String service = 'bae80001-4f05-4503-8e65-3af1f7329d1f';
   static const String txChar  = 'bae80010-4f05-4503-8e65-3af1f7329d1f'; // write
   static const String rxChar  = 'bae80011-4f05-4503-8e65-3af1f7329d1f'; // notify

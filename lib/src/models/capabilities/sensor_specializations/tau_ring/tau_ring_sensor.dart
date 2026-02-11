@@ -3,8 +3,8 @@ import 'dart:async';
 import '../../../../managers/sensor_handler.dart';
 import '../../sensor.dart';
 
-class TauRingSensor extends Sensor<SensorIntValue> {
-  const TauRingSensor({
+class OpenRingSensor extends Sensor<SensorIntValue> {
+  const OpenRingSensor({
     required this.sensorId,
     required super.sensorName,
     required super.chartTitle,
