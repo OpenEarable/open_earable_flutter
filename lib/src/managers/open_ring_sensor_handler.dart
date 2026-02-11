@@ -4,8 +4,8 @@ import 'dart:typed_data';
 import 'package:open_earable_flutter/src/models/devices/open_ring.dart';
 
 import '../../open_earable_flutter.dart';
-import 'sensor_handler.dart';
 import '../utils/sensor_value_parser/sensor_value_parser.dart';
+import 'sensor_handler.dart';
 
 class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
   final DiscoveredDevice _discoveredDevice;
@@ -17,9 +17,9 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
     required DiscoveredDevice discoveredDevice,
     required BleGattManager bleManager,
     required SensorValueParser sensorValueParser,
-  })  : _discoveredDevice = discoveredDevice,
-        _bleManager = bleManager,
-        _sensorValueParser = sensorValueParser;
+  }) : _discoveredDevice = discoveredDevice,
+       _bleManager = bleManager,
+       _sensorValueParser = sensorValueParser;
 
   @override
   Stream<Map<String, dynamic>> subscribeToSensorData(int sensorId) {
@@ -31,20 +31,21 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
         StreamController();
     _bleManager
         .subscribe(
-      deviceId: _discoveredDevice.id,
-      serviceId: OpenRingGatt.service,
-      characteristicId: OpenRingGatt.rxChar,
-    ).listen(
-      (data) async {
-        List<Map<String, dynamic>> parsedData = await _parseData(data);
-        for (var d in parsedData) {
-          streamController.add(d);
-        }
-      },
-      onError: (error) {
-        logger.e("Error while subscribing to sensor data: $error");
-      },
-    );
+          deviceId: _discoveredDevice.id,
+          serviceId: OpenRingGatt.service,
+          characteristicId: OpenRingGatt.rxChar,
+        )
+        .listen(
+          (data) async {
+            List<Map<String, dynamic>> parsedData = await _parseData(data);
+            for (var d in parsedData) {
+              streamController.add(d);
+            }
+          },
+          onError: (error) {
+            logger.e("Error while subscribing to sensor data: $error");
+          },
+        );
 
     return streamController.stream;
   }
@@ -65,31 +66,23 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
     );
   }
 
-   /// Parses raw sensor data bytes into a [Map] of sensor values.
+  /// Parses raw sensor data bytes into a [Map] of sensor values.
   Future<List<Map<String, dynamic>>> _parseData(List<int> data) async {
     ByteData byteData = ByteData.sublistView(Uint8List.fromList(data));
-    
+
     return _sensorValueParser.parse(byteData, []);
   }
 }
 
 class OpenRingSensorConfig extends SensorConfig {
   int cmd;
-  int subOpcode;
+  List<int> payload;
 
-  OpenRingSensorConfig({
-    required this.cmd,
-    required this.subOpcode,
-  });
+  OpenRingSensorConfig({required this.cmd, required this.payload});
 
   Uint8List toBytes() {
     int randomByte = DateTime.now().microsecondsSinceEpoch & 0xFF;
 
-    return Uint8List.fromList([
-      0x00,
-      randomByte,
-      cmd,
-      subOpcode,
-    ]);
+    return Uint8List.fromList([0x00, randomByte, cmd, ...payload]);
   }
 }
