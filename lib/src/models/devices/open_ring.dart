@@ -1,7 +1,7 @@
 import '../../../open_earable_flutter.dart';
 
 
-/// τ-Ring integration for OpenEarable.
+/// OpenRing integration for OpenEarable.
 /// Implements Wearable (mandatory) + SensorManager (exposes sensors).
 class OpenRing extends Wearable implements SensorManager, SensorConfigurationManager {
   OpenRing({
@@ -40,7 +40,7 @@ class OpenRing extends Wearable implements SensorManager, SensorConfigurationMan
   Stream<Map<SensorConfiguration<SensorConfigurationValue>, SensorConfigurationValue>> get sensorConfigurationStream => const Stream.empty();
 }
 
-// τ-Ring GATT constants (from the vendor AAR)
+// OpenRing GATT constants (from the vendor AAR)
 class OpenRingGatt {
   static const String service = 'bae80001-4f05-4503-8e65-3af1f7329d1f';
   static const String txChar  = 'bae80010-4f05-4503-8e65-3af1f7329d1f'; // write
@@ -51,6 +51,7 @@ class OpenRingGatt {
   static const int cmdVers  = 0x11; // version
   static const int cmdBatt  = 0x12; // battery
   static const int cmdSys   = 0x37; // system (reset etc.)
+  static const int cmdIMU   = 0x40; // start/stop IMU
   static const int cmdPPGQ2 = 0x32; // start/stop PPG Q2
 
   // build a framed command: [0x00, rnd, cmdId, payload...]

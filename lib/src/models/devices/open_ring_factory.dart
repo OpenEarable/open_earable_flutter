@@ -15,10 +15,10 @@ class OpenRingFactory extends WearableFactory {
   @override
   Future<Wearable> createFromDevice(DiscoveredDevice device, {Set<ConnectionOption> options = const {}}) {
     if (bleManager == null) {
-      throw Exception("Can't create τ-Ring instance: bleManager not set in factory");
+      throw Exception("Can't create OpenRing instance: bleManager not set in factory");
     }
     if (disconnectNotifier == null) {
-      throw Exception("Can't create τ-Ring instance: disconnectNotifier not set in factory");
+      throw Exception("Can't create OpenRing instance: disconnectNotifier not set in factory");
     }
   
     final sensorHandler = OpenRingSensorHandler(
