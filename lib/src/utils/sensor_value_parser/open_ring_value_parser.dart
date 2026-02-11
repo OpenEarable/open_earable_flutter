@@ -107,7 +107,7 @@ class OpenRingValueParser extends SensorValueParser {
           logger.t("IMU device busy for sub-opcode: $subOpcode");
           return const [];
         }
-        return _parseAccel(
+        return _parseAccelSingle(
           data: payload,
           receiveTs: receiveTs,
           baseHeader: baseHeader,
@@ -256,6 +256,38 @@ class OpenRingValueParser extends SensorValueParser {
       });
     }
     return parsedData;
+  }
+
+  List<Map<String, dynamic>> _parseAccelSingle({
+    required ByteData data,
+    required int receiveTs,
+    required Map<String, dynamic> baseHeader,
+    required int samplePeriodMs,
+  }) {
+    if (data.lengthInBytes < 6) {
+      if (data.lengthInBytes != 0) {
+        logger.t("Ignoring short Accel payload: len=${data.lengthInBytes}");
+      }
+      return const [];
+    }
+
+    if (data.lengthInBytes > 6) {
+      logger.t(
+        "Accel payload has ${data.lengthInBytes} bytes, decoding first 6 bytes to match SDK behavior",
+      );
+    }
+
+    final int ts = receiveTs + samplePeriodMs;
+    final ByteData sample = ByteData.sublistView(data, 0, 6);
+    final Map<String, dynamic> accelData = _parseImuComp(sample);
+
+    return [
+      {
+        ...baseHeader,
+        "timestamp": ts,
+        "Accelerometer": accelData,
+      },
+    ];
   }
 
   List<Map<String, dynamic>> _parseAccelGyro({
