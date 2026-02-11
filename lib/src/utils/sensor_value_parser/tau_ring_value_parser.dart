@@ -18,7 +18,7 @@ class OpenRingValueParser extends SensorValueParser {
   ) {
     
 
-    logger.t("Received Tau Ring sensor data: size: ${data.lengthInBytes} ${data.buffer.asUint8List()}");
+    logger.t("Received Open Ring sensor data: size: ${data.lengthInBytes} ${data.buffer.asUint8List()}");
 
 
     final int framePrefix = data.getUint8(0);
