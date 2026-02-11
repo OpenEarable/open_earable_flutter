@@ -54,7 +54,7 @@ class OpenRingFactory extends WearableFactory {
             key: "On",
             cmd: OpenRingGatt.cmdPPGQ2,
             payload: [
-              0x00, // start
+              0x01, // start
               0x00, // collectionTime (continuous)
               0x19, // acquisition parameter (firmware-fixed)
               0x01, // enable waveform streaming
@@ -65,7 +65,7 @@ class OpenRingFactory extends WearableFactory {
             key: "Off",
             cmd: OpenRingGatt.cmdPPGQ2,
             payload: [
-              0x01, // stop
+              0x00, // stop
               0x00, // collectionTime
               0x19, // acquisition parameter
               0x00, // disable waveform streaming
