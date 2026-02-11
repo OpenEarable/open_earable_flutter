@@ -10,6 +10,8 @@ class OpenRingValueParser extends SensorValueParser {
 
   final Map<int, int> _lastSeqByCmd = {};
   final Map<int, int> _lastTsByCmd = {};
+  final Map<String, int> _lastPacketWallMsByImuStream = {};
+  final Map<String, int> _samplePeriodMsByImuStream = {};
 
   @override
   List<Map<String, dynamic>> parse(
@@ -42,7 +44,13 @@ class OpenRingValueParser extends SensorValueParser {
     List<Map<String, dynamic>> result;
     switch (cmd) {
       case 0x40: // IMU
-        result = _parseImuFrame(data, sequenceNum, cmd, receiveTs);
+        result = _parseImuFrame(
+          data,
+          sequenceNum,
+          cmd,
+          receiveTs,
+          DateTime.now().millisecondsSinceEpoch,
+        );
         break;
       case 0x32: // PPG Q2
         result = _parsePpgFrame(data, sequenceNum, cmd, receiveTs);
@@ -72,6 +80,7 @@ class OpenRingValueParser extends SensorValueParser {
     int sequenceNum,
     int cmd,
     int receiveTs,
+    int packetWallMs,
   ) {
     if (frame.lengthInBytes < 4) {
       throw Exception("IMU frame too short: ${frame.lengthInBytes}");
@@ -109,6 +118,12 @@ class OpenRingValueParser extends SensorValueParser {
           data: payload,
           receiveTs: receiveTs,
           baseHeader: baseHeader,
+          samplePeriodMs: _estimateImuSamplePeriodMs(
+            streamKey: 'imu_$subOpcode',
+            packetWallMs: packetWallMs,
+            payloadLength: payload.lengthInBytes,
+            bytesPerSample: 6,
+          ),
         );
       case 0x06: // Accel + Gyro (12 bytes per sample)
         if (status == 0x01) {
@@ -119,6 +134,12 @@ class OpenRingValueParser extends SensorValueParser {
           data: payload,
           receiveTs: receiveTs,
           baseHeader: baseHeader,
+          samplePeriodMs: _estimateImuSamplePeriodMs(
+            streamKey: 'imu_$subOpcode',
+            packetWallMs: packetWallMs,
+            payloadLength: payload.lengthInBytes,
+            bytesPerSample: 12,
+          ),
         );
       case 0x00:
         // Common non-streaming/control response.
@@ -222,6 +243,7 @@ class OpenRingValueParser extends SensorValueParser {
     required ByteData data,
     required int receiveTs,
     required Map<String, dynamic> baseHeader,
+    required int samplePeriodMs,
   }) {
     final int usableBytes = data.lengthInBytes - (data.lengthInBytes % 6);
     if (usableBytes == 0) {
@@ -239,7 +261,7 @@ class OpenRingValueParser extends SensorValueParser {
     final List<Map<String, dynamic>> parsedData = [];
     for (int i = 0; i < usableBytes; i += 6) {
       final int sampleIndex = i ~/ 6;
-      final int ts = receiveTs + (sampleIndex + 1) * _samplePeriodMs;
+      final int ts = receiveTs + (sampleIndex + 1) * samplePeriodMs;
 
       final ByteData sample = ByteData.sublistView(data, i, i + 6);
       final Map<String, dynamic> accelData = _parseImuComp(sample);
@@ -257,6 +279,7 @@ class OpenRingValueParser extends SensorValueParser {
     required ByteData data,
     required int receiveTs,
     required Map<String, dynamic> baseHeader,
+    required int samplePeriodMs,
   }) {
     final int usableBytes = data.lengthInBytes - (data.lengthInBytes % 12);
     if (usableBytes == 0) {
@@ -274,7 +297,7 @@ class OpenRingValueParser extends SensorValueParser {
     final List<Map<String, dynamic>> parsedData = [];
     for (int i = 0; i < usableBytes; i += 12) {
       final int sampleIndex = i ~/ 12;
-      final int ts = receiveTs + (sampleIndex + 1) * _samplePeriodMs;
+      final int ts = receiveTs + (sampleIndex + 1) * samplePeriodMs;
 
       final ByteData sample = ByteData.sublistView(data, i, i + 12);
       final ByteData accBytes = ByteData.sublistView(sample, 0, 6);
@@ -398,6 +421,41 @@ class OpenRingValueParser extends SensorValueParser {
     }
 
     return parsedData;
+  }
+
+
+  int _estimateImuSamplePeriodMs({
+    required String streamKey,
+    required int packetWallMs,
+    required int payloadLength,
+    required int bytesPerSample,
+  }) {
+    final int sampleCount = payloadLength ~/ bytesPerSample;
+    if (sampleCount <= 0) {
+      return _samplePeriodMsByImuStream[streamKey] ?? _samplePeriodMs;
+    }
+
+    final int? lastPacketWallMs = _lastPacketWallMsByImuStream[streamKey];
+    final int fallbackPeriod = _samplePeriodMsByImuStream[streamKey] ?? _samplePeriodMs;
+
+    int nextPeriod = fallbackPeriod;
+    if (lastPacketWallMs != null) {
+      final int elapsedMs = packetWallMs - lastPacketWallMs;
+      if (elapsedMs > 0) {
+        final int measuredPeriod = ((elapsedMs / sampleCount).round().clamp(1, 100)) as int;
+        nextPeriod = ((fallbackPeriod * 3) + measuredPeriod) ~/ 4;
+      }
+    }
+
+    _lastPacketWallMsByImuStream[streamKey] = packetWallMs;
+    _samplePeriodMsByImuStream[streamKey] = nextPeriod;
+
+    final double estHz = 1000.0 / nextPeriod;
+    logger.t(
+      "IMU $streamKey estimated samplePeriod=${nextPeriod}ms (~${estHz.toStringAsFixed(1)}Hz), sampleCount=$sampleCount",
+    );
+
+    return nextPeriod;
   }
 
   Map<String, dynamic>? _extractSensorPayload(Map<String, dynamic> sample) {
