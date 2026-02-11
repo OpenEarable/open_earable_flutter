@@ -31,8 +31,8 @@ class OpenRingFactory extends WearableFactory {
       OpenRingSensorConfiguration(
         name: "6-Axis IMU",
         values: [
-          OpenRingSensorConfigurationValue(key: "On", cmd: 0x40, subOpcode: 0x06),
-          OpenRingSensorConfigurationValue(key: "Off", cmd: 0x40, subOpcode: 0x00),
+          OpenRingSensorConfigurationValue(key: "On", cmd: OpenRingGatt.cmdIMU, subOpcode: 0x06),
+          OpenRingSensorConfigurationValue(key: "Off", cmd: OpenRingGatt.cmdIMU, subOpcode: 0x00),
         ],
         sensorHandler: sensorHandler,
       ),
@@ -40,26 +40,26 @@ class OpenRingFactory extends WearableFactory {
         name: "PPG",
         values: [
           OpenRingSensorConfigurationValue(key: "On", cmd: OpenRingGatt.cmdPPGQ2, subOpcode: 0x01),
-          OpenRingSensorConfigurationValue(key: "Off", cmd: OpenRingGatt.cmdPPGQ2, subOpcode: 0x00),
+          OpenRingSensorConfigurationValue(key: "Off", cmd: OpenRingGatt.cmdPPGQ2, subOpcode: 0x06),
         ],
         sensorHandler: sensorHandler,
       ),
     ];
     List<Sensor> sensors = [
       OpenRingSensor(
-        sensorId: 0x40,
+        sensorId: OpenRingGatt.cmdIMU,
         sensorName: "Accelerometer",
         chartTitle: "Accelerometer",
-        shortChartTitle: "Accel",
+        shortChartTitle: "Acc.",
         axisNames: ["X", "Y", "Z"],
         axisUnits: ["g", "g", "g"],
         sensorHandler: sensorHandler,
       ),
       OpenRingSensor(
-        sensorId: 0x40,
+        sensorId: OpenRingGatt.cmdIMU,
         sensorName: "Gyroscope",
         chartTitle: "Gyroscope",
-        shortChartTitle: "Gyro",
+        shortChartTitle: "Gyr.",
         axisNames: ["X", "Y", "Z"],
         axisUnits: ["dps", "dps", "dps"],
         sensorHandler: sensorHandler,
