@@ -19,8 +19,18 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
   static const int _maxScheduleLagMs = 80;
   static const double _delayAlpha = 0.22;
   static const double _backlogCompressionPerPacket = 0.18;
+  static const int _ppgRestartDelayMs = 140;
+  static const int _ppgBusyRetryDelayMs = 320;
+  static const int _maxPpgBusyRetries = 2;
+  static const Set<int> _pacedStreamingCommands = {
+    OpenRingGatt.cmdIMU,
+    OpenRingGatt.cmdPPGQ2,
+  };
 
   Stream<Map<String, dynamic>>? _sensorDataStream;
+  List<int>? _lastPpgStartPayload;
+  int _ppgBusyRetryCount = 0;
+  Timer? _ppgBusyRetryTimer;
 
   OpenRingSensorHandler({
     required DiscoveredDevice discoveredDevice,
@@ -47,17 +57,34 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
   @override
   Future<void> writeSensorConfig(OpenRingSensorConfig sensorConfig) async {
     if (!_bleManager.isConnected(_discoveredDevice.id)) {
-      Exception("Can't write sensor config. Earable not connected");
+      throw Exception("Can't write sensor config. Earable not connected");
     }
 
-    final sensorConfigBytes = sensorConfig.toBytes();
+    final bool isPpgCmd = sensorConfig.cmd == OpenRingGatt.cmdPPGQ2;
+    final bool isPpgStart =
+        isPpgCmd &&
+        sensorConfig.payload.isNotEmpty &&
+        sensorConfig.payload[0] == 0x00;
+    final bool isPpgStop =
+        isPpgCmd &&
+        sensorConfig.payload.isNotEmpty &&
+        sensorConfig.payload[0] == 0x06;
 
-    await _bleManager.write(
-      deviceId: _discoveredDevice.id,
-      serviceId: OpenRingGatt.service,
-      characteristicId: OpenRingGatt.txChar,
-      byteData: sensorConfigBytes,
-    );
+    if (isPpgStart) {
+      _lastPpgStartPayload = List<int>.from(sensorConfig.payload);
+      _ppgBusyRetryCount = 0;
+      _cancelPpgBusyRetry();
+      await _writeCommand(sensorConfig);
+      return;
+    }
+
+    if (isPpgStop) {
+      _lastPpgStartPayload = null;
+      _ppgBusyRetryCount = 0;
+      _cancelPpgBusyRetry();
+    }
+
+    await _writeCommand(sensorConfig);
   }
 
   Future<List<Map<String, dynamic>>> _parseData(List<int> data) async {
@@ -71,6 +98,11 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
 
     // Monotonic clock for all timing decisions.
     final clock = Stopwatch()..start();
+    final int wallClockAnchorMs = DateTime.now().millisecondsSinceEpoch;
+
+    int _monotonicToEpochMs(int monotonicMs) {
+      return wallClockAnchorMs + monotonicMs;
+    }
 
     // Keep command families independent (PPG should not stall IMU).
     final Map<int, Future<void>> processingQueueByCmd = {};
@@ -153,6 +185,15 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
           return;
         }
 
+        if (!_pacedStreamingCommands.contains(cmdKey)) {
+          for (final sample in parsedData) {
+            if (!streamController.isClosed) {
+              streamController.add(sample);
+            }
+          }
+          return;
+        }
+
         final int stepMs = _resolveStepMs(
           cmd: cmdKey,
           sampleCount: parsedData.length,
@@ -173,7 +214,9 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
             await Future.delayed(Duration(milliseconds: nextDueMs - now));
           }
 
-          final int previousTs = emittedTimestampByCmd[cmdKey] ?? 0;
+          final int epochNowMs = _monotonicToEpochMs(clock.elapsedMilliseconds);
+          final int previousTs =
+              emittedTimestampByCmd[cmdKey] ?? (epochNowMs - stepMs);
           final int nextTs = previousTs + stepMs;
           emittedTimestampByCmd[cmdKey] = nextTs;
           sample['timestamp'] = nextTs;
@@ -207,6 +250,10 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
             )
             .listen(
               (data) {
+                if (_isPpgBusyResponse(data)) {
+                  _schedulePpgBusyRetry();
+                }
+
                 final int? rawCmd = data.length > 2 ? data[2] : null;
                 if (rawCmd != null) {
                   pendingPacketsByCmd[rawCmd] =
@@ -244,6 +291,9 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
           nextDueByCmd.clear();
           emittedTimestampByCmd.clear();
           pendingPacketsByCmd.clear();
+          _cancelPpgBusyRetry();
+          _lastPpgStartPayload = null;
+          _ppgBusyRetryCount = 0;
 
           if (subscription != null) {
             unawaited(subscription.cancel());
@@ -253,6 +303,72 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
     );
 
     return streamController.stream;
+  }
+
+  Future<void> _writeCommand(OpenRingSensorConfig sensorConfig) async {
+    final sensorConfigBytes = sensorConfig.toBytes();
+    await _bleManager.write(
+      deviceId: _discoveredDevice.id,
+      serviceId: OpenRingGatt.service,
+      characteristicId: OpenRingGatt.txChar,
+      byteData: sensorConfigBytes,
+    );
+  }
+
+  bool _isPpgBusyResponse(List<int> data) {
+    return data.length >= 5 &&
+        data[0] == 0x00 &&
+        data[2] == OpenRingGatt.cmdPPGQ2 &&
+        data[3] == 0x00 &&
+        data[4] == 0x04;
+  }
+
+  void _schedulePpgBusyRetry() {
+    if (_ppgBusyRetryCount >= _maxPpgBusyRetries) {
+      return;
+    }
+    final List<int>? startPayload = _lastPpgStartPayload;
+    if (startPayload == null) {
+      return;
+    }
+    if (_ppgBusyRetryTimer?.isActive ?? false) {
+      return;
+    }
+
+    _ppgBusyRetryCount += 1;
+    logger.w(
+      'OpenRing PPG busy; retrying start in ${_ppgBusyRetryDelayMs}ms '
+      '(${_ppgBusyRetryCount}/$_maxPpgBusyRetries)',
+    );
+
+    _ppgBusyRetryTimer = Timer(
+      const Duration(milliseconds: _ppgBusyRetryDelayMs),
+      () {
+        unawaited(_retryPpgStart(startPayload));
+      },
+    );
+  }
+
+  Future<void> _retryPpgStart(List<int> startPayload) async {
+    try {
+      await _writeCommand(
+        OpenRingSensorConfig(cmd: OpenRingGatt.cmdPPGQ2, payload: const [0x06]),
+      );
+      await Future.delayed(const Duration(milliseconds: _ppgRestartDelayMs));
+      await _writeCommand(
+        OpenRingSensorConfig(
+          cmd: OpenRingGatt.cmdPPGQ2,
+          payload: List<int>.from(startPayload),
+        ),
+      );
+    } catch (error) {
+      logger.e('OpenRing PPG busy retry failed: $error');
+    }
+  }
+
+  void _cancelPpgBusyRetry() {
+    _ppgBusyRetryTimer?.cancel();
+    _ppgBusyRetryTimer = null;
   }
 }
 
