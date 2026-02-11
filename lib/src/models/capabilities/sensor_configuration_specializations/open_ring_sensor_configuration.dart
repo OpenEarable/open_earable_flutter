@@ -30,15 +30,8 @@ class OpenRingSensorConfigurationValue extends SensorConfigurationValue {
   OpenRingSensorConfigurationValue({
     required super.key,
     required this.cmd,
-    required List<int> payload,
-  }) : payload = List.unmodifiable(payload);
-
-  /// Convenience for the old single-byte subOpcode usage.
-  OpenRingSensorConfigurationValue.single({
-    required super.key,
-    required this.cmd,
-    required int subOpcode,
-  }) : payload = [subOpcode];
+    required this.payload,
+  });
 
   @override
   String toString() => key;
