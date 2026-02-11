@@ -101,18 +101,16 @@ class OpenRingValueParser extends SensorValueParser {
     logger.t("IMU using fixed sample period=${_samplePeriodMs}ms");
 
     switch (subOpcode) {
-      case 0x01: // Accel only (6 bytes per sample)
-      case 0x04: // Accel only (6 bytes per sample)
+      case 0x01: // Accel-only stream (ignored by design)
+      case 0x04: // Accel-only stream (ignored by design)
         if (status == 0x01) {
           logger.t("IMU device busy for sub-opcode: $subOpcode");
           return const [];
         }
-        return _parseAccelSingle(
-          data: payload,
-          receiveTs: receiveTs,
-          baseHeader: baseHeader,
-          samplePeriodMs: _samplePeriodMs,
+        logger.t(
+          "Ignoring IMU accel-only sub-opcode $subOpcode; expecting accel+gyro (0x06)",
         );
+        return const [];
       case 0x06: // Accel + Gyro (12 bytes per sample)
         if (status == 0x01) {
           logger.t("IMU device busy for sub-opcode: $subOpcode");
@@ -222,73 +220,6 @@ class OpenRingValueParser extends SensorValueParser {
     return const [];
   }
 
-  List<Map<String, dynamic>> _parseAccel({
-    required ByteData data,
-    required int receiveTs,
-    required Map<String, dynamic> baseHeader,
-    required int samplePeriodMs,
-  }) {
-    final int usableBytes = data.lengthInBytes - (data.lengthInBytes % 6);
-    if (usableBytes == 0) {
-      if (data.lengthInBytes != 0) {
-        logger.t("Ignoring short Accel payload: len=${data.lengthInBytes}");
-      }
-      return const [];
-    }
-    if (usableBytes != data.lengthInBytes) {
-      logger.t(
-        "Truncating Accel payload from ${data.lengthInBytes} to $usableBytes bytes",
-      );
-    }
-
-    final List<Map<String, dynamic>> parsedData = [];
-    for (int i = 0; i < usableBytes; i += 6) {
-      final int sampleIndex = i ~/ 6;
-      final int ts = receiveTs + (sampleIndex + 1) * samplePeriodMs;
-
-      final ByteData sample = ByteData.sublistView(data, i, i + 6);
-      final Map<String, dynamic> accelData = _parseImuComp(sample);
-
-      parsedData.add({
-        ...baseHeader,
-        "timestamp": ts,
-        "Accelerometer": accelData,
-      });
-    }
-    return parsedData;
-  }
-
-  List<Map<String, dynamic>> _parseAccelSingle({
-    required ByteData data,
-    required int receiveTs,
-    required Map<String, dynamic> baseHeader,
-    required int samplePeriodMs,
-  }) {
-    if (data.lengthInBytes < 6) {
-      if (data.lengthInBytes != 0) {
-        logger.t("Ignoring short Accel payload: len=${data.lengthInBytes}");
-      }
-      return const [];
-    }
-
-    if (data.lengthInBytes > 6) {
-      logger.t(
-        "Accel payload has ${data.lengthInBytes} bytes, decoding first 6 bytes to match SDK behavior",
-      );
-    }
-
-    final int ts = receiveTs + samplePeriodMs;
-    final ByteData sample = ByteData.sublistView(data, 0, 6);
-    final Map<String, dynamic> accelData = _parseImuComp(sample);
-
-    return [
-      {
-        ...baseHeader,
-        "timestamp": ts,
-        "Accelerometer": accelData,
-      },
-    ];
-  }
 
   List<Map<String, dynamic>> _parseAccelGyro({
     required ByteData data,
