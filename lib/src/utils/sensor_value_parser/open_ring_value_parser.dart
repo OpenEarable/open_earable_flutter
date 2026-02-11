@@ -65,23 +65,48 @@ class OpenRingValueParser extends SensorValueParser {
     int sequenceNum,
     int cmd,
   ) {
+    if (frame.lengthInBytes < 4) {
+      throw Exception("IMU frame too short: ${frame.lengthInBytes}");
+    }
+
     final int subOpcode = frame.getUint8(3);
-    final ByteData payload = ByteData.sublistView(frame, 4);
+    if (frame.lengthInBytes < 5) {
+      if (subOpcode == 0x00) {
+        return const [];
+      }
+      throw Exception("IMU frame missing status byte: ${frame.lengthInBytes}");
+    }
+
+    final int status = frame.getUint8(4);
+    final ByteData payload =
+        frame.lengthInBytes > 5
+            ? ByteData.sublistView(frame, 5)
+            : ByteData.sublistView(frame, 5, 5);
 
     final Map<String, dynamic> baseHeader = {
       "sequenceNum": sequenceNum,
       "cmd": cmd,
       "subOpcode": subOpcode,
+      "status": status,
     };
 
     switch (subOpcode) {
       case 0x01: // Accel only (6 bytes per sample)
+      case 0x04: // Accel only (6 bytes per sample)
+        if (status == 0x01) {
+          logger.t("IMU device busy for sub-opcode: $subOpcode");
+          return const [];
+        }
         return _parseAccel(
           data: payload,
           receiveTs: _lastTs,
           baseHeader: baseHeader,
         );
       case 0x06: // Accel + Gyro (12 bytes per sample)
+        if (status == 0x01) {
+          logger.t("IMU device busy for sub-opcode: $subOpcode");
+          return const [];
+        }
         return _parseAccelGyro(
           data: payload,
           receiveTs: _lastTs,
@@ -284,7 +309,7 @@ class OpenRingValueParser extends SensorValueParser {
       usableSamples = nSamples;
     }
 
-    if (data.lengthInBytes != expectedBytes) {
+    if (data.lengthInBytes != expectedBytes && nSamples > usableSamples) {
       logger.t(
         "PPG waveform length mismatch len=${data.lengthInBytes} expected=$expectedBytes; parsing $usableSamples sample(s)",
       );
@@ -339,7 +364,7 @@ class OpenRingValueParser extends SensorValueParser {
       usableSamples = nSamples;
     }
 
-    if (data.lengthInBytes != expectedBytes) {
+    if (data.lengthInBytes != expectedBytes && nSamples > usableSamples) {
       logger.t(
         "PPG type2 length mismatch len=${data.lengthInBytes} expected=$expectedBytes; parsing $usableSamples sample(s)",
       );
