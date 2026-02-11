@@ -230,7 +230,7 @@ class OpenRingValueParser extends SensorValueParser {
     final List<Map<String, dynamic>> parsedData = [];
     for (int i = 0; i < usableBytes; i += 6) {
       final int sampleIndex = i ~/ 6;
-      final int ts = receiveTs + sampleIndex * _samplePeriodMs;
+      final int ts = receiveTs + (sampleIndex + 1) * _samplePeriodMs;
 
       final ByteData sample = ByteData.sublistView(data, i, i + 6);
       final Map<String, dynamic> accelData = _parseImuComp(sample);
@@ -265,7 +265,7 @@ class OpenRingValueParser extends SensorValueParser {
     final List<Map<String, dynamic>> parsedData = [];
     for (int i = 0; i < usableBytes; i += 12) {
       final int sampleIndex = i ~/ 12;
-      final int ts = receiveTs + sampleIndex * _samplePeriodMs;
+      final int ts = receiveTs + (sampleIndex + 1) * _samplePeriodMs;
 
       final ByteData sample = ByteData.sublistView(data, i, i + 12);
       final ByteData accBytes = ByteData.sublistView(sample, 0, 6);
@@ -318,7 +318,7 @@ class OpenRingValueParser extends SensorValueParser {
     final List<Map<String, dynamic>> parsedData = [];
     for (int i = 0; i < usableSamples; i++) {
       final int offset = i * 14;
-      final int ts = receiveTs + i * _samplePeriodMs;
+      final int ts = receiveTs + (i + 1) * _samplePeriodMs;
 
       parsedData.add({
         ...baseHeader,
@@ -373,7 +373,7 @@ class OpenRingValueParser extends SensorValueParser {
     final List<Map<String, dynamic>> parsedData = [];
     for (int i = 0; i < usableSamples; i++) {
       final int offset = i * sampleSize;
-      final int ts = receiveTs + i * _samplePeriodMs;
+      final int ts = receiveTs + (i + 1) * _samplePeriodMs;
 
       parsedData.add({
         ...baseHeader,
