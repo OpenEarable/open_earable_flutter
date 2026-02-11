@@ -1,6 +1,7 @@
 ## 2.3.3
 
 * renamed TauRing to OpenRing
+* added support for OpenRing temperature sensors (`temp0`, `temp1`, `temp2`) as one 3-channel `Temperature` sensor (`°C`) with software-only on/off control
 
 ## 2.3.2
 

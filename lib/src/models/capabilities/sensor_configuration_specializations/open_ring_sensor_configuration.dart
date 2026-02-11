@@ -14,10 +14,14 @@ class OpenRingSensorConfiguration
 
   @override
   void setConfiguration(OpenRingSensorConfigurationValue value) {
-    final config = OpenRingSensorConfig(
-      cmd: value.cmd,
-      payload: value.payload,
-    );
+    if (value.temperatureStreamEnabled != null) {
+      _sensorHandler.setTemperatureStreamEnabled(
+        value.temperatureStreamEnabled!,
+      );
+      return;
+    }
+
+    final config = OpenRingSensorConfig(cmd: value.cmd, payload: value.payload);
 
     _sensorHandler.writeSensorConfig(config);
   }
@@ -26,19 +30,14 @@ class OpenRingSensorConfiguration
 class OpenRingSensorConfigurationValue extends SensorConfigurationValue {
   final int cmd;
   final List<int> payload;
+  final bool? temperatureStreamEnabled;
 
   OpenRingSensorConfigurationValue({
     required super.key,
     required this.cmd,
-    required List<int> payload,
-  }) : payload = List.unmodifiable(payload);
-
-  /// Convenience for the old single-byte subOpcode usage.
-  OpenRingSensorConfigurationValue.single({
-    required super.key,
-    required this.cmd,
-    required int subOpcode,
-  }) : payload = [subOpcode];
+    required this.payload,
+    this.temperatureStreamEnabled,
+  });
 
   @override
   String toString() => key;

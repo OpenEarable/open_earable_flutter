@@ -31,6 +31,7 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
   List<int>? _lastPpgStartPayload;
   int _ppgBusyRetryCount = 0;
   Timer? _ppgBusyRetryTimer;
+  bool _temperatureStreamEnabled = true;
 
   OpenRingSensorHandler({
     required DiscoveredDevice discoveredDevice,
@@ -92,15 +93,28 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
     return _sensorValueParser.parse(byteData, []);
   }
 
+  void setTemperatureStreamEnabled(bool enabled) {
+    _temperatureStreamEnabled = enabled;
+    logger.d('OpenRing software toggle: temperatureStream=$enabled');
+  }
+
+  Map<String, dynamic> _filterTemperature(Map<String, dynamic> sample) {
+    if (!_temperatureStreamEnabled) {
+      sample.remove('Temperature');
+    }
+    return sample;
+  }
+
   Stream<Map<String, dynamic>> _createSensorDataStream() {
     late final StreamController<Map<String, dynamic>> streamController;
+    // ignore: cancel_subscriptions
     StreamSubscription<List<int>>? bleSubscription;
 
     // Monotonic clock for all timing decisions.
     final clock = Stopwatch()..start();
     final int wallClockAnchorMs = DateTime.now().millisecondsSinceEpoch;
 
-    int _monotonicToEpochMs(int monotonicMs) {
+    int monotonicToEpochMs(int monotonicMs) {
       return wallClockAnchorMs + monotonicMs;
     }
 
@@ -113,7 +127,7 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
     final Map<int, int> emittedTimestampByCmd = {};
     final Map<int, int> pendingPacketsByCmd = {};
 
-    int _resolveStepMs({
+    int resolveStepMs({
       required int cmd,
       required int sampleCount,
       required int arrivalMs,
@@ -150,7 +164,7 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
       return delayMs.round();
     }
 
-    void _decrementPending(int key) {
+    void decrementPending(int key) {
       final int? pending = pendingPacketsByCmd[key];
       if (pending == null || pending <= 1) {
         pendingPacketsByCmd.remove(key);
@@ -179,7 +193,7 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
         if (cmdKey == null) {
           for (final sample in parsedData) {
             if (!streamController.isClosed) {
-              streamController.add(sample);
+              streamController.add(_filterTemperature(sample));
             }
           }
           return;
@@ -188,13 +202,13 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
         if (!_pacedStreamingCommands.contains(cmdKey)) {
           for (final sample in parsedData) {
             if (!streamController.isClosed) {
-              streamController.add(sample);
+              streamController.add(_filterTemperature(sample));
             }
           }
           return;
         }
 
-        final int stepMs = _resolveStepMs(
+        final int stepMs = resolveStepMs(
           cmd: cmdKey,
           sampleCount: parsedData.length,
           arrivalMs: arrivalMs,
@@ -214,7 +228,7 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
             await Future.delayed(Duration(milliseconds: nextDueMs - now));
           }
 
-          final int epochNowMs = _monotonicToEpochMs(clock.elapsedMilliseconds);
+          final int epochNowMs = monotonicToEpochMs(clock.elapsedMilliseconds);
           final int previousTs =
               emittedTimestampByCmd[cmdKey] ?? (epochNowMs - stepMs);
           final int nextTs = previousTs + stepMs;
@@ -222,7 +236,7 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
           sample['timestamp'] = nextTs;
 
           if (!streamController.isClosed) {
-            streamController.add(sample);
+            streamController.add(_filterTemperature(sample));
           }
 
           final int emitNow = clock.elapsedMilliseconds;
@@ -232,10 +246,10 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
         nextDueByCmd[cmdKey] = nextDueMs;
       } finally {
         if (cmdKey != null) {
-          _decrementPending(cmdKey);
+          decrementPending(cmdKey);
         }
         if (rawCmd != null && rawCmd != cmdKey) {
-          _decrementPending(rawCmd);
+          decrementPending(rawCmd);
         }
       }
     }
@@ -338,7 +352,7 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
     _ppgBusyRetryCount += 1;
     logger.w(
       'OpenRing PPG busy; retrying start in ${_ppgBusyRetryDelayMs}ms '
-      '(${_ppgBusyRetryCount}/$_maxPpgBusyRetries)',
+      '($_ppgBusyRetryCount/$_maxPpgBusyRetries)',
     );
 
     _ppgBusyRetryTimer = Timer(

@@ -23,7 +23,9 @@ class OpenRingFactory extends WearableFactory {
       );
     }
     if (disconnectNotifier == null) {
-      throw Exception("Can't create OpenRing instance: disconnectNotifier not set in factory");
+      throw Exception(
+        "Can't create OpenRing instance: disconnectNotifier not set in factory",
+      );
     }
 
     final sensorHandler = OpenRingSensorHandler(
@@ -32,47 +34,67 @@ class OpenRingFactory extends WearableFactory {
       sensorValueParser: OpenRingValueParser(),
     );
 
+    final imuSensorConfig = OpenRingSensorConfiguration(
+      name: "6-Axis IMU",
+      values: [
+        OpenRingSensorConfigurationValue(key: "On", cmd: 0x40, payload: [0x06]),
+        OpenRingSensorConfigurationValue(
+          key: "Off",
+          cmd: 0x40,
+          payload: [0x00],
+        ),
+      ],
+      sensorHandler: sensorHandler,
+    );
+
+    final ppgSensorConfig = OpenRingSensorConfiguration(
+      name: "PPG",
+      values: [
+        OpenRingSensorConfigurationValue(
+          key: "On",
+          cmd: OpenRingGatt.cmdPPGQ2,
+          payload: [
+            0x00, // start Q2 collection (LmAPI GET_HEART_Q2)
+            0x1E, // collectionTime = 30s (LmAPI default)
+            0x19, // acquisition parameter (firmware-fixed)
+            0x01, // enable waveform streaming
+            0x01, // enable progress packets
+          ],
+        ),
+        OpenRingSensorConfigurationValue(
+          key: "Off",
+          cmd: OpenRingGatt.cmdPPGQ2,
+          payload: [
+            0x06, // stop Q2 collection (LmAPI STOP_Q2)
+          ],
+        ),
+      ],
+      sensorHandler: sensorHandler,
+    );
+
+    final temperatureSensorConfig = OpenRingSensorConfiguration(
+      name: "Temperature",
+      values: [
+        OpenRingSensorConfigurationValue(
+          key: "On",
+          cmd: OpenRingGatt.cmdPPGQ2,
+          payload: const [],
+          temperatureStreamEnabled: true,
+        ),
+        OpenRingSensorConfigurationValue(
+          key: "Off",
+          cmd: OpenRingGatt.cmdPPGQ2,
+          payload: const [],
+          temperatureStreamEnabled: false,
+        ),
+      ],
+      sensorHandler: sensorHandler,
+    );
+
     List<SensorConfiguration> sensorConfigs = [
-        OpenRingSensorConfiguration(
-        name: "6-Axis IMU",
-        values: [
-          OpenRingSensorConfigurationValue(
-            key: "On",
-            cmd: 0x40,
-            payload: [0x06],
-          ),
-          OpenRingSensorConfigurationValue(
-            key: "Off",
-            cmd: 0x40,
-            payload: [0x00],
-          ),
-        ],
-        sensorHandler: sensorHandler,
-      ),
-      OpenRingSensorConfiguration(
-        name: "PPG",
-        values: [
-          OpenRingSensorConfigurationValue(
-            key: "On",
-            cmd: OpenRingGatt.cmdPPGQ2,
-            payload: [
-              0x00, // start Q2 collection (LmAPI GET_HEART_Q2)
-              0x1E, // collectionTime = 30s (LmAPI default)
-              0x19, // acquisition parameter (firmware-fixed)
-              0x01, // enable waveform streaming
-              0x01, // enable progress packets
-            ],
-          ),
-          OpenRingSensorConfigurationValue(
-            key: "Off",
-            cmd: OpenRingGatt.cmdPPGQ2,
-            payload: [
-              0x06, // stop Q2 collection (LmAPI STOP_Q2)
-            ],
-          ),
-        ],
-        sensorHandler: sensorHandler,
-      ),
+      imuSensorConfig,
+      ppgSensorConfig,
+      temperatureSensorConfig,
     ];
     List<Sensor> sensors = [
       OpenRingSensor(
@@ -101,6 +123,17 @@ class OpenRingFactory extends WearableFactory {
         axisNames: ["Infrared", "Red", "Green"],
         axisUnits: ["raw", "raw", "raw"],
         sensorHandler: sensorHandler,
+      ),
+      OpenRingSensor(
+        sensorId: OpenRingGatt.cmdPPGQ2,
+        sensorName: "Temperature",
+        chartTitle: "Temperature",
+        shortChartTitle: "Temp",
+        axisNames: ["Temp0", "Temp1", "Temp2"],
+        axisUnits: ["°C", "°C", "°C"],
+        sensorHandler: sensorHandler,
+        // Temperature uses software on/off. PPG must be enabled separately.
+        relatedConfigurations: [temperatureSensorConfig],
       ),
     ];
 
