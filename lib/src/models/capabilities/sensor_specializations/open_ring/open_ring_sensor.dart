@@ -33,27 +33,38 @@ class OpenRingSensor extends Sensor<SensorIntValue> {
   @override
   Stream<SensorIntValue> get sensorStream {
     StreamController<SensorIntValue> streamController = StreamController();
-    sensorHandler.subscribeToSensorData(sensorId).listen(
-      (data) {
-        int timestamp = data["timestamp"];
+    sensorHandler.subscribeToSensorData(sensorId).listen((data) {
+      if (!data.containsKey(sensorName)) {
+        return;
+      }
 
-        List<int> values = [];
-        for (var entry in (data[sensorName] as Map).entries) {
-          if (entry.key == 'units') {
-            continue;
-          }
+      final sensorData = data[sensorName];
+      final timestamp = data["timestamp"];
+      if (sensorData is! Map || timestamp is! int) {
+        return;
+      }
 
-          values.add(entry.value);
+      List<int> values = [];
+      for (var entry in sensorData.entries) {
+        if (entry.key == 'units') {
+          continue;
         }
+        if (entry.value is int) {
+          values.add(entry.value as int);
+        }
+      }
 
-        SensorIntValue sensorValue = SensorIntValue(
-          values: values,
-          timestamp: timestamp,
-        );
+      if (values.isEmpty) {
+        return;
+      }
 
-        streamController.add(sensorValue);
-      },
-    );
+      SensorIntValue sensorValue = SensorIntValue(
+        values: values,
+        timestamp: timestamp,
+      );
+
+      streamController.add(sensorValue);
+    });
     return streamController.stream;
   }
 }

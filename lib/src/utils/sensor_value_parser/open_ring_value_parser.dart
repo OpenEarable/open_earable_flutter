@@ -48,7 +48,8 @@ class OpenRingValueParser extends SensorValueParser {
         result = _parsePpgFrame(data, sequenceNum, cmd);
         break;
       default:
-        throw Exception("Unknown command: $cmd");
+        logger.t("Ignoring unsupported OpenRing command: $cmd");
+        return const [];
     }
 
     if (result.isNotEmpty) {
@@ -86,8 +87,12 @@ class OpenRingValueParser extends SensorValueParser {
           receiveTs: _lastTs,
           baseHeader: baseHeader,
         );
+      case 0x00:
+        // Common non-streaming/control response.
+        return const [];
       default:
-        throw Exception("Unknown sub-opcode for IMU data: $subOpcode");
+        logger.t("Ignoring unsupported IMU sub-opcode: $subOpcode");
+        return const [];
     }
   }
 
@@ -157,7 +162,8 @@ class OpenRingValueParser extends SensorValueParser {
       );
     }
 
-    throw Exception("Unknown PPG packet type: $type");
+    logger.t("Ignoring unsupported PPG packet type: $type");
+    return const [];
   }
 
   List<Map<String, dynamic>> _parseAccel({
