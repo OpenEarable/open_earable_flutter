@@ -37,9 +37,13 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
         )
         .listen(
           (data) async {
-            List<Map<String, dynamic>> parsedData = await _parseData(data);
-            for (var d in parsedData) {
-              streamController.add(d);
+            try {
+              List<Map<String, dynamic>> parsedData = await _parseData(data);
+              for (var d in parsedData) {
+                streamController.add(d);
+              }
+            } catch (error) {
+              logger.e("Error while parsing OpenRing sensor packet: $error");
             }
           },
           onError: (error) {

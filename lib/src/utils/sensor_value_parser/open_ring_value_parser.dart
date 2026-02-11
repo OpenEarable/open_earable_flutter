@@ -162,7 +162,9 @@ class OpenRingValueParser extends SensorValueParser {
       );
     }
 
-    logger.t("Ignoring unsupported PPG packet type: $type");
+    logger.t(
+      "Ignoring unsupported PPG packet type: $type, frame=${frame.buffer.asUint8List()}"
+    );
     return const [];
   }
 
@@ -171,14 +173,21 @@ class OpenRingValueParser extends SensorValueParser {
     required int receiveTs,
     required Map<String, dynamic> baseHeader,
   }) {
-    if (data.lengthInBytes % 6 != 0) {
-      throw Exception("Invalid data length for Accel: ${data.lengthInBytes}");
+    final int usableBytes = data.lengthInBytes - (data.lengthInBytes % 6);
+    if (usableBytes == 0) {
+      if (data.lengthInBytes != 0) {
+        logger.t("Ignoring short Accel payload: len=${data.lengthInBytes}");
+      }
+      return const [];
+    }
+    if (usableBytes != data.lengthInBytes) {
+      logger.t(
+        "Truncating Accel payload from ${data.lengthInBytes} to $usableBytes bytes",
+      );
     }
 
-    if (data.lengthInBytes == 0) return const [];
-
     final List<Map<String, dynamic>> parsedData = [];
-    for (int i = 0; i < data.lengthInBytes; i += 6) {
+    for (int i = 0; i < usableBytes; i += 6) {
       final int sampleIndex = i ~/ 6;
       final int ts = receiveTs + sampleIndex * _samplePeriodMs;
 
@@ -199,14 +208,21 @@ class OpenRingValueParser extends SensorValueParser {
     required int receiveTs,
     required Map<String, dynamic> baseHeader,
   }) {
-    if (data.lengthInBytes % 12 != 0) {
-      throw Exception("Invalid data length for Accel+Gyro: ${data.lengthInBytes}");
+    final int usableBytes = data.lengthInBytes - (data.lengthInBytes % 12);
+    if (usableBytes == 0) {
+      if (data.lengthInBytes != 0) {
+        logger.t("Ignoring short Accel+Gyro payload: len=${data.lengthInBytes}");
+      }
+      return const [];
+    }
+    if (usableBytes != data.lengthInBytes) {
+      logger.t(
+        "Truncating Accel+Gyro payload from ${data.lengthInBytes} to $usableBytes bytes",
+      );
     }
 
-    if (data.lengthInBytes == 0) return const [];
-
     final List<Map<String, dynamic>> parsedData = [];
-    for (int i = 0; i < data.lengthInBytes; i += 12) {
+    for (int i = 0; i < usableBytes; i += 12) {
       final int sampleIndex = i ~/ 12;
       final int ts = receiveTs + sampleIndex * _samplePeriodMs;
 
@@ -241,16 +257,25 @@ class OpenRingValueParser extends SensorValueParser {
     required int receiveTs,
     required Map<String, dynamic> baseHeader,
   }) {
-    if (data.lengthInBytes != nSamples * 14) {
-      throw Exception(
-        "Invalid data length for PPG waveform: ${data.lengthInBytes}, expected ${nSamples * 14}",
+    final int expectedBytes = nSamples * 14;
+    final int usableBytes = data.lengthInBytes - (data.lengthInBytes % 14);
+    if (usableBytes == 0 || nSamples == 0) {
+      return const [];
+    }
+
+    int usableSamples = usableBytes ~/ 14;
+    if (usableSamples > nSamples) {
+      usableSamples = nSamples;
+    }
+
+    if (data.lengthInBytes != expectedBytes) {
+      logger.t(
+        "PPG waveform length mismatch len=${data.lengthInBytes} expected=$expectedBytes; parsing $usableSamples sample(s)",
       );
     }
 
-    if (nSamples == 0) return const [];
-
     final List<Map<String, dynamic>> parsedData = [];
-    for (int i = 0; i < nSamples; i++) {
+    for (int i = 0; i < usableSamples; i++) {
       final int offset = i * 14;
       final int ts = receiveTs + i * _samplePeriodMs;
 
