@@ -2,7 +2,7 @@ import 'package:open_earable_flutter/src/models/capabilities/sensor_configuratio
 import 'package:open_earable_flutter/src/models/capabilities/sensor_specializations/open_ring/open_ring_sensor.dart';
 import 'package:universal_ble/universal_ble.dart';
 
-import '../../managers/tau_sensor_handler.dart';
+import '../../managers/open_ring_sensor_handler.dart';
 import '../../utils/sensor_value_parser/open_ring_value_parser.dart';
 import '../capabilities/sensor.dart';
 import '../capabilities/sensor_configuration.dart';
