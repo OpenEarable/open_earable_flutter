@@ -7,6 +7,8 @@ import 'sensor_value_parser.dart';
 class OpenRingValueParser extends SensorValueParser {
   // 100 Hz -> 10 ms per sample
   static const int _samplePeriodMs = 10;
+  // OpenRing realtime temperature channels are provided in milli-degrees C.
+  static const double _tempRawToCelsiusScale = 1000.0;
 
   final Map<int, int> _lastSeqByCmd = {};
   final Map<int, int> _lastTsByCmd = {};
@@ -499,7 +501,7 @@ class OpenRingValueParser extends SensorValueParser {
     //   8..11  infrared uint32
     //   12..17 accX/accY/accZ int16
     //   18..23 gyroX/gyroY/gyroZ int16
-    //   24..29 temp0/temp1/temp2 int16
+    //   24..29 temp0/temp1/temp2 uint16 (milli-degC)
     const int headerSize = 8;
     const int sampleSize = 30;
 
@@ -542,6 +544,21 @@ class OpenRingValueParser extends SensorValueParser {
           'Green': sampleData.getUint32(offset, Endian.little),
           'Red': sampleData.getUint32(offset + 4, Endian.little),
           'Infrared': sampleData.getUint32(offset + 8, Endian.little),
+        },
+        'Temperature': {
+          'Temp0':
+              (sampleData.getUint16(offset + 24, Endian.little) /
+                      _tempRawToCelsiusScale)
+                  .round(),
+          'Temp1':
+              (sampleData.getUint16(offset + 26, Endian.little) /
+                      _tempRawToCelsiusScale)
+                  .round(),
+          'Temp2':
+              (sampleData.getUint16(offset + 28, Endian.little) /
+                      _tempRawToCelsiusScale)
+                  .round(),
+          'units': '°C',
         },
       });
     }
