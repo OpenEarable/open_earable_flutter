@@ -3,9 +3,9 @@ import 'dart:async';
 import '../../../open_earable_flutter.dart';
 
 /// OpenRing integration for OpenEarable.
-/// Implements Wearable (mandatory) + SensorManager (exposes sensors).
+/// Implements Wearable + sensor configuration + battery level capability.
 class OpenRing extends Wearable
-    implements SensorManager, SensorConfigurationManager {
+    implements SensorManager, SensorConfigurationManager, BatteryLevelStatus {
   OpenRing({
     required DiscoveredDevice discoveredDevice,
     required this.deviceId,
@@ -14,10 +14,10 @@ class OpenRing extends Wearable
     List<SensorConfiguration> sensorConfigs = const [],
     required BleGattManager bleManager,
     required super.disconnectNotifier,
-  }) : _sensors = sensors,
-       _sensorConfigs = sensorConfigs,
-       _bleManager = bleManager,
-       _discoveredDevice = discoveredDevice;
+  })  : _sensors = sensors,
+        _sensorConfigs = sensorConfigs,
+        _bleManager = bleManager,
+        _discoveredDevice = discoveredDevice;
 
   final DiscoveredDevice _discoveredDevice;
 
@@ -25,12 +25,16 @@ class OpenRing extends Wearable
   final List<SensorConfiguration> _sensorConfigs;
   final BleGattManager _bleManager;
 
+  static const int _batteryReadType = 0x00;
+  static const int _batteryPushType = 0x02;
+  static const Duration _batteryResponseTimeout = Duration(milliseconds: 1800);
+
   @override
   final String deviceId;
 
   @override
   List<SensorConfiguration<SensorConfigurationValue>>
-  get sensorConfigurations => _sensorConfigs;
+      get sensorConfigurations => _sensorConfigs;
   @override
   List<Sensor<SensorValue>> get sensors => _sensors;
 
@@ -41,9 +45,112 @@ class OpenRing extends Wearable
 
   @override
   Stream<
-    Map<SensorConfiguration<SensorConfigurationValue>, SensorConfigurationValue>
-  >
-  get sensorConfigurationStream => const Stream.empty();
+      Map<SensorConfiguration<SensorConfigurationValue>,
+          SensorConfigurationValue>> get sensorConfigurationStream =>
+      const Stream.empty();
+
+  @override
+  Future<int> readBatteryPercentage() async {
+    if (!_bleManager.isConnected(deviceId)) {
+      throw StateError(
+        'Cannot read OpenRing battery level while disconnected ($deviceId)',
+      );
+    }
+
+    final int frameId = DateTime.now().microsecondsSinceEpoch & 0xFF;
+    final List<int> command = OpenRingGatt.frame(
+      OpenRingGatt.cmdBatt,
+      rnd: frameId,
+      payload: const [_batteryReadType],
+    );
+
+    final completer = Completer<int>();
+    late final StreamSubscription<List<int>> sub;
+    sub = _bleManager
+        .subscribe(
+      deviceId: deviceId,
+      serviceId: OpenRingGatt.service,
+      characteristicId: OpenRingGatt.rxChar,
+    )
+        .listen(
+      (data) {
+        if (data.length < 5) {
+          return;
+        }
+
+        final int responseFrameId = data[1] & 0xFF;
+        final int responseCmd = data[2] & 0xFF;
+        final int responseType = data[3] & 0xFF;
+        if (responseFrameId != frameId || responseCmd != OpenRingGatt.cmdBatt) {
+          return;
+        }
+        if (responseType != _batteryReadType &&
+            responseType != _batteryPushType) {
+          return;
+        }
+
+        final int battery = data[4] & 0xFF;
+        if (!completer.isCompleted) {
+          completer.complete(battery);
+        }
+      },
+      onError: (error, stack) {
+        if (!completer.isCompleted) {
+          completer.completeError(error, stack);
+        }
+      },
+    );
+
+    try {
+      await _bleManager.write(
+        deviceId: deviceId,
+        serviceId: OpenRingGatt.service,
+        characteristicId: OpenRingGatt.txChar,
+        byteData: command,
+      );
+
+      return await completer.future.timeout(_batteryResponseTimeout);
+    } finally {
+      await sub.cancel();
+    }
+  }
+
+  @override
+  Stream<int> get batteryPercentageStream {
+    StreamController<int> controller = StreamController<int>();
+    Timer? batteryPollingTimer;
+    bool batteryPollingInFlight = false;
+
+    Future<void> pollBattery() async {
+      if (batteryPollingInFlight) {
+        return;
+      }
+      batteryPollingInFlight = true;
+      try {
+        final int batteryPercentage = await readBatteryPercentage();
+        if (!controller.isClosed) {
+          controller.add(batteryPercentage);
+        }
+      } catch (e) {
+        logger.e('Error reading OpenRing battery percentage: $e');
+      } finally {
+        batteryPollingInFlight = false;
+      }
+    }
+
+    controller.onCancel = () {
+      batteryPollingTimer?.cancel();
+    };
+
+    controller.onListen = () {
+      batteryPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+        unawaited(pollBattery());
+      });
+      unawaited(pollBattery());
+    };
+
+    return controller.stream;
+  }
 }
 
 // OpenRing GATT constants (from the vendor AAR)
@@ -152,32 +259,32 @@ class OpenRingTimeSyncImp implements TimeSynchronizable {
     late final StreamSubscription<List<int>> sub;
     sub = bleManager
         .subscribe(
-          deviceId: deviceId,
-          serviceId: OpenRingGatt.service,
-          characteristicId: OpenRingGatt.rxChar,
-        )
+      deviceId: deviceId,
+      serviceId: OpenRingGatt.service,
+      characteristicId: OpenRingGatt.rxChar,
+    )
         .listen(
-          (data) {
-            if (data.length < 4) {
-              return;
-            }
-            final int responseFrameId = data[1] & 0xFF;
-            final int responseCmd = data[2] & 0xFF;
-            final int responseSubCommand = data[3] & 0xFF;
+      (data) {
+        if (data.length < 4) {
+          return;
+        }
+        final int responseFrameId = data[1] & 0xFF;
+        final int responseCmd = data[2] & 0xFF;
+        final int responseSubCommand = data[3] & 0xFF;
 
-            if (responseFrameId == frameId &&
-                responseCmd == OpenRingGatt.cmdTime &&
-                responseSubCommand == _timeUpdateSubCommand &&
-                !completer.isCompleted) {
-              completer.complete(true);
-            }
-          },
-          onError: (error, stack) {
-            if (!completer.isCompleted) {
-              completer.completeError(error, stack);
-            }
-          },
-        );
+        if (responseFrameId == frameId &&
+            responseCmd == OpenRingGatt.cmdTime &&
+            responseSubCommand == _timeUpdateSubCommand &&
+            !completer.isCompleted) {
+          completer.complete(true);
+        }
+      },
+      onError: (error, stack) {
+        if (!completer.isCompleted) {
+          completer.completeError(error, stack);
+        }
+      },
+    );
 
     try {
       logger.d(
