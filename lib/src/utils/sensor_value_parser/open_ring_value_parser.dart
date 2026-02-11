@@ -5,7 +5,7 @@ import '../sensor_scheme_parser/sensor_scheme_reader.dart';
 import 'sensor_value_parser.dart';
 
 class OpenRingValueParser extends SensorValueParser {
-  // 100 Hz → 10 ms per sample
+  // 100 Hz -> 10 ms per sample
   static const int _samplePeriodMs = 10;
 
   final Map<int, int> _lastSeqByCmd = {};
@@ -16,27 +16,19 @@ class OpenRingValueParser extends SensorValueParser {
     ByteData data,
     List<SensorScheme> sensorSchemes,
   ) {
-    logger.t(
-      "Received Open Ring sensor data: size: ${data.lengthInBytes} ${data.buffer.asUint8List()}",
-    );
-
     if (data.lengthInBytes < 4) {
-      throw Exception("Data too short to parse");
+      throw Exception('Data too short to parse');
     }
 
     final int framePrefix = data.getUint8(0);
     if (framePrefix != 0x00) {
-      throw Exception("Invalid frame prefix: $framePrefix");
+      throw Exception('Invalid frame prefix: $framePrefix');
     }
 
     final int sequenceNum = data.getUint8(1);
     final int cmd = data.getUint8(2);
 
-    final int lastSeq = _lastSeqByCmd[cmd] ?? -1;
     final int receiveTs = _lastTsByCmd[cmd] ?? 0;
-    logger.t(
-      "cmd=$cmd last sequenceNum: $lastSeq, current sequenceNum: $sequenceNum, receiveTs: $receiveTs",
-    );
     _lastSeqByCmd[cmd] = sequenceNum;
 
     List<Map<String, dynamic>> result;
@@ -48,20 +40,12 @@ class OpenRingValueParser extends SensorValueParser {
         result = _parsePpgFrame(data, sequenceNum, cmd, receiveTs);
         break;
       default:
-        logger.t("Ignoring unsupported OpenRing command: $cmd");
         return const [];
     }
 
     if (result.isNotEmpty) {
-      final int updatedTs = result.last["timestamp"] as int;
+      final int updatedTs = result.last['timestamp'] as int;
       _lastTsByCmd[cmd] = updatedTs;
-      logger.t("cmd=$cmd Updated last timestamp to $updatedTs");
-
-      final Map<String, dynamic> first = result.first;
-      final Map<String, dynamic> last = result.last;
-      logger.t(
-        "cmd=$cmd parsed ${result.length} sample(s) ts ${first['timestamp']}..${last['timestamp']} firstPayload=${_extractSensorPayload(first)}",
-      );
     }
 
     return result;
@@ -74,7 +58,7 @@ class OpenRingValueParser extends SensorValueParser {
     int receiveTs,
   ) {
     if (frame.lengthInBytes < 4) {
-      throw Exception("IMU frame too short: ${frame.lengthInBytes}");
+      throw Exception('IMU frame too short: ${frame.lengthInBytes}');
     }
 
     final int subOpcode = frame.getUint8(3);
@@ -82,38 +66,30 @@ class OpenRingValueParser extends SensorValueParser {
       if (subOpcode == 0x00) {
         return const [];
       }
-      throw Exception("IMU frame missing status byte: ${frame.lengthInBytes}");
+      throw Exception('IMU frame missing status byte: ${frame.lengthInBytes}');
     }
 
     final int status = frame.getUint8(4);
-    final ByteData payload =
-        frame.lengthInBytes > 5
-            ? ByteData.sublistView(frame, 5)
-            : ByteData.sublistView(frame, 5, 5);
+    final ByteData payload = frame.lengthInBytes > 5
+        ? ByteData.sublistView(frame, 5)
+        : ByteData.sublistView(frame, 5, 5);
 
     final Map<String, dynamic> baseHeader = {
-      "sequenceNum": sequenceNum,
-      "cmd": cmd,
-      "subOpcode": subOpcode,
-      "status": status,
+      'sequenceNum': sequenceNum,
+      'cmd': cmd,
+      'subOpcode': subOpcode,
+      'status': status,
     };
-
-    logger.t("IMU using fixed sample period=${_samplePeriodMs}ms");
 
     switch (subOpcode) {
       case 0x01: // Accel-only stream (ignored by design)
       case 0x04: // Accel-only stream (ignored by design)
         if (status == 0x01) {
-          logger.t("IMU device busy for sub-opcode: $subOpcode");
           return const [];
         }
-        logger.t(
-          "Ignoring IMU accel-only sub-opcode $subOpcode; expecting accel+gyro (0x06)",
-        );
         return const [];
       case 0x06: // Accel + Gyro (12 bytes per sample)
         if (status == 0x01) {
-          logger.t("IMU device busy for sub-opcode: $subOpcode");
           return const [];
         }
         return _parseAccelGyro(
@@ -126,7 +102,6 @@ class OpenRingValueParser extends SensorValueParser {
         // Common non-streaming/control response.
         return const [];
       default:
-        logger.t("Ignoring unsupported IMU sub-opcode: $subOpcode");
         return const [];
     }
   }
@@ -138,53 +113,57 @@ class OpenRingValueParser extends SensorValueParser {
     int receiveTs,
   ) {
     if (frame.lengthInBytes < 5) {
-      throw Exception("PPG frame too short: ${frame.lengthInBytes}");
+      throw Exception('PPG frame too short: ${frame.lengthInBytes}');
     }
 
     final int type = frame.getUint8(3);
     final int value = frame.getUint8(4);
 
     final Map<String, dynamic> baseHeader = {
-      "sequenceNum": sequenceNum,
-      "cmd": cmd,
-      "type": type,
-      "value": value,
+      'sequenceNum': sequenceNum,
+      'cmd': cmd,
+      'type': type,
+      'value': value,
     };
 
     if (type == 0xFF) {
-      logger.d("OpenRing PPG progress: $value%");
+      logger.d('OpenRing PPG progress: $value%');
       if (value >= 100) {
-        logger.d("OpenRing PPG progress complete");
+        logger.d('OpenRing PPG progress complete');
       }
       return const [];
     }
 
     if (type == 0x00) {
       if (value == 0 || value == 2 || value == 4) {
-        logger.w("OpenRing PPG error packet received: code=$value");
+        logger.w('OpenRing PPG error packet received: code=$value');
         return const [];
       }
 
       if (value == 3) {
         if (frame.lengthInBytes < 9) {
-          throw Exception("Invalid final PPG result length: ${frame.lengthInBytes}");
+          throw Exception(
+            'Invalid final PPG result length: ${frame.lengthInBytes}',
+          );
         }
 
         final int heart = frame.getUint8(5);
         final int q2 = frame.getUint8(6);
         final int temp = frame.getInt16(7, Endian.little);
 
-        logger.d("OpenRing PPG result received: heart=$heart q2=$q2 temp=$temp");
+        logger.d(
+          'OpenRing PPG result received: heart=$heart q2=$q2 temp=$temp',
+        );
         return const [];
       }
 
-      logger.w("OpenRing PPG result packet with unknown value=$value");
+      logger.w('OpenRing PPG result packet with unknown value=$value');
       return const [];
     }
 
     if (type == 0x01) {
       if (frame.lengthInBytes < 6) {
-        throw Exception("PPG waveform frame too short: ${frame.lengthInBytes}");
+        throw Exception('PPG waveform frame too short: ${frame.lengthInBytes}');
       }
 
       final int nSamples = frame.getUint8(5);
@@ -200,7 +179,9 @@ class OpenRingValueParser extends SensorValueParser {
 
     if (type == 0x02) {
       if (frame.lengthInBytes < 6) {
-        throw Exception("PPG extended waveform frame too short: ${frame.lengthInBytes}");
+        throw Exception(
+          'PPG extended waveform frame too short: ${frame.lengthInBytes}',
+        );
       }
 
       final int nSamples = frame.getUint8(5);
@@ -214,12 +195,8 @@ class OpenRingValueParser extends SensorValueParser {
       );
     }
 
-    logger.t(
-      "Ignoring unsupported PPG packet type: $type, frame=${frame.buffer.asUint8List()}"
-    );
     return const [];
   }
-
 
   List<Map<String, dynamic>> _parseAccelGyro({
     required ByteData data,
@@ -229,15 +206,7 @@ class OpenRingValueParser extends SensorValueParser {
   }) {
     final int usableBytes = data.lengthInBytes - (data.lengthInBytes % 12);
     if (usableBytes == 0) {
-      if (data.lengthInBytes != 0) {
-        logger.t("Ignoring short Accel+Gyro payload: len=${data.lengthInBytes}");
-      }
       return const [];
-    }
-    if (usableBytes != data.lengthInBytes) {
-      logger.t(
-        "Truncating Accel+Gyro payload from ${data.lengthInBytes} to $usableBytes bytes",
-      );
     }
 
     final List<Map<String, dynamic>> parsedData = [];
@@ -254,9 +223,9 @@ class OpenRingValueParser extends SensorValueParser {
 
       parsedData.add({
         ...baseHeader,
-        "timestamp": ts,
-        "Accelerometer": accelData,
-        "Gyroscope": gyroData,
+        'timestamp': ts,
+        'Accelerometer': accelData,
+        'Gyroscope': gyroData,
       });
     }
     return parsedData;
@@ -288,8 +257,8 @@ class OpenRingValueParser extends SensorValueParser {
     }
 
     if (data.lengthInBytes != expectedBytes && nSamples > usableSamples) {
-      logger.t(
-        "PPG waveform length mismatch len=${data.lengthInBytes} expected=$expectedBytes; parsing $usableSamples sample(s)",
+      logger.w(
+        'PPG waveform length mismatch len=${data.lengthInBytes} expected=$expectedBytes; parsing $usableSamples sample(s)',
       );
     }
 
@@ -300,13 +269,13 @@ class OpenRingValueParser extends SensorValueParser {
 
       parsedData.add({
         ...baseHeader,
-        "timestamp": ts,
-        "PPG": {
-          "Red": data.getInt32(offset, Endian.little),
-          "Infrared": data.getInt32(offset + 4, Endian.little),
-          "AccX": data.getInt16(offset + 8, Endian.little),
-          "AccY": data.getInt16(offset + 10, Endian.little),
-          "AccZ": data.getInt16(offset + 12, Endian.little),
+        'timestamp': ts,
+        'PPG': {
+          'Red': data.getInt32(offset, Endian.little),
+          'Infrared': data.getInt32(offset + 4, Endian.little),
+          'AccX': data.getInt16(offset + 8, Endian.little),
+          'AccY': data.getInt16(offset + 10, Endian.little),
+          'AccZ': data.getInt16(offset + 12, Endian.little),
         },
       });
     }
@@ -332,7 +301,8 @@ class OpenRingValueParser extends SensorValueParser {
     const int sampleSize = 34;
 
     final int expectedBytes = nSamples * sampleSize;
-    final int usableBytes = data.lengthInBytes - (data.lengthInBytes % sampleSize);
+    final int usableBytes =
+        data.lengthInBytes - (data.lengthInBytes % sampleSize);
     if (usableBytes == 0 || nSamples == 0) {
       return const [];
     }
@@ -343,8 +313,8 @@ class OpenRingValueParser extends SensorValueParser {
     }
 
     if (data.lengthInBytes != expectedBytes && nSamples > usableSamples) {
-      logger.t(
-        "PPG type2 length mismatch len=${data.lengthInBytes} expected=$expectedBytes; parsing $usableSamples sample(s)",
+      logger.w(
+        'PPG type2 length mismatch len=${data.lengthInBytes} expected=$expectedBytes; parsing $usableSamples sample(s)',
       );
     }
 
@@ -355,30 +325,17 @@ class OpenRingValueParser extends SensorValueParser {
 
       parsedData.add({
         ...baseHeader,
-        "timestamp": ts,
-        "PPG": {
-          "Red": data.getInt32(offset + 4, Endian.little),
-          "Infrared": data.getInt32(offset + 8, Endian.little),
-          "AccX": data.getInt16(offset + 20, Endian.little),
-          "AccY": data.getInt16(offset + 22, Endian.little),
-          "AccZ": data.getInt16(offset + 24, Endian.little),
+        'timestamp': ts,
+        'PPG': {
+          'Red': data.getInt32(offset + 4, Endian.little),
+          'Infrared': data.getInt32(offset + 8, Endian.little),
+          'AccX': data.getInt16(offset + 20, Endian.little),
+          'AccY': data.getInt16(offset + 22, Endian.little),
+          'AccZ': data.getInt16(offset + 24, Endian.little),
         },
       });
     }
 
     return parsedData;
   }
-
-
-
-  Map<String, dynamic>? _extractSensorPayload(Map<String, dynamic> sample) {
-    if (sample['Accelerometer'] is Map<String, dynamic>) {
-      return sample['Accelerometer'] as Map<String, dynamic>;
-    }
-    if (sample['PPG'] is Map<String, dynamic>) {
-      return sample['PPG'] as Map<String, dynamic>;
-    }
-    return null;
-  }
-
 }
