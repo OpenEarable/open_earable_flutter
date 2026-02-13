@@ -13,8 +13,8 @@ class OpenRingSensor extends Sensor<SensorIntValue> {
     required List<String> axisUnits,
     required this.sensorHandler,
     super.relatedConfigurations = const [],
-  }) : _axisNames = axisNames,
-       _axisUnits = axisUnits;
+  })  : _axisNames = axisNames,
+        _axisUnits = axisUnits;
 
   final int sensorId;
   final List<String> _axisNames;
@@ -22,7 +22,13 @@ class OpenRingSensor extends Sensor<SensorIntValue> {
 
   final SensorHandler sensorHandler;
 
-  late final Stream<SensorIntValue> _cachedSensorStream = _createSensorStream();
+  // ignore: cancel_subscriptions
+  StreamSubscription<Map<String, dynamic>>? _sensorSubscription;
+  late final StreamController<SensorIntValue> _sensorStreamController =
+      StreamController<SensorIntValue>.broadcast(
+    onListen: _handleListen,
+    onCancel: _handleCancel,
+  );
 
   @override
   List<String> get axisNames => _axisNames;
@@ -34,59 +40,72 @@ class OpenRingSensor extends Sensor<SensorIntValue> {
   int get axisCount => _axisNames.length;
 
   @override
-  Stream<SensorIntValue> get sensorStream => _cachedSensorStream;
+  Stream<SensorIntValue> get sensorStream => _sensorStreamController.stream;
 
-  Stream<SensorIntValue> _createSensorStream() {
-    final streamController = StreamController<SensorIntValue>();
-    final subscription = sensorHandler.subscribeToSensorData(sensorId).listen((
-      data,
-    ) {
-      if (!data.containsKey(sensorName)) {
-        return;
+  void _handleListen() {
+    _sensorSubscription ??=
+        sensorHandler.subscribeToSensorData(sensorId).listen(
+      (data) {
+        final SensorIntValue? sensorValue = _toSensorValue(data);
+        if (sensorValue != null && !_sensorStreamController.isClosed) {
+          _sensorStreamController.add(sensorValue);
+        }
+      },
+      onError: (error, stack) {
+        if (!_sensorStreamController.isClosed) {
+          _sensorStreamController.addError(error, stack);
+        }
+      },
+    );
+  }
+
+  Future<void> _handleCancel() async {
+    if (_sensorStreamController.hasListener) {
+      return;
+    }
+
+    final subscription = _sensorSubscription;
+    _sensorSubscription = null;
+    if (subscription != null) {
+      await subscription.cancel();
+    }
+  }
+
+  SensorIntValue? _toSensorValue(Map<String, dynamic> data) {
+    if (!data.containsKey(sensorName)) {
+      return null;
+    }
+
+    final sensorData = data[sensorName];
+    final timestamp = data['timestamp'];
+    if (sensorData is! Map || timestamp is! int) {
+      return null;
+    }
+
+    final Map sensorDataMap = sensorData;
+    final List<int> values = [];
+    for (final axisName in _axisNames) {
+      final dynamic axisValue = sensorDataMap[axisName];
+      if (axisValue is int) {
+        values.add(axisValue);
       }
+    }
 
-      final sensorData = data[sensorName];
-      final timestamp = data["timestamp"];
-      if (sensorData is! Map || timestamp is! int) {
-        return;
-      }
-
-      final Map sensorDataMap = sensorData;
-      List<int> values = [];
-      for (final axisName in _axisNames) {
-        final dynamic axisValue = sensorDataMap[axisName];
-        if (axisValue is int) {
-          values.add(axisValue);
+    if (values.isEmpty) {
+      for (final entry in sensorDataMap.entries) {
+        if (entry.key == 'units') {
+          continue;
+        }
+        if (entry.value is int) {
+          values.add(entry.value as int);
         }
       }
+    }
 
-      if (values.isEmpty) {
-        for (var entry in sensorDataMap.entries) {
-          if (entry.key == 'units') {
-            continue;
-          }
-          if (entry.value is int) {
-            values.add(entry.value as int);
-          }
-        }
-      }
+    if (values.isEmpty) {
+      return null;
+    }
 
-      if (values.isEmpty) {
-        return;
-      }
-
-      SensorIntValue sensorValue = SensorIntValue(
-        values: values,
-        timestamp: timestamp,
-      );
-
-      streamController.add(sensorValue);
-    });
-
-    streamController.onCancel = () {
-      unawaited(subscription.cancel());
-    };
-
-    return streamController.stream;
+    return SensorIntValue(values: values, timestamp: timestamp);
   }
 }

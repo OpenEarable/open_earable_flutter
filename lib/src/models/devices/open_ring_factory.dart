@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:open_earable_flutter/src/models/capabilities/sensor_configuration_specializations/open_ring_sensor_configuration.dart';
 import 'package:open_earable_flutter/src/models/capabilities/sensor_specializations/open_ring/open_ring_sensor.dart';
 import 'package:universal_ble/universal_ble.dart';
@@ -156,15 +158,27 @@ class OpenRingFactory extends WearableFactory {
     );
     w.registerCapability<TimeSynchronizable>(timeSync);
 
-    try {
-      await timeSync.synchronizeTime();
-      logger.i('OpenRing time synchronized on connect for ${device.id}');
-    } catch (error, stack) {
-      logger.w('OpenRing time sync on connect failed for ${device.id}: $error');
-      logger.t(stack);
-    }
+    unawaited(
+      _synchronizeTimeOnConnect(
+        timeSync: timeSync,
+        deviceId: device.id,
+      ),
+    );
 
     return w;
+  }
+
+  Future<void> _synchronizeTimeOnConnect({
+    required TimeSynchronizable timeSync,
+    required String deviceId,
+  }) async {
+    try {
+      await timeSync.synchronizeTime();
+      logger.i('OpenRing time synchronized on connect for $deviceId');
+    } catch (error, stack) {
+      logger.w('OpenRing time sync on connect failed for $deviceId: $error');
+      logger.t(stack);
+    }
   }
 
   @override

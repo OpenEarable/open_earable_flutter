@@ -39,9 +39,9 @@ class OpenRing extends Wearable
 
   @override
   List<SensorConfiguration<SensorConfigurationValue>>
-      get sensorConfigurations => _sensorConfigs;
+      get sensorConfigurations => List.unmodifiable(_sensorConfigs);
   @override
-  List<Sensor<SensorValue>> get sensors => _sensors;
+  List<Sensor<SensorValue>> get sensors => List.unmodifiable(_sensors);
 
   @override
   Future<void> disconnect() {
