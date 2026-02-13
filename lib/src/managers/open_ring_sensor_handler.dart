@@ -281,6 +281,7 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
             if (_isPpgBusyResponse(data)) {
               _schedulePpgBusyRetry();
             }
+            _updateRealtimeStreamingStateFromPacket(data);
 
             final int? rawCmd = data.length > 2 ? data[2] : null;
             if (rawCmd != null) {
@@ -322,6 +323,7 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
           _cancelPpgBusyRetry();
           _lastPpgStartPayload = null;
           _ppgBusyRetryCount = 0;
+          _activeRealtimeStreamingCommands.clear();
 
           if (subscription != null) {
             unawaited(subscription.cancel());
@@ -383,6 +385,64 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
         data[4] == 0x04;
   }
 
+  void _updateRealtimeStreamingStateFromPacket(List<int> data) {
+    if (data.length < 4 || data[0] != 0x00) {
+      return;
+    }
+
+    final int cmd = data[2] & 0xFF;
+
+    if (cmd == OpenRingGatt.cmdPPGQ2) {
+      final int packetType = data[3] & 0xFF;
+
+      // Stop ack can be a 4-byte control frame.
+      if (packetType == 0x06) {
+        _activeRealtimeStreamingCommands.remove(cmd);
+        return;
+      }
+
+      if (data.length < 5) {
+        return;
+      }
+
+      final int packetValue = data[4] & 0xFF;
+
+      // Realtime waveform packets imply active streaming.
+      if (packetType == 0x01 || packetType == 0x02) {
+        _activeRealtimeStreamingCommands.add(cmd);
+        return;
+      }
+
+      // Final/result and terminal error packets indicate no active realtime stream.
+      if (packetType == 0x00 &&
+          (packetValue == 0 || // not worn
+              packetValue == 2 || // charging
+              packetValue == 3 || // final result
+              packetValue == 4)) {
+        _activeRealtimeStreamingCommands.remove(cmd);
+      }
+      return;
+    }
+
+    if (cmd == OpenRingGatt.cmdIMU) {
+      if (data.length < 5) {
+        return;
+      }
+
+      final int subOpcode = data[3] & 0xFF;
+      final int status = data[4] & 0xFF;
+
+      if (subOpcode == 0x00) {
+        _activeRealtimeStreamingCommands.remove(cmd);
+        return;
+      }
+
+      if (subOpcode == 0x06 && status != 0x01) {
+        _activeRealtimeStreamingCommands.add(cmd);
+      }
+    }
+  }
+
   void _schedulePpgBusyRetry() {
     if (_ppgBusyRetryCount >= _maxPpgBusyRetries) {
       return;
@@ -414,6 +474,7 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
       await _writeCommand(
         OpenRingSensorConfig(cmd: OpenRingGatt.cmdPPGQ2, payload: const [0x06]),
       );
+      _activeRealtimeStreamingCommands.remove(OpenRingGatt.cmdPPGQ2);
       await Future.delayed(const Duration(milliseconds: _ppgRestartDelayMs));
       await _writeCommand(
         OpenRingSensorConfig(
@@ -421,6 +482,7 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
           payload: List<int>.from(startPayload),
         ),
       );
+      _activeRealtimeStreamingCommands.add(OpenRingGatt.cmdPPGQ2);
     } catch (error) {
       logger.e('OpenRing PPG busy retry failed: $error');
     }
