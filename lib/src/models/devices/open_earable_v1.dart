@@ -170,7 +170,10 @@ class OpenEarableV1 extends Wearable
   }
 
   @override
-  String? getWearableIconPath({bool darkmode = false}) {
+  String? getWearableIconPath({
+    bool darkmode = false,
+    WearableIconVariant variant = WearableIconVariant.single,
+  }) {
     String basePath =
         'packages/open_earable_flutter/assets/wearable_icons/open_earable_v1';
 

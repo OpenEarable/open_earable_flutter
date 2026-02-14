@@ -54,6 +54,7 @@ class OpenRing extends Wearable
   @override
   String? getWearableIconPath({
     bool darkmode = false,
+    WearableIconVariant variant = WearableIconVariant.single,
   }) {
     return 'packages/open_earable_flutter/assets/wearable_icons/open_ring/openring.png';
   }
