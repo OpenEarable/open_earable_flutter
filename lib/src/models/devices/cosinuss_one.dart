@@ -90,7 +90,10 @@ class CosinussOne extends Wearable
   }
 
   @override
-  String? getWearableIconPath({bool darkmode = false}) {
+  String? getWearableIconPath({
+    bool darkmode = false,
+    WearableIconVariant variant = WearableIconVariant.single,
+  }) {
     String basePath =
         'packages/open_earable_flutter/assets/wearable_icons/cosinuss_one';
 

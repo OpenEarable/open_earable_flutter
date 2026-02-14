@@ -285,9 +285,25 @@ class OpenEarableV2 extends BluetoothWearable
   String get deviceId => discoveredDevice.id;
 
   @override
-  String? getWearableIconPath({bool darkmode = false}) {
+  String? getWearableIconPath({
+    bool darkmode = false,
+    WearableIconVariant variant = WearableIconVariant.single,
+  }) {
     String basePath =
         'packages/open_earable_flutter/assets/wearable_icons/open_earable_v2';
+
+    if (!darkmode) {
+      switch (variant) {
+        case WearableIconVariant.left:
+          return '$basePath/left.png';
+        case WearableIconVariant.right:
+          return '$basePath/right.png';
+        case WearableIconVariant.pair:
+          return '$basePath/pair.png';
+        case WearableIconVariant.single:
+          break;
+      }
+    }
 
     if (darkmode) {
       return '$basePath/icon_no_text_white.svg';
