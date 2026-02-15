@@ -5,12 +5,27 @@ import 'dart:typed_data';
 
 import '../sensor_forwarder.dart';
 import '../../models/capabilities/sensor.dart';
+import 'lsl/device_name/device_name_stub.dart'
+    if (dart.library.io) 'lsl/device_name/device_name_io.dart';
 import 'lsl/transport/lsl_transport.dart';
 import 'lsl/transport/lsl_transport_stub.dart'
     if (dart.library.io) 'lsl/transport/lsl_transport_io.dart';
 
 const int defaultLslBridgePort = 16571;
-const String defaultLslStreamPrefix = 'OpenEarable';
+const String defaultLslStreamPrefix = 'Phone';
+const String _sourceIdPrefix = 'oe-v1';
+const String _sourceIdSeparator = ':';
+const String _emptySourceIdComponent = '-';
+
+final String _autoStreamPrefix = _resolveAutoStreamPrefix();
+
+String _resolveAutoStreamPrefix() {
+  final name = createLslDeviceNameProvider().deviceName.trim();
+  if (name.isNotEmpty) {
+    return name;
+  }
+  return defaultLslStreamPrefix;
+}
 
 /// Configuration for LSL forwarding.
 ///
@@ -53,12 +68,16 @@ class LslForwarder implements SensorForwarder {
   static final LslForwarder instance = LslForwarder._internal();
 
   final LslTransport _transport;
-  LslForwardingConfig _config = const LslForwardingConfig();
+  LslForwardingConfig _config =
+      LslForwardingConfig(streamPrefix: _autoStreamPrefix);
+  final Map<String, String> _deviceTokenById = {};
+  int _nextDeviceToken = 1;
 
   DateTime? _lastForwardingError;
   bool _didLogUnsupportedPlatform = false;
 
   LslForwardingConfig get config => _config;
+  String get defaultStreamPrefix => _autoStreamPrefix;
   bool get isSupported => _transport.isSupported;
   @override
   bool get isEnabled => _config.enabled;
@@ -68,7 +87,7 @@ class LslForwarder implements SensorForwarder {
     required String host,
     int port = defaultLslBridgePort,
     bool enabled = true,
-    String streamPrefix = defaultLslStreamPrefix,
+    String? streamPrefix,
   }) {
     final trimmedHost = host.trim();
     if (trimmedHost.isEmpty) {
@@ -78,7 +97,7 @@ class LslForwarder implements SensorForwarder {
       throw ArgumentError.value(port, 'port', 'must be between 1 and 65535');
     }
 
-    final trimmedPrefix = streamPrefix.trim();
+    final trimmedPrefix = (streamPrefix ?? _autoStreamPrefix).trim();
     if (trimmedPrefix.isEmpty) {
       throw ArgumentError.value(
         streamPrefix,
@@ -101,7 +120,7 @@ class LslForwarder implements SensorForwarder {
   }
 
   void reset() {
-    _config = const LslForwardingConfig();
+    _config = LslForwardingConfig(streamPrefix: _autoStreamPrefix);
   }
 
   /// Backwards-compatible convenience API.
@@ -165,21 +184,36 @@ class LslForwarder implements SensorForwarder {
   ) {
     final sensor = sample.sensor;
     final value = sample.value;
+    final side = _normalizeSide(sample.deviceSide);
+    final source = _buildSource(deviceId: sample.deviceId);
+    final deviceToken = _resolveDeviceToken(sample.deviceId);
 
     final streamName = _buildStreamName(
-      streamPrefix: streamPrefix,
       deviceName: sample.deviceName,
+      deviceSide: side,
       sensorName: sensor.sensorName,
+      source: source,
+    );
+    final sourceId = _buildSourceId(
+      deviceName: sample.deviceName,
+      deviceSide: side,
+      sensorName: sensor.sensorName,
+      source: source,
     );
 
     final map = <String, dynamic>{
       'type': 'open_earable_lsl_sample',
       'stream_name': streamName,
+      'source_id': sourceId,
+      'device_token': deviceToken,
       'device_id': sample.deviceId,
       'device_name': sample.deviceName,
+      'device_source': source,
+      'device_channel': side ?? '',
       'sensor_name': sensor.sensorName,
       'chart_title': sensor.chartTitle,
       'short_chart_title': sensor.shortChartTitle,
+      'stream_prefix': streamPrefix,
       'axis_names': sensor.axisNames,
       'axis_units': sensor.axisUnits,
       'timestamp': value.timestamp,
@@ -189,25 +223,108 @@ class LslForwarder implements SensorForwarder {
       'value_strings': value.valueStrings,
       'sent_at_unix_ms': DateTime.now().millisecondsSinceEpoch,
     };
+    if (side != null) {
+      map['device_side'] = side;
+    }
 
     return Uint8List.fromList(utf8.encode(jsonEncode(map)));
   }
 
-  String _buildStreamName({
-    required String streamPrefix,
-    required String deviceName,
-    required String sensorName,
-  }) {
-    return '${_sanitize(streamPrefix)}_'
-        '${_sanitize(deviceName)}_'
-        '${_sanitize(sensorName)}';
+  String _buildSource({required String deviceId}) {
+    final normalizedDeviceId = _normalizeDisplay(
+      deviceId,
+      fallback: 'unknown_device_source',
+    );
+    return normalizedDeviceId;
   }
 
-  String _sanitize(String value) {
-    final cleaned = value
-        .replaceAll(RegExp(r'[^a-zA-Z0-9._-]+'), '_')
-        .replaceAll(RegExp(r'_+'), '_');
-    return cleaned.isEmpty ? 'unknown' : cleaned;
+  String _buildSourceId({
+    required String deviceName,
+    String? deviceSide,
+    required String sensorName,
+    required String source,
+  }) {
+    final side = _normalizeSide(deviceSide) ?? '';
+    return [
+      _sourceIdPrefix,
+      _encodeSourceIdComponent(
+        _normalizeDisplay(deviceName, fallback: 'unknown_device'),
+      ),
+      _encodeSourceIdComponent(side),
+      _encodeSourceIdComponent(
+        _normalizeDisplay(sensorName, fallback: 'unknown_sensor'),
+      ),
+      _encodeSourceIdComponent(source),
+    ].join(_sourceIdSeparator);
+  }
+
+  String _encodeSourceIdComponent(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return _emptySourceIdComponent;
+    }
+    return Uri.encodeComponent(trimmed);
+  }
+
+  String _buildStreamName({
+    required String deviceName,
+    String? deviceSide,
+    required String sensorName,
+    required String source,
+  }) {
+    final normalizedDevice = _normalizeDisplay(
+      deviceName,
+      fallback: 'unknown_device',
+    );
+    final normalizedSensor = _normalizeDisplay(
+      sensorName,
+      fallback: 'unknown_sensor',
+    );
+    final normalizedSource = _normalizeDisplay(
+      source,
+      fallback: 'unknown_source',
+    );
+    final side = _normalizeSide(deviceSide);
+    final sideSuffix = side == null ? '' : ' [$side]';
+    return '$normalizedDevice$sideSuffix ($normalizedSource) - $normalizedSensor';
+  }
+
+  String _resolveDeviceToken(String deviceId) {
+    final existing = _deviceTokenById[deviceId];
+    if (existing != null) {
+      return existing;
+    }
+
+    final nextToken = 'device_${_nextDeviceToken.toString().padLeft(2, '0')}';
+    _nextDeviceToken += 1;
+    _deviceTokenById[deviceId] = nextToken;
+    return nextToken;
+  }
+
+  String? _normalizeSide(String? side) {
+    if (side == null) {
+      return null;
+    }
+    final trimmed = side.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    final lower = trimmed.toLowerCase();
+    if (lower.startsWith('l')) {
+      return 'L';
+    }
+    if (lower.startsWith('r')) {
+      return 'R';
+    }
+    return trimmed;
+  }
+
+  String _normalizeDisplay(String value, {required String fallback}) {
+    final compact = value.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (compact.isEmpty) {
+      return fallback;
+    }
+    return compact;
   }
 
   List<num> _numericValues(SensorValue value) {

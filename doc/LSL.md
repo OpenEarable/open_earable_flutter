@@ -1,89 +1,107 @@
-# LSL Forwarding
+# OpenWearables LSL Dashboard Example (Python Setup)
 
-This package can forward sensor data to a bridge endpoint that converts incoming samples into Lab Streaming Layer (LSL) outlets.
+This guide is focused on one thing: starting the Python bridge on your computer so it can:
 
-## Configure in Flutter
+- receive forwarded UDP sensor packets,
+- publish them as LSL streams,
+- and show live data in a web dashboard.
 
-```dart
-final lslForwarder = LslForwarder.instance;
-lslForwarder.configure(
-  host: "192.168.1.42", // bridge host/IP
-  port: 16571, // bridge UDP port
-  enabled: true,
-  streamPrefix: "OpenEarable",
-);
+## Quick Start
 
-final manager = WearableManager(
-  sensorForwarders: [lslForwarder],
-);
-```
-
-Toggle forwarding at runtime:
-
-```dart
-manager.setSensorForwarderEnabled(lslForwarder, true);
-```
-
-## Forwarder Abstraction
-
-Forwarding is protocol-agnostic and supports dependency injection.
-`LslForwarder` is just one `SensorForwarder` implementation.
-
-You can provide a custom global list of forwarders:
-
-```dart
-final manager = WearableManager(
-  sensorForwarders: [
-    LslForwarder.instance,
-    // MyCustomForwarder(),
-  ],
-);
-```
-
-## Transport and Payload
-
-- Transport: UDP
-- Encoding: UTF-8 JSON (one datagram per sample)
-- Endpoint: `host:port` configured above
-
-Payload format:
-
-```json
-{
-  "type": "open_earable_lsl_sample",
-  "stream_name": "OpenEarable_OpenEarable2_Accelerometer",
-  "device_id": "...",
-  "device_name": "...",
-  "sensor_name": "Accelerometer",
-  "axis_names": ["X", "Y", "Z"],
-  "axis_units": ["m/s^2", "m/s^2", "m/s^2"],
-  "timestamp": 123456789,
-  "timestamp_exponent": -6,
-  "values": [0.1, 0.2, 0.3],
-  "value_strings": ["0.1", "0.2", "0.3"]
-}
-```
-
-## Bundled Python Bridge
-
-This repository includes a ready-to-use bridge script at `tools/lsl_bridge.py`.
-
-Install dependency:
+From the repository root (`/Users/tobi/open_earable_flutter`):
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install pylsl
+python tools/lsl_receive_and_ploty.py --port 16571 --dashboard-port 8765
 ```
 
-Run bridge:
+When it starts, it prints:
+
+- the UDP listener (`host:port`) for incoming forwarded data,
+- one or more local IP addresses,
+- dashboard URLs to open in a browser.
+
+Open the dashboard in your browser, for example:
+
+```text
+http://<your-computer-ip>:8765
+```
+
+## What You Need to Configure on Sender Side
+
+The sender app/device must forward UDP to your computer:
+
+- `host`: your computer IP printed by the script
+- `port`: `16571` (or your custom `--port`)
+
+That is all that is required for the bridge to ingest data.
+
+## Common Commands
+
+Default setup:
 
 ```bash
-python tools/lsl_bridge.py --port 16571
+python tools/lsl_receive_and_ploty.py --port 16571 --dashboard-port 8765
 ```
 
-The script prints reachable local IP addresses at startup. Use one of those IPs as `host` in `LslForwarder.configure(...)`.
-
-Optional:
+Verbose packet logging:
 
 ```bash
-python tools/lsl_bridge.py --host 0.0.0.0 --port 16571 --verbose
+python tools/lsl_receive_and_ploty.py --host 0.0.0.0 --port 16571 --dashboard-port 8765 --verbose
 ```
+
+Use a different dashboard port:
+
+```bash
+python tools/lsl_receive_and_ploty.py --port 16571 --dashboard-port 9000
+```
+
+Compatibility alias (same behavior):
+
+```bash
+python tools/lsl_bridge.py --port 16571 --dashboard-port 8765
+```
+
+## Verify It Is Running
+
+- Dashboard opens and shows `LIVE` once packets arrive.
+- `http://<your-computer-ip>:<dashboard-port>/health` returns JSON status.
+- LSL streams become discoverable with type `OpenWearables`.
+
+## Minimal LSL Consumer Example
+
+If you only want to receive LSL data and process it yourself:
+
+```bash
+python tools/lsl_receive_minimal.py
+```
+
+The placeholder hooks are in:
+
+- `tools/lsl_receive_minimal.py` (`handle_sensor_sample(...)`)
+- `tools/lsl_receive_minimal.py` (`handle_channel_sample(...)`)
+
+The minimal script also includes lightweight abstractions:
+
+- `SensorSample`: one concrete sample from one sensor stream on one device
+- `ChannelSample`: one concrete channel value split out from `SensorSample`
+
+## Troubleshooting
+
+No packets in dashboard:
+
+- Confirm sender `host` matches your computer IP (not `localhost` unless sender is same machine).
+- Confirm sender `port` matches bridge `--port`.
+- Ensure firewall allows inbound UDP on the chosen bridge port.
+
+Dashboard unreachable:
+
+- Confirm dashboard port is open and not in use.
+- Try `http://127.0.0.1:<dashboard-port>` locally first.
+
+No LSL streams found by consumers:
+
+- Ensure packets are reaching the bridge (dashboard should show samples).
+- Ensure consumer is filtering for stream type `OpenWearables`.

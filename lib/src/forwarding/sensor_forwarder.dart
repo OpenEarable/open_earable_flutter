@@ -8,12 +8,14 @@ class SensorForwardingSample {
   final SensorValue value;
   final String deviceId;
   final String deviceName;
+  final String? deviceSide;
 
   const SensorForwardingSample({
     required this.sensor,
     required this.value,
     required this.deviceId,
     required this.deviceName,
+    this.deviceSide,
   });
 }
 

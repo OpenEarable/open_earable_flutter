@@ -227,7 +227,7 @@ class WearableManager {
         if (await wearableFactory.matches(device, connectionResult.$2)) {
           Wearable wearable =
               await wearableFactory.createFromDevice(device, options: options);
-          _startSensorForwardingSubscriptions(wearable);
+          await _startSensorForwardingSubscriptions(wearable);
 
           _connectedIds.add(device.id);
           wearable.addDisconnectListener(() {
@@ -386,7 +386,7 @@ class WearableManager {
     SensorForwardingPipeline.instance.clearForwarders();
   }
 
-  void _startSensorForwardingSubscriptions(Wearable wearable) {
+  Future<void> _startSensorForwardingSubscriptions(Wearable wearable) async {
     if (_sensorForwardingSubscriptions.containsKey(wearable.deviceId)) {
       return;
     }
@@ -396,31 +396,87 @@ class WearableManager {
       return;
     }
 
-    final subscriptions = sensorManager.sensors.map((sensor) {
-      return sensor.sensorStream.cast<SensorValue>().listen(
-        (value) {
-          unawaited(
-            SensorForwardingPipeline.instance.forward(
-              SensorForwardingSample(
-                sensor: sensor,
-                value: value,
-                deviceId: wearable.deviceId,
-                deviceName: wearable.name,
+    final sideLabel = await _resolveWearableSideLabel(wearable);
+    final subscriptions = <StreamSubscription<SensorValue>>[];
+    for (final sensor in sensorManager.sensors) {
+      try {
+        final subscription = sensor.sensorStream.cast<SensorValue>().listen(
+          (value) {
+            unawaited(
+              SensorForwardingPipeline.instance.forward(
+                SensorForwardingSample(
+                  sensor: sensor,
+                  value: value,
+                  deviceId: wearable.deviceId,
+                  deviceName: wearable.name,
+                  deviceSide: sideLabel,
+                ),
               ),
-            ),
-          );
-        },
-        onError: (Object error, StackTrace stackTrace) {
-          logger.w(
-            'Forwarding subscription failed for ${wearable.name}/${sensor.sensorName}: $error',
-            error: error,
-            stackTrace: stackTrace,
-          );
-        },
-      );
-    }).toList(growable: false);
+            );
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            logger.w(
+              'Forwarding subscription failed for ${wearable.name}/${sensor.sensorName}: $error',
+              error: error,
+              stackTrace: stackTrace,
+            );
+          },
+        );
+        subscriptions.add(subscription);
+      } catch (error, stackTrace) {
+        logger.w(
+          'Failed to attach forwarding subscription for ${wearable.name}/${sensor.sensorName}: $error',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
+    }
 
     _sensorForwardingSubscriptions[wearable.deviceId] = subscriptions;
+    if (subscriptions.isEmpty) {
+      logger.w(
+        'No sensor forwarding subscriptions attached for '
+        '${wearable.name} (${wearable.deviceId})',
+      );
+    } else {
+      logger.i(
+        'Attached ${subscriptions.length} sensor forwarding subscriptions for '
+        '${wearable.name} (${wearable.deviceId}), side=${sideLabel ?? "unknown"}',
+      );
+    }
+  }
+
+  Future<String?> _resolveWearableSideLabel(Wearable wearable) async {
+    final fallbackSide = _resolveSideLabelFromName(wearable.name);
+    final stereoDevice = wearable.getCapability<StereoDevice>();
+    if (stereoDevice == null) {
+      return fallbackSide;
+    }
+    try {
+      final position = await stereoDevice.position.timeout(
+        const Duration(seconds: 2),
+      );
+      final resolvedFromCapability = switch (position) {
+        DevicePosition.left => 'L',
+        DevicePosition.right => 'R',
+        _ => null,
+      };
+      return resolvedFromCapability ?? fallbackSide;
+    } catch (_) {
+      return fallbackSide;
+    }
+  }
+
+  String? _resolveSideLabelFromName(String deviceName) {
+    final trimmed = deviceName.trim();
+    final lower = trimmed.toLowerCase();
+    if (lower.endsWith('-l') || lower.endsWith('_l')) {
+      return 'L';
+    }
+    if (lower.endsWith('-r') || lower.endsWith('_r')) {
+      return 'R';
+    }
+    return null;
   }
 
   void _stopSensorForwardingSubscriptions(String deviceId) {

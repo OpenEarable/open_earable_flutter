@@ -24,6 +24,25 @@ class BleManager extends BleGattManager {
   String _getCharacteristicKey(String deviceId, String characteristicId) =>
       "$deviceId||$characteristicId";
 
+  void _closeStreamControllersForDevice(String deviceId) {
+    final prefix = "$deviceId||";
+    final keysToRemove = _streamControllers.keys
+        .where((key) => key.startsWith(prefix))
+        .toList(growable: false);
+
+    for (final key in keysToRemove) {
+      final controllers = _streamControllers.remove(key);
+      if (controllers == null) {
+        continue;
+      }
+      for (final controller in controllers) {
+        if (!controller.isClosed) {
+          controller.close();
+        }
+      }
+    }
+  }
+
   final Map<String, Completer> _connectionCompleters = {};
   final Map<String, VoidCallback> _connectCallbacks = {};
   final Map<String, VoidCallback> _disconnectCallbacks = {};
@@ -71,8 +90,11 @@ class BleManager extends BleGattManager {
       if (!_streamControllers.containsKey(streamIdentifier)) {
         return;
       }
-      for (var e in _streamControllers[streamIdentifier]!) {
-        e.add(value);
+      final controllers = _streamControllers[streamIdentifier]!;
+      for (var e in controllers) {
+        if (!e.isClosed) {
+          e.add(value);
+        }
       }
     };
   }
@@ -186,11 +208,7 @@ class BleManager extends BleGattManager {
     DiscoveredDevice device,
     VoidCallback onDisconnect,
   ) {
-    for (var list in _streamControllers.values) {
-      for (var e in list) {
-        e.close();
-      }
-    }
+    _closeStreamControllersForDevice(device.id);
 
     Completer<(bool, List<BleService>)> completer =
         Completer<(bool, List<BleService>)>();
@@ -211,6 +229,7 @@ class BleManager extends BleGattManager {
     };
 
     _disconnectCallbacks[device.id] = () {
+      _closeStreamControllersForDevice(device.id);
       _connectionCompleters[device.id]?.complete((false, <BleService>[]));
       _connectionCompleters.remove(device.id);
 
@@ -359,8 +378,11 @@ class BleManager extends BleGattManager {
 
     for (var list in _streamControllers.values) {
       for (var e in list) {
-        e.close();
+        if (!e.isClosed) {
+          e.close();
+        }
       }
     }
+    _streamControllers.clear();
   }
 }

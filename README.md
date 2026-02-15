@@ -123,7 +123,6 @@ lslForwarder.configure(
   host: "192.168.1.42", // IP/hostname of the bridge machine
   port: 16571, // UDP port of the bridge
   enabled: true,
-  streamPrefix: "OpenEarable",
 );
 
 final manager = WearableManager(
@@ -141,15 +140,22 @@ manager.addSensorForwarder(lslForwarder); // add again
 ```
 
 This package forwards sensor samples as UDP JSON packets. A middleware process must run on the target machine and publish those samples to Lab Streaming Layer.
+By default, the stream prefix is the local phone/device name. You can still override it via `streamPrefix` if needed.
 
-This repository includes a ready bridge script at `tools/lsl_bridge.py`:
+This repository includes the **OpenWearables LSL Dashboard Example** at `tools/lsl_receive_and_ploty.py`:
 
 ```bash
 pip install pylsl
-python tools/lsl_bridge.py --port 16571
+python tools/lsl_receive_and_ploty.py --port 16571 --dashboard-port 8765
 ```
 
-At startup it prints the local IP addresses you can use as `host` in your app config. See [LSL Forwarding](doc/LSL.md) for details.
+At startup it prints the local IP addresses you can use as `host` in your app config and the dashboard URL(s). Open the dashboard URL in a browser to see live stream cards and latest values. The bridge publishes LSL outlets and forwards the same samples to the web dashboard. See [LSL Forwarding](doc/LSL.md) for details.
+
+Minimal receiver example (placeholder hooks for your own handling):
+
+```bash
+python tools/lsl_receive_minimal.py
+```
 
 ## Add custom Wearable Support
 Learn more about how to add support for your own wearable devices in the [Adding Custom Wearable Support](doc/ADD_CUSTOM_WEARABLE.md) documentation.
