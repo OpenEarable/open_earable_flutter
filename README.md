@@ -114,5 +114,42 @@ To get started with the OpenEarable Flutter package, follow these steps:
   > [!WARNING]
   > Checking for capabilities using `is <Capability>` is deprecated. Please use `hasCapability<T>()` instead. You can learn more about capabilities in the [Capabilities](doc/CAPABILITIES.md) documentation.
 
+### 8. Forward Sensor Streams to LSL (Optional)
+Forwarding is global and protocol-agnostic. Configure LSL as one forwarder:
+
+```dart
+final lslForwarder = LslForwarder.instance;
+lslForwarder.configure(
+  host: "192.168.1.42", // IP/hostname of the bridge machine
+  port: 16571, // UDP port of the bridge
+  enabled: true,
+  streamPrefix: "OpenEarable",
+);
+
+final manager = WearableManager(
+  sensorForwarders: [lslForwarder],
+);
+```
+
+You can enable/disable/add/remove forwarders at runtime:
+
+```dart
+manager.setSensorForwarderEnabled(lslForwarder, false); // disable
+manager.setSensorForwarderEnabled(lslForwarder, true); // enable
+manager.removeSensorForwarder(lslForwarder); // remove
+manager.addSensorForwarder(lslForwarder); // add again
+```
+
+This package forwards sensor samples as UDP JSON packets. A middleware process must run on the target machine and publish those samples to Lab Streaming Layer.
+
+This repository includes a ready bridge script at `tools/lsl_bridge.py`:
+
+```bash
+pip install pylsl
+python tools/lsl_bridge.py --port 16571
+```
+
+At startup it prints the local IP addresses you can use as `host` in your app config. See [LSL Forwarding](doc/LSL.md) for details.
+
 ## Add custom Wearable Support
 Learn more about how to add support for your own wearable devices in the [Adding Custom Wearable Support](doc/ADD_CUSTOM_WEARABLE.md) documentation.
