@@ -15,9 +15,13 @@ import 'package:open_earable_flutter/src/models/devices/stereo_pairing/pairing_r
 import 'package:open_earable_flutter/src/models/wearable_factory.dart';
 import 'package:universal_ble/universal_ble.dart';
 
+import 'src/forwarding/sensor_forwarder.dart';
+import 'src/forwarding/sensor_forwarding.dart';
 import 'src/managers/ble_manager.dart';
 import 'src/managers/pairing_manager.dart';
 import 'src/managers/wearable_disconnect_notifier.dart';
+import 'src/models/capabilities/sensor.dart';
+import 'src/models/capabilities/sensor_manager.dart';
 import 'src/models/capabilities/stereo_device.dart';
 import 'src/models/capabilities/system_device.dart';
 import 'src/models/devices/discovered_device.dart';
@@ -68,6 +72,9 @@ export 'src/models/wearable_factory.dart';
 export 'src/models/capabilities/system_device.dart';
 export 'src/managers/ble_gatt_manager.dart';
 export 'src/models/capabilities/time_synchronizable.dart';
+export 'src/forwarding/sensor_forwarder.dart';
+export 'src/forwarding/sensor_forwarding.dart';
+export 'src/forwarding/forwarders/lsl_forwarder.dart';
 
 export 'src/fota/fota.dart';
 
@@ -102,6 +109,8 @@ class WearableManager {
   late final StreamController<DiscoveredDevice> _connectingStreamController;
 
   final List<String> _connectedIds = [];
+  final Map<String, List<StreamSubscription<SensorValue>>>
+      _sensorForwardingSubscriptions = {};
 
   List<String> _autoConnectDeviceIds = [];
   StreamSubscription<DiscoveredDevice>? _autoconnectScanSubscription;
@@ -115,7 +124,12 @@ class WearableManager {
     EsenseFactory(),
   ];
 
-  factory WearableManager() {
+  factory WearableManager({
+    List<SensorForwarder>? sensorForwarders,
+  }) {
+    if (sensorForwarders != null) {
+      SensorForwardingPipeline.instance.setForwarders(sensorForwarders);
+    }
     return _instance;
   }
 
@@ -213,10 +227,12 @@ class WearableManager {
         if (await wearableFactory.matches(device, connectionResult.$2)) {
           Wearable wearable =
               await wearableFactory.createFromDevice(device, options: options);
+          _startSensorForwardingSubscriptions(wearable);
 
           _connectedIds.add(device.id);
           wearable.addDisconnectListener(() {
             _connectedIds.remove(device.id);
+            _stopSensorForwardingSubscriptions(wearable.deviceId);
           });
 
           _connectStreamController.add(wearable);
@@ -319,6 +335,8 @@ class WearableManager {
 
   void dispose() {
     _autoconnectScanSubscription?.cancel();
+    _stopAllSensorForwardingSubscriptions();
+    unawaited(SensorForwardingPipeline.instance.close());
     _bleManager.dispose();
   }
 
@@ -327,5 +345,100 @@ class WearableManager {
   /// were granted or not.
   static Future<bool> checkAndRequestPermissions() {
     return BleManager.checkAndRequestPermissions();
+  }
+
+  /// Globally configured list of sensor forwarders.
+  List<SensorForwarder> get sensorForwarders =>
+      SensorForwardingPipeline.instance.forwarders;
+
+  /// Replaces all global sensor forwarders.
+  ///
+  /// This enables dependency injection of custom forwarding pipelines.
+  void setSensorForwarders(List<SensorForwarder> forwarders) {
+    SensorForwardingPipeline.instance.setForwarders(forwarders);
+  }
+
+  /// Adds one forwarder to the global forwarding pipeline.
+  void addSensorForwarder(SensorForwarder forwarder) {
+    SensorForwardingPipeline.instance.addForwarder(forwarder);
+  }
+
+  /// Removes one forwarder from the global forwarding pipeline.
+  bool removeSensorForwarder(SensorForwarder forwarder) {
+    return SensorForwardingPipeline.instance.removeForwarder(forwarder);
+  }
+
+  /// Enables or disables one specific forwarder.
+  bool setSensorForwarderEnabled(SensorForwarder forwarder, bool enabled) {
+    return SensorForwardingPipeline.instance.setForwarderEnabled(
+      forwarder,
+      enabled,
+    );
+  }
+
+  /// Returns whether a specific forwarder is enabled. Null if not registered.
+  bool? isSensorForwarderEnabled(SensorForwarder forwarder) {
+    return SensorForwardingPipeline.instance.isForwarderEnabled(forwarder);
+  }
+
+  /// Removes all registered forwarders.
+  void clearSensorForwarders() {
+    SensorForwardingPipeline.instance.clearForwarders();
+  }
+
+  void _startSensorForwardingSubscriptions(Wearable wearable) {
+    if (_sensorForwardingSubscriptions.containsKey(wearable.deviceId)) {
+      return;
+    }
+
+    final sensorManager = wearable.getCapability<SensorManager>();
+    if (sensorManager == null) {
+      return;
+    }
+
+    final subscriptions = sensorManager.sensors.map((sensor) {
+      return sensor.sensorStream.cast<SensorValue>().listen(
+        (value) {
+          unawaited(
+            SensorForwardingPipeline.instance.forward(
+              SensorForwardingSample(
+                sensor: sensor,
+                value: value,
+                deviceId: wearable.deviceId,
+                deviceName: wearable.name,
+              ),
+            ),
+          );
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          logger.w(
+            'Forwarding subscription failed for ${wearable.name}/${sensor.sensorName}: $error',
+            error: error,
+            stackTrace: stackTrace,
+          );
+        },
+      );
+    }).toList(growable: false);
+
+    _sensorForwardingSubscriptions[wearable.deviceId] = subscriptions;
+  }
+
+  void _stopSensorForwardingSubscriptions(String deviceId) {
+    final subscriptions = _sensorForwardingSubscriptions.remove(deviceId);
+    if (subscriptions == null) {
+      return;
+    }
+    for (final subscription in subscriptions) {
+      unawaited(subscription.cancel());
+    }
+  }
+
+  void _stopAllSensorForwardingSubscriptions() {
+    for (final subscriptions in _sensorForwardingSubscriptions.values) {
+      for (final subscription in subscriptions) {
+        unawaited(subscription.cancel());
+      }
+    }
+    _sensorForwardingSubscriptions.clear();
   }
 }
