@@ -1,0 +1,1126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OpenWearables Web Plotter</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --panel: #ffffff;
+      --border: #dbe4ee;
+      --text: #213244;
+      --muted: #5c7287;
+      --accent: #2f7fb3;
+      --channel-tint: #B89491;
+      --live-bg: #e7f4ec;
+      --live-text: #2e7a55;
+      --wait-bg: #edf3f8;
+      --wait-text: #5c7287;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .shell {
+      width: 100%;
+      margin: 0;
+      padding: 12px 14px 24px;
+    }
+
+    .head {
+      background: #B89491;
+      border: 1px solid #a88481;
+      border-radius: 14px;
+      padding: 18px 20px;
+      box-shadow: 0 8px 20px rgba(111, 84, 82, 0.22);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas:
+        "title right"
+        "meta meta";
+      column-gap: 14px;
+      row-gap: 8px;
+      align-items: start;
+      min-width: 0;
+    }
+
+    .title {
+      grid-area: title;
+      margin: 0;
+      font-size: clamp(18px, 2.2vw, 22px);
+      line-height: 1.2;
+      letter-spacing: 0.2px;
+      color: #fff7f6;
+      min-width: 0;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+    }
+
+    .meta {
+      grid-area: meta;
+      display: flex;
+      gap: 10px;
+      row-gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 0;
+      color: #f7eceb;
+      font-size: 14px;
+      min-width: 0;
+    }
+
+    .meta > span {
+      white-space: nowrap;
+      min-width: 0;
+    }
+
+    .meta-right {
+      grid-area: right;
+      justify-self: end;
+      align-self: start;
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: flex-start;
+      gap: 5px;
+      min-width: 0;
+      max-width: min(48vw, 360px);
+    }
+
+    .endpoint {
+      font-size: 12px;
+      color: #fff1ef;
+      font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      letter-spacing: 0.1px;
+      white-space: nowrap;
+      text-align: right;
+      line-height: 1.2;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      font-size: 12px;
+      line-height: 1;
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+    }
+
+    .status-pill.live {
+      background: var(--live-bg);
+      color: var(--live-text);
+    }
+
+    .status-pill.waiting {
+      background: var(--wait-bg);
+      color: var(--wait-text);
+    }
+
+    .devices {
+      margin-top: 12px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .device-section {
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+      padding: 0;
+      box-shadow: none;
+    }
+
+    .device-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 4px 2px 10px;
+      border-bottom: 1px solid #e9eef5;
+      margin-bottom: 10px;
+    }
+
+    .device-title {
+      margin: 0;
+      font-size: 16px;
+      color: var(--text);
+      letter-spacing: 0.15px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .channel-badge {
+      width: 19px;
+      height: 19px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      text-transform: uppercase;
+      color: #6f5452;
+      background: rgba(184, 148, 145, 0.22);
+      border: 1px solid rgba(184, 148, 145, 0.52);
+    }
+
+    .device-meta {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .sensor-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
+      gap: 12px;
+      align-items: start;
+    }
+
+    .stream-row {
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      min-width: 0;
+    }
+
+    .stream-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: flex-start;
+    }
+
+    .stream-title {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.25;
+      color: var(--text);
+    }
+
+    .legend {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid #dbe5f0;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+      color: #41566b;
+      background: #f8fbff;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 120ms ease, border-color 120ms ease, opacity 120ms ease;
+    }
+
+    .legend-item:hover {
+      background: #eef5fd;
+      border-color: #c9d7e7;
+    }
+
+    .legend-item:focus-visible {
+      outline: 2px solid #8fb4d8;
+      outline-offset: 1px;
+    }
+
+    .legend-item.is-disabled {
+      opacity: 0.45;
+      background: #f6f8fb;
+      border-color: #dfe7f1;
+    }
+
+    .legend-item.is-disabled .legend-text {
+      text-decoration: line-through;
+      text-decoration-thickness: 1.2px;
+    }
+
+    .legend-check {
+      margin: 0;
+      width: 13px;
+      height: 13px;
+      accent-color: #799fc2;
+      cursor: pointer;
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      flex: 0 0 8px;
+    }
+
+    .chart-wrap {
+      margin-top: 8px;
+      width: 100%;
+      aspect-ratio: 1000 / 320;
+      height: auto;
+      min-height: 150px;
+      border: 1px solid #d8e4f0;
+      border-radius: 6px;
+      background: #ffffff;
+      overflow: hidden;
+    }
+
+    .chart-wrap svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .empty {
+      margin-top: 16px;
+      background: var(--panel);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 26px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    @media (max-width: 1500px) {
+      .sensor-grid {
+        grid-template-columns: repeat(auto-fit, minmax(390px, 1fr));
+      }
+    }
+
+    @media (max-width: 1100px) {
+      .sensor-grid {
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      }
+
+      .head {
+        padding: 16px 16px;
+      }
+
+      .title {
+        font-size: clamp(17px, 2.8vw, 21px);
+      }
+    }
+
+    @media (max-width: 700px) {
+      .shell {
+        padding: 8px 8px 18px;
+      }
+
+      .head {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          "right"
+          "title"
+          "meta";
+        row-gap: 10px;
+      }
+
+      .meta-right {
+        justify-self: end;
+        align-items: flex-end;
+        width: min(100%, 340px);
+        max-width: 100%;
+      }
+
+      .meta {
+        font-size: 13px;
+        gap: 8px;
+      }
+    }
+
+    @media (max-width: 460px) {
+      .head {
+        padding: 12px 12px;
+        row-gap: 8px;
+      }
+
+      .endpoint {
+        font-size: 11px;
+      }
+
+      .title {
+        font-size: 16px;
+      }
+
+      .status-pill {
+        font-size: 11px;
+        padding: 3px 8px;
+      }
+
+      .sensor-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="head">
+      <h1 class="title" id="title">OpenWearables Web Plotter</h1>
+      <div class="meta-right">
+        <span id="endpoint" class="endpoint">UDP: --</span>
+        <span id="status" class="status-pill waiting">WAITING</span>
+      </div>
+      <div class="meta">
+        <span id="packets">0 packets</span>
+        <span id="streamsCount">0 streams</span>
+        <span id="lastPacket">No data yet</span>
+      </div>
+    </section>
+
+    <section id="devices" class="devices" hidden></section>
+    <section id="empty" class="empty">Waiting for packets. Keep this page open.</section>
+  </main>
+
+  <script>
+    const state = {
+      packetsReceived: 0,
+      lastPacketWallTime: null,
+      udpHost: "",
+      udpPort: null,
+      streams: new Map(),
+      channelEnabledBySource: new Map(),
+      renderTimer: null,
+    };
+
+    const CHART_COLORS = [
+      "#1f77b4",
+      "#d62728",
+      "#2ca02c",
+      "#ff7f0e",
+      "#9467bd",
+      "#17becf",
+      "#8c564b",
+      "#e377c2",
+    ];
+    const MAX_POINTS_PER_CHANNEL = 6000;
+    const GRAPH_LOOKBACK_SECONDS = 20.0;
+    const RENDER_DEBOUNCE_MS = 80;
+
+    const titleEl = document.getElementById("title");
+    const packetsEl = document.getElementById("packets");
+    const streamsCountEl = document.getElementById("streamsCount");
+    const lastPacketEl = document.getElementById("lastPacket");
+    const endpointEl = document.getElementById("endpoint");
+    const statusEl = document.getElementById("status");
+    const devicesEl = document.getElementById("devices");
+    const emptyEl = document.getElementById("empty");
+
+    function asNumber(value) {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function formatTime(epochSeconds) {
+      const ms = asNumber(epochSeconds);
+      if (ms === null) return "No data yet";
+      return `Last packet: ${new Date(ms * 1000).toLocaleTimeString()}`;
+    }
+
+    function statusClass(isLive) {
+      return isLive ? "status-pill live" : "status-pill waiting";
+    }
+
+    function formattedUdpEndpoint() {
+      const configuredHost = String(state.udpHost || "").trim();
+      const host =
+        configuredHost && configuredHost !== "0.0.0.0" && configuredHost !== "::"
+          ? configuredHost
+          : (window.location.hostname || "localhost");
+      const port = Number(state.udpPort);
+      if (!Number.isFinite(port) || port <= 0) {
+        return `${host}:--`;
+      }
+      return `${host}:${port}`;
+    }
+
+    function normalizeStringList(value) {
+      if (!Array.isArray(value)) return [];
+      return value.map((item) => String(item ?? ""));
+    }
+
+    function normalizeNumberList(value) {
+      if (!Array.isArray(value)) return [];
+      return value.map((item) => asNumber(item));
+    }
+
+    function safeDecodeURIComponent(value) {
+      try {
+        return decodeURIComponent(value);
+      } catch (error) {
+        return value;
+      }
+    }
+
+    function decodeSourceComponent(value) {
+      if (value === "-") return "";
+      return safeDecodeURIComponent(String(value || ""));
+    }
+
+    function decodeSourceId(sourceId) {
+      const raw = String(sourceId || "");
+      const parts = raw.split(":");
+      if (parts.length !== 5 || parts[0] !== "oe-v1") return null;
+      return {
+        device_name: decodeSourceComponent(parts[1]),
+        device_channel: decodeSourceComponent(parts[2]),
+        sensor_name: decodeSourceComponent(parts[3]),
+        source: decodeSourceComponent(parts[4]),
+      };
+    }
+
+    function buildFallbackStreamName(meta) {
+      const side = meta.device_channel ? ` [${meta.device_channel}]` : "";
+      return `${meta.device_name || "unknown"}${side} (${meta.source || "unknown"}) - ${meta.sensor_name || "unknown_sensor"}`;
+    }
+
+    function sensorTimeSeconds(sample) {
+      const timestamp = asNumber(sample?.timestamp);
+      const exponent = Number(sample?.timestamp_exponent);
+      if (timestamp === null || !Number.isFinite(exponent)) return null;
+      const seconds = timestamp * (10 ** exponent);
+      return Number.isFinite(seconds) ? seconds : null;
+    }
+
+    function sampleTimelineTimeSeconds(sample) {
+      return (
+        sensorTimeSeconds(sample) ??
+        asNumber(sample?.lsl_timestamp) ??
+        asNumber(sample?.received_at) ??
+        (Date.now() / 1000)
+      );
+    }
+
+    function channelCountFor(stream) {
+      return Math.max(
+        Number(stream.channel_count || 0),
+        Array.isArray(stream.last_values) ? stream.last_values.length : 0,
+        Array.isArray(stream.axis_names) ? stream.axis_names.length : 0,
+        Array.isArray(stream._history) ? stream._history.length : 0
+      );
+    }
+
+    function ensureChannelState(stream, channelCount) {
+      const sourceId = String(stream?.source_id || "");
+      if (!sourceId) return [];
+
+      let states = state.channelEnabledBySource.get(sourceId);
+      if (!Array.isArray(states)) {
+        states = [];
+      }
+      while (states.length < channelCount) {
+        states.push(true);
+      }
+      state.channelEnabledBySource.set(sourceId, states);
+      return states;
+    }
+
+    function isChannelEnabled(stream, channelIndex) {
+      const states = ensureChannelState(stream, channelIndex + 1);
+      return states[channelIndex] !== false;
+    }
+
+    function setChannelEnabled(stream, channelIndex, enabled) {
+      const states = ensureChannelState(stream, channelIndex + 1);
+      states[channelIndex] = Boolean(enabled);
+    }
+
+    function normalizeStream(raw) {
+      const decoded = decodeSourceId(raw.source_id);
+      const deviceName = String(raw.device_name || decoded?.device_name || "unknown");
+      const deviceChannel = String(raw.device_channel || decoded?.device_channel || "");
+      const sensorName = String(raw.sensor_name || decoded?.sensor_name || "");
+      const source = String(raw.source || raw.device_source || decoded?.source || "unknown");
+      const streamName = String(
+        raw.stream_name || buildFallbackStreamName({
+          device_name: deviceName,
+          device_channel: deviceChannel,
+          sensor_name: sensorName,
+          source: source,
+        })
+      );
+
+      const stream = {
+        stream_name: streamName,
+        source_id: String(raw.source_id || ""),
+        device_name: deviceName,
+        device_channel: deviceChannel,
+        sensor_name: sensorName,
+        source: source,
+        channel_count: Number(raw.channel_count || 0),
+        samples_received: Number(raw.samples_received || 0),
+        last_values: normalizeNumberList(raw.last_values),
+        axis_names: normalizeStringList(raw.axis_names),
+        axis_units: normalizeStringList(raw.axis_units),
+        last_lsl_timestamp: raw.last_lsl_timestamp ?? null,
+        last_received_at: raw.last_received_at ?? null,
+        _latest_time_seconds: asNumber(raw._latest_time_seconds),
+        _history: [],
+      };
+      stream.channel_count = channelCountFor(stream);
+      ensureChannelState(stream, stream.channel_count);
+      return stream;
+    }
+
+    function ensureHistory(stream, channelCount) {
+      while (stream._history.length < channelCount) {
+        stream._history.push([]);
+      }
+    }
+
+    function pruneSeries(series, windowEndSeconds) {
+      const cutoff = windowEndSeconds - GRAPH_LOOKBACK_SECONDS;
+      while (series.length > 2 && series[0].t < cutoff) {
+        series.shift();
+      }
+
+      if (series.length <= MAX_POINTS_PER_CHANNEL) {
+        return;
+      }
+
+      // Keep the full time window while reducing density for very high-rate streams.
+      const stride = Math.ceil(series.length / MAX_POINTS_PER_CHANNEL);
+      const reduced = [];
+      for (let i = 0; i < series.length; i += stride) {
+        reduced.push(series[i]);
+      }
+      const last = series[series.length - 1];
+      if (reduced[reduced.length - 1] !== last) {
+        reduced.push(last);
+      }
+      series.splice(0, series.length, ...reduced);
+    }
+
+    function appendHistory(stream, sample) {
+      const values = Array.isArray(sample.values) ? sample.values : stream.last_values;
+      const timestamp = sampleTimelineTimeSeconds(sample);
+      const count = Math.max(channelCountFor(stream), Array.isArray(values) ? values.length : 0);
+      ensureHistory(stream, count);
+      if (stream._latest_time_seconds === null || timestamp > stream._latest_time_seconds) {
+        stream._latest_time_seconds = timestamp;
+      }
+      const windowEnd = stream._latest_time_seconds ?? timestamp;
+
+      for (let i = 0; i < count; i += 1) {
+        const value = asNumber(values[i]);
+        if (value === null) continue;
+        const series = stream._history[i];
+        series.push({ t: timestamp, v: value });
+        if (series.length > 1 && series[series.length - 2].t > timestamp) {
+          series.sort((a, b) => a.t - b.t);
+        }
+        pruneSeries(series, windowEnd);
+      }
+    }
+
+    function upsertStreamFromSample(sample) {
+      const sourceId = String(sample.source_id || "");
+      if (!sourceId) return null;
+      let stream = state.streams.get(sourceId);
+      if (stream) return stream;
+
+      stream = normalizeStream({
+        stream_name: sample.stream_name,
+        source_id: sourceId,
+        device_name: sample.device_name,
+        device_channel: sample.device_channel,
+        sensor_name: sample.sensor_name,
+        source: sample.source,
+        channel_count: Array.isArray(sample.values) ? sample.values.length : 0,
+        samples_received: 0,
+        last_values: Array.isArray(sample.values) ? sample.values : [],
+        axis_names: sample.axis_names,
+        axis_units: sample.axis_units,
+        last_lsl_timestamp: sample.lsl_timestamp,
+        last_received_at: sample.received_at,
+        _latest_time_seconds: sampleTimelineTimeSeconds(sample),
+      });
+
+      state.streams.set(sourceId, stream);
+      return stream;
+    }
+
+    function mergeSampleIntoStream(stream, sample, incrementSamples) {
+      const decoded = decodeSourceId(sample.source_id || stream.source_id);
+      const nextDeviceName = String(sample.device_name || decoded?.device_name || stream.device_name || "unknown");
+      const nextDeviceChannel = String(sample.device_channel || decoded?.device_channel || stream.device_channel || "");
+      const nextSensorName = String(sample.sensor_name || decoded?.sensor_name || stream.sensor_name || "");
+      const nextSource = String(sample.source || sample.device_source || decoded?.source || stream.source || "unknown");
+
+      stream.device_name = nextDeviceName;
+      stream.device_channel = nextDeviceChannel;
+      stream.sensor_name = nextSensorName;
+      stream.source = nextSource;
+      stream.stream_name = String(
+        sample.stream_name || stream.stream_name || buildFallbackStreamName({
+          device_name: nextDeviceName,
+          device_channel: nextDeviceChannel,
+          sensor_name: nextSensorName,
+          source: nextSource,
+        })
+      );
+
+      if (Array.isArray(sample.values) && sample.values.length > 0) {
+        stream.last_values = normalizeNumberList(sample.values);
+      }
+      if (Array.isArray(sample.axis_names) && sample.axis_names.length > 0) {
+        stream.axis_names = normalizeStringList(sample.axis_names);
+      }
+      if (Array.isArray(sample.axis_units) && sample.axis_units.length > 0) {
+        stream.axis_units = normalizeStringList(sample.axis_units);
+      }
+
+      stream.channel_count = Math.max(channelCountFor(stream), Array.isArray(sample.values) ? sample.values.length : 0);
+      ensureChannelState(stream, stream.channel_count);
+      stream.last_lsl_timestamp = sample.lsl_timestamp ?? stream.last_lsl_timestamp ?? null;
+      stream.last_received_at = sample.received_at ?? stream.last_received_at ?? null;
+      const sampleTime = sampleTimelineTimeSeconds(sample);
+      if (stream._latest_time_seconds === null || sampleTime > stream._latest_time_seconds) {
+        stream._latest_time_seconds = sampleTime;
+      }
+
+      if (incrementSamples) {
+        stream.samples_received = Number(stream.samples_received || 0) + 1;
+      }
+
+      appendHistory(stream, sample);
+    }
+
+    function scheduleRender(immediate = false) {
+      if (immediate) {
+        if (state.renderTimer !== null) {
+          clearTimeout(state.renderTimer);
+          state.renderTimer = null;
+        }
+        updateStatus();
+        renderStreams();
+        return;
+      }
+
+      if (state.renderTimer !== null) return;
+      state.renderTimer = setTimeout(() => {
+        state.renderTimer = null;
+        updateStatus();
+        renderStreams();
+      }, RENDER_DEBOUNCE_MS);
+    }
+
+    function updateStatus() {
+      const now = Date.now() / 1000;
+      const isLive =
+        state.lastPacketWallTime !== null &&
+        (now - state.lastPacketWallTime) < 2.0;
+
+      statusEl.className = statusClass(isLive);
+      statusEl.textContent = isLive ? "LIVE" : "WAITING";
+      packetsEl.textContent = `${state.packetsReceived} packets`;
+      streamsCountEl.textContent = `${state.streams.size} streams`;
+      lastPacketEl.textContent = formatTime(state.lastPacketWallTime);
+      endpointEl.textContent = `UDP ${formattedUdpEndpoint()}`;
+    }
+
+    function streamWindowEnd(stream) {
+      const explicit = asNumber(stream._latest_time_seconds);
+      if (explicit !== null) return explicit;
+
+      let latest = null;
+      for (const series of stream._history) {
+        if (!Array.isArray(series) || series.length === 0) continue;
+        const t = asNumber(series[series.length - 1]?.t);
+        if (t === null) continue;
+        if (latest === null || t > latest) latest = t;
+      }
+
+      if (latest !== null) return latest;
+      return asNumber(stream.last_received_at) ?? (Date.now() / 1000);
+    }
+
+    function formatAxisNumber(value) {
+      const num = asNumber(value);
+      if (num === null) return "";
+      const abs = Math.abs(num);
+      if (abs >= 1000) return num.toFixed(0);
+      if (abs >= 100) return num.toFixed(1);
+      if (abs >= 1) return num.toFixed(2);
+      if (abs >= 0.01) return num.toFixed(3);
+      return num.toExponential(1);
+    }
+
+    function formatUnitLabel(unit) {
+      const raw = String(unit ?? "").trim();
+      if (!raw) return "";
+
+      const superscriptMap = {
+        "0": "⁰",
+        "1": "¹",
+        "2": "²",
+        "3": "³",
+        "4": "⁴",
+        "5": "⁵",
+        "6": "⁶",
+        "7": "⁷",
+        "8": "⁸",
+        "9": "⁹",
+        "+": "⁺",
+        "-": "⁻",
+      };
+
+      return raw.replace(/\\^([+-]?\\d+)/g, (_match, exponent) =>
+        String(exponent)
+          .split("")
+          .map((char) => superscriptMap[char] || char)
+          .join("")
+      );
+    }
+
+    function commonUnitLabel(stream) {
+      const units = normalizeStringList(stream.axis_units).filter((item) => item.length > 0);
+      if (units.length === 0) return "value";
+      const first = units[0];
+      return units.every((item) => item === first) ? formatUnitLabel(first) : "value";
+    }
+
+    function channelLegend(stream) {
+      const channels = channelCountFor(stream);
+      if (channels <= 0) return "";
+      ensureHistory(stream, channels);
+      ensureChannelState(stream, channels);
+      const entries = Array.from({ length: channels }, (_, index) => {
+        const label = stream.axis_names[index] || `ch_${index}`;
+        const unit = stream.axis_units[index] || "";
+        const prettyUnit = formatUnitLabel(unit);
+        const text = prettyUnit ? `${label} (${prettyUnit})` : label;
+        const color = CHART_COLORS[index % CHART_COLORS.length];
+        const isEnabled = isChannelEnabled(stream, index);
+        const disabledClass = isEnabled ? "" : " is-disabled";
+        const checkedAttr = isEnabled ? " checked" : "";
+        return `<label class="legend-item${disabledClass}">
+          <input type="checkbox" class="legend-check" data-source-id="${escapeHtml(stream.source_id)}" data-channel-index="${index}"${checkedAttr}>
+          <span class="legend-dot" style="background:${color}"></span>
+          <span class="legend-text">${escapeHtml(text)}</span>
+        </label>`;
+      }).join("");
+      return `<div class="legend">${entries}</div>`;
+    }
+
+    function streamChartSvg(stream, windowEndSeconds) {
+      const viewWidth = 1000;
+      const viewHeight = 320;
+      const plotLeft = 88;
+      const plotRight = 970;
+      const plotTop = 16;
+      const plotBottom = 258;
+      const plotWidth = plotRight - plotLeft;
+      const plotHeight = plotBottom - plotTop;
+      const axisColor = "#9eb2c7";
+      const gridColor = "#dbe6f2";
+      const axisText = "#4e657c";
+      const xTicks = [-20, -15, -10, -5, 0];
+      const yTicks = 6;
+      const windowEnd = Number.isFinite(windowEndSeconds) ? windowEndSeconds : streamWindowEnd(stream);
+      const windowStart = windowEnd - GRAPH_LOOKBACK_SECONDS;
+      const channels = channelCountFor(stream);
+      const yAxisLabel = commonUnitLabel(stream);
+
+      ensureHistory(stream, channels);
+      ensureChannelState(stream, channels);
+      const hasAnyEnabledChannel = Array.from({ length: channels }, (_, index) => isChannelEnabled(stream, index)).some(Boolean);
+
+      const series = Array.from({ length: channels }, (_, index) => {
+        const rawPoints = Array.isArray(stream._history[index]) ? stream._history[index] : [];
+        const points = rawPoints.filter(
+          (point) =>
+            Number.isFinite(point?.t) &&
+            Number.isFinite(point?.v) &&
+            point.t >= windowStart &&
+            point.t <= windowEnd
+        );
+        const label = stream.axis_names[index] || `ch_${index}`;
+        return {
+          label,
+          color: CHART_COLORS[index % CHART_COLORS.length],
+          enabled: isChannelEnabled(stream, index),
+          points,
+        };
+      }).filter((item) => item.enabled && item.points.length > 0);
+
+      function axisFrame(extra = "") {
+        const xTickMarks = xTicks
+          .map((tick) => {
+            const ratio = (tick + GRAPH_LOOKBACK_SECONDS) / GRAPH_LOOKBACK_SECONDS;
+            const x = plotLeft + ratio * plotWidth;
+            return `<line x1="${x.toFixed(2)}" y1="${plotBottom}" x2="${x.toFixed(2)}" y2="${(plotBottom + 8).toFixed(2)}" stroke="${axisColor}" stroke-width="1"></line>
+              <text x="${x.toFixed(2)}" y="${(plotBottom + 24).toFixed(2)}" font-size="13" text-anchor="middle" fill="${axisText}" font-weight="600">${tick}</text>`;
+          })
+          .join("");
+
+        return `<svg viewBox="0 0 ${viewWidth} ${viewHeight}" preserveAspectRatio="xMidYMid meet">
+          <line x1="${plotLeft}" y1="${plotTop}" x2="${plotLeft}" y2="${plotBottom}" stroke="${axisColor}" stroke-width="1.2"></line>
+          <line x1="${plotLeft}" y1="${plotBottom}" x2="${plotRight}" y2="${plotBottom}" stroke="${axisColor}" stroke-width="1.2"></line>
+          ${xTickMarks}
+          <text x="${((plotLeft + plotRight) / 2).toFixed(2)}" y="${(plotBottom + 46).toFixed(2)}" font-size="14" text-anchor="middle" fill="${axisText}" font-weight="600">time (s)</text>
+          <text x="24" y="${((plotTop + plotBottom) / 2).toFixed(2)}" transform="rotate(-90 24 ${((plotTop + plotBottom) / 2).toFixed(2)})" font-size="14" text-anchor="middle" fill="${axisText}" font-weight="600">${escapeHtml(yAxisLabel)}</text>
+          ${extra}
+        </svg>`;
+      }
+
+      if (!hasAnyEnabledChannel) {
+        return axisFrame(`<text x="${((plotLeft + plotRight) / 2).toFixed(2)}" y="${((plotTop + plotBottom) / 2).toFixed(2)}" font-size="13" text-anchor="middle" fill="#8297ac">All channels disabled</text>`);
+      }
+
+      if (series.length === 0) {
+        return axisFrame(`<text x="${((plotLeft + plotRight) / 2).toFixed(2)}" y="${((plotTop + plotBottom) / 2).toFixed(2)}" font-size="13" text-anchor="middle" fill="#8297ac">Waiting for samples in current window</text>`);
+      }
+
+      let yMin = Infinity;
+      let yMax = -Infinity;
+      for (const item of series) {
+        for (const point of item.points) {
+          if (point.v < yMin) yMin = point.v;
+          if (point.v > yMax) yMax = point.v;
+        }
+      }
+
+      if (!Number.isFinite(yMin) || !Number.isFinite(yMax)) {
+        return axisFrame(`<text x="${((plotLeft + plotRight) / 2).toFixed(2)}" y="${((plotTop + plotBottom) / 2).toFixed(2)}" font-size="13" text-anchor="middle" fill="#8297ac">Waiting for samples in current window</text>`);
+      }
+
+      if (yMin === yMax) {
+        const pad = Math.max(Math.abs(yMin) * 0.1, 1e-6);
+        yMin -= pad;
+        yMax += pad;
+      }
+
+      const ySpan = yMax - yMin;
+      const yGrid = Array.from({ length: yTicks }, (_, index) => {
+        const ratio = index / (yTicks - 1);
+        const y = plotBottom - ratio * plotHeight;
+        const value = yMin + ratio * ySpan;
+        return `<line x1="${plotLeft}" y1="${y.toFixed(2)}" x2="${plotRight}" y2="${y.toFixed(2)}" stroke="${gridColor}" stroke-width="1"></line>
+          <text x="${(plotLeft - 12).toFixed(2)}" y="${(y + 4).toFixed(2)}" font-size="12" text-anchor="end" fill="${axisText}">${escapeHtml(formatAxisNumber(value))}</text>`;
+      }).join("");
+
+      const xGrid = xTicks
+        .map((tick) => {
+          const ratio = (tick + GRAPH_LOOKBACK_SECONDS) / GRAPH_LOOKBACK_SECONDS;
+          const x = plotLeft + ratio * plotWidth;
+          return `<line x1="${x.toFixed(2)}" y1="${plotTop}" x2="${x.toFixed(2)}" y2="${plotBottom}" stroke="${gridColor}" stroke-width="1"></line>`;
+        })
+        .join("");
+
+      const lineLayers = series
+        .map((item) => {
+          const mapped = item.points.map((point) => {
+            const xRatio = (point.t - windowStart) / GRAPH_LOOKBACK_SECONDS;
+            const x = plotLeft + Math.max(0, Math.min(1, xRatio)) * plotWidth;
+            const y = plotBottom - ((point.v - yMin) / ySpan) * plotHeight;
+            return `${x.toFixed(2)},${y.toFixed(2)}`;
+          });
+          if (mapped.length < 2) return "";
+          const lastPoint = mapped[mapped.length - 1].split(",");
+          const lastX = Number(lastPoint[0]);
+          const lastY = Number(lastPoint[1]);
+          return `
+            <polyline points="${mapped.join(" ")}" fill="none" stroke="${item.color}" stroke-opacity="0.18" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"></polyline>
+            <polyline points="${mapped.join(" ")}" fill="none" stroke="${item.color}" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"></polyline>
+            <circle cx="${lastX.toFixed(2)}" cy="${lastY.toFixed(2)}" r="2.2" fill="${item.color}" fill-opacity="0.95"></circle>`;
+        })
+        .join("");
+
+      return axisFrame(`${yGrid}${xGrid}${lineLayers}`);
+    }
+
+    function renderStreams() {
+      const streams = [...state.streams.values()].sort((a, b) => {
+        const keyA = `${a.device_name || ""}|${a.device_channel || ""}|${a.sensor_name || ""}`.toLowerCase();
+        const keyB = `${b.device_name || ""}|${b.device_channel || ""}|${b.sensor_name || ""}`.toLowerCase();
+        return keyA.localeCompare(keyB);
+      });
+
+      if (streams.length === 0) {
+        devicesEl.hidden = true;
+        emptyEl.hidden = false;
+        return;
+      }
+
+      devicesEl.hidden = false;
+      emptyEl.hidden = true;
+
+      const deviceGroups = new Map();
+      streams.forEach((stream) => {
+        const key = `${stream.device_name || "unknown"}|${stream.device_channel || ""}|${stream.source || "unknown"}`.toLowerCase();
+        if (!deviceGroups.has(key)) {
+          deviceGroups.set(key, {
+            device_name: stream.device_name || "unknown",
+            device_channel: stream.device_channel || "",
+            source: stream.source || "unknown",
+            streams: [],
+          });
+        }
+        deviceGroups.get(key).streams.push(stream);
+      });
+
+      const groups = [...deviceGroups.values()].sort((a, b) => {
+        const keyA = `${a.device_name}|${a.device_channel}|${a.source}`.toLowerCase();
+        const keyB = `${b.device_name}|${b.device_channel}|${b.source}`.toLowerCase();
+        return keyA.localeCompare(keyB);
+      });
+
+      devicesEl.innerHTML = groups
+        .map((group) => {
+          const sideValue = String(group.device_channel || "").trim().toUpperCase();
+          const sideBadge = sideValue ? `<span class="channel-badge">${escapeHtml(sideValue.slice(0, 1))}</span>` : "";
+          const title = `${group.device_name}`;
+          const streamCount = group.streams.length;
+          const streamLabel = streamCount === 1 ? "sensor stream" : "sensor streams";
+
+          const streamRows = group.streams
+            .sort((a, b) => (a.sensor_name || "").toLowerCase().localeCompare((b.sensor_name || "").toLowerCase()))
+            .map((stream) => {
+              const chart = streamChartSvg(stream, streamWindowEnd(stream));
+              const legend = channelLegend(stream);
+              return `<article class="stream-row">
+                <div class="stream-head">
+                  <h3 class="stream-title">${escapeHtml(stream.sensor_name || stream.stream_name || "Unknown stream")}</h3>
+                </div>
+                ${legend}
+                <div class="chart-wrap">${chart}</div>
+              </article>`;
+            })
+            .join("");
+
+          return `<section class="device-section">
+            <div class="device-header">
+              <h2 class="device-title">${escapeHtml(title)}${sideBadge}</h2>
+              <div class="device-meta">${escapeHtml(group.source)} · ${streamCount} ${streamLabel}</div>
+            </div>
+            <div class="sensor-grid">${streamRows}</div>
+          </section>`;
+        })
+        .join("");
+    }
+
+    function applySnapshot(snapshot) {
+      if (snapshot && snapshot.title) {
+        titleEl.textContent = snapshot.title;
+        document.title = snapshot.title;
+      }
+
+      state.packetsReceived = Number(snapshot.packets_received || 0);
+      state.lastPacketWallTime = snapshot.last_packet_wall_time ?? null;
+      state.udpHost = String(snapshot.udp_host || state.udpHost || "");
+      state.udpPort = Number(snapshot.udp_port || state.udpPort || 0);
+      state.streams.clear();
+
+      const streams = Array.isArray(snapshot.streams) ? snapshot.streams : [];
+      streams.forEach((stream) => {
+        if (!stream || !stream.source_id) return;
+        const normalized = normalizeStream(stream);
+        state.streams.set(normalized.source_id, normalized);
+      });
+
+      const recentEvents = Array.isArray(snapshot.recent_events) ? snapshot.recent_events : [];
+      recentEvents
+        .slice()
+        .sort((a, b) => sampleTimelineTimeSeconds(a) - sampleTimelineTimeSeconds(b))
+        .forEach((sample) => {
+          if (!sample || !sample.source_id) return;
+          const stream = upsertStreamFromSample(sample);
+          if (!stream) return;
+          mergeSampleIntoStream(stream, sample, false);
+        });
+
+      scheduleRender(true);
+    }
+
+    function applySampleEvent(payload) {
+      state.packetsReceived = Number(payload.packets_received || 0);
+      state.lastPacketWallTime = payload.last_packet_wall_time ?? null;
+
+      const sample = payload.sample;
+      if (sample && sample.source_id) {
+        const stream = upsertStreamFromSample(sample);
+        if (stream) {
+          mergeSampleIntoStream(stream, sample, true);
+        }
+      }
+
+      scheduleRender(false);
+    }
+
+    devicesEl.addEventListener("change", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement) || !target.classList.contains("legend-check")) {
+        return;
+      }
+
+      const sourceId = target.getAttribute("data-source-id");
+      const channelIndex = Number(target.getAttribute("data-channel-index"));
+      if (!sourceId || !Number.isInteger(channelIndex) || channelIndex < 0) {
+        return;
+      }
+
+      const stream = state.streams.get(sourceId);
+      if (!stream) {
+        return;
+      }
+      setChannelEnabled(stream, channelIndex, target.checked);
+      scheduleRender(true);
+    });
+
+    const eventSource = new EventSource("/events");
+
+    eventSource.addEventListener("snapshot", (event) => {
+      try {
+        applySnapshot(JSON.parse(event.data));
+      } catch (error) {
+        console.error("Failed to parse snapshot", error);
+      }
+    });
+
+    eventSource.addEventListener("sample", (event) => {
+      try {
+        applySampleEvent(JSON.parse(event.data));
+      } catch (error) {
+        console.error("Failed to parse sample", error);
+      }
+    });
+
+    eventSource.onerror = () => {
+      statusEl.className = "status-pill waiting";
+      statusEl.textContent = "DISCONNECTED";
+    };
+
+    setInterval(updateStatus, 1000);
+    scheduleRender(true);
+  </script>
+</body>
+</html>
