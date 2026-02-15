@@ -14,6 +14,7 @@ class V2SensorHandler extends SensorHandler<V2SensorConfig> {
   final SensorSchemeReader _sensorSchemeParser;
   final SensorValueParser _sensorValueParser;
   List<SensorScheme>? _sensorSchemes;
+  Future<void>? _sensorSchemesReadFuture;
 
   V2SensorHandler({
     required DiscoveredDevice discoveredDevice,
@@ -31,29 +32,65 @@ class V2SensorHandler extends SensorHandler<V2SensorConfig> {
       throw Exception("Can't subscribe to sensor data. Earable not connected");
     }
 
-    if (_sensorSchemes == null) {
-      _readSensorScheme();
-    }
+    late final StreamController<Map<String, dynamic>> streamController;
+    // ignore: cancel_subscriptions
+    StreamSubscription<List<int>>? subscription;
+    streamController = StreamController<Map<String, dynamic>>(
+      onListen: () {
+        // ignore: cancel_subscriptions
+        subscription = _bleManager
+            .subscribe(
+          deviceId: _discoveredDevice.id,
+          serviceId: sensorServiceUuid,
+          characteristicId: sensorDataCharacteristicUuid,
+        )
+            .listen(
+          (data) async {
+            if (data.isEmpty || data[0] != sensorId) {
+              return;
+            }
 
-    StreamController<Map<String, dynamic>> streamController =
-        StreamController();
-    _bleManager
-        .subscribe(
-      deviceId: _discoveredDevice.id,
-      serviceId: sensorServiceUuid,
-      characteristicId: sensorDataCharacteristicUuid,
-    )
-        .listen(
-      (data) async {
-        if (data.isNotEmpty && data[0] == sensorId) {
-          List<Map<String, dynamic>> parsedData = await _parseData(data);
-          for (var d in parsedData) {
-            streamController.add(d);
-          }
-        }
+            try {
+              List<Map<String, dynamic>> parsedData = await _parseData(data);
+              for (var d in parsedData) {
+                if (!streamController.isClosed) {
+                  streamController.add(d);
+                }
+              }
+            } catch (error, stackTrace) {
+              logger.e(
+                "Error while processing V2 sensor packet: $error",
+                error: error,
+                stackTrace: stackTrace,
+              );
+              if (!streamController.isClosed) {
+                streamController.addError(error, stackTrace);
+              }
+            }
+          },
+          onError: (error, stackTrace) {
+            logger.e(
+              "Error while subscribing to sensor data: $error",
+              error: error,
+              stackTrace: stackTrace,
+            );
+            if (!streamController.isClosed) {
+              streamController.addError(error, stackTrace);
+            }
+          },
+          onDone: () {
+            if (!streamController.isClosed) {
+              streamController.close();
+            }
+          },
+        );
       },
-      onError: (error) {
-        logger.e("Error while subscribing to sensor data: $error");
+      onCancel: () async {
+        final activeSubscription = subscription;
+        subscription = null;
+        if (activeSubscription != null) {
+          await activeSubscription.cancel();
+        }
       },
     );
 
@@ -63,11 +100,9 @@ class V2SensorHandler extends SensorHandler<V2SensorConfig> {
   @override
   Future<void> writeSensorConfig(V2SensorConfig sensorConfig) async {
     if (!_bleManager.isConnected(_discoveredDevice.id)) {
-      Exception("Can't write sensor config. Earable not connected");
+      throw Exception("Can't write sensor config. Earable not connected");
     }
-    if (_sensorSchemes == null) {
-      await _readSensorScheme();
-    }
+    await _ensureSensorSchemesLoaded();
 
     Uint8List sensorConfigBytes = sensorConfig.toBytes();
 
@@ -79,15 +114,33 @@ class V2SensorHandler extends SensorHandler<V2SensorConfig> {
     );
   }
 
-   /// Parses raw sensor data bytes into a [Map] of sensor values.
+  /// Parses raw sensor data bytes into a [Map] of sensor values.
   Future<List<Map<String, dynamic>>> _parseData(List<int> data) async {
+    await _ensureSensorSchemesLoaded();
     ByteData byteData = ByteData.sublistView(Uint8List.fromList(data));
 
-    if (_sensorSchemes == null) {
-      await _readSensorScheme();
-    }
-    
     return _sensorValueParser.parse(byteData, _sensorSchemes!);
+  }
+
+  Future<void> _ensureSensorSchemesLoaded() async {
+    final schemes = _sensorSchemes;
+    if (schemes != null && schemes.isNotEmpty) {
+      return;
+    }
+
+    final pendingRead = _sensorSchemesReadFuture ??= _readSensorScheme();
+    try {
+      await pendingRead;
+    } finally {
+      if (identical(_sensorSchemesReadFuture, pendingRead)) {
+        _sensorSchemesReadFuture = null;
+      }
+    }
+
+    final loadedSchemes = _sensorSchemes;
+    if (loadedSchemes == null || loadedSchemes.isEmpty) {
+      throw StateError('V2 sensor scheme is not available yet');
+    }
   }
 
   /// Reads the sensor scheme that is needed to parse the raw sensor

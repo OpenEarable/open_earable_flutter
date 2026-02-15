@@ -1,7 +1,7 @@
 ## Unreleased
 
 * added global LSL forwarding support for sensor streams
-    * introduced `LslForwarder` implementation for UDP -> LSL bridge forwarding
+    * introduced `UdpBridgeForwarder` implementation for UDP -> LSL bridge forwarding
     * forwards active sensor samples to a configurable UDP bridge endpoint (`host:port`)
     * introduced generic sensor forwarding abstractions (`SensorForwarder`) with global dependency injection and per-forwarder enable/disable support
     * added LSL forwarding documentation (`doc/LSL.md`)

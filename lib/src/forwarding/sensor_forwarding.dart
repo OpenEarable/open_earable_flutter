@@ -12,6 +12,12 @@ class SensorForwardingPipeline {
 
   final List<SensorForwarder> _forwarders = [];
   DateTime? _lastForwardingError;
+  Future<void> _forwardingQueue = Future<void>.value();
+  DateTime? _lastDroppedSamplesLog;
+  int _pendingForwardSamples = 0;
+  int _droppedForwardSamples = 0;
+
+  static const int _maxPendingForwardSamples = 256;
 
   List<SensorForwarder> get forwarders => List.unmodifiable(_forwarders);
 
@@ -46,16 +52,84 @@ class SensorForwardingPipeline {
     return forwarder.isEnabled;
   }
 
+  SensorForwarderConnectionState? forwarderConnectionState(
+    SensorForwarder forwarder,
+  ) {
+    if (!_forwarders.contains(forwarder)) {
+      return null;
+    }
+    if (forwarder is SensorForwarderConnectionStateProvider) {
+      final provider = forwarder as SensorForwarderConnectionStateProvider;
+      return provider.connectionState;
+    }
+    return SensorForwarderConnectionState.active;
+  }
+
+  Stream<SensorForwarderConnectionState>? forwarderConnectionStateStream(
+    SensorForwarder forwarder,
+  ) {
+    if (!_forwarders.contains(forwarder)) {
+      return null;
+    }
+    if (forwarder is SensorForwarderConnectionStateProvider) {
+      final provider = forwarder as SensorForwarderConnectionStateProvider;
+      return provider.connectionStateStream;
+    }
+    return const Stream<SensorForwarderConnectionState>.empty();
+  }
+
+  String? forwarderConnectionErrorMessage(SensorForwarder forwarder) {
+    if (!_forwarders.contains(forwarder)) {
+      return null;
+    }
+    if (forwarder is SensorForwarderConnectionErrorProvider) {
+      final provider = forwarder as SensorForwarderConnectionErrorProvider;
+      return provider.connectionErrorMessage;
+    }
+    return null;
+  }
+
+  Stream<String?>? forwarderConnectionErrorMessageStream(
+    SensorForwarder forwarder,
+  ) {
+    if (!_forwarders.contains(forwarder)) {
+      return null;
+    }
+    if (forwarder is SensorForwarderConnectionErrorProvider) {
+      final provider = forwarder as SensorForwarderConnectionErrorProvider;
+      return provider.connectionErrorMessageStream;
+    }
+    return const Stream<String?>.empty();
+  }
+
   void clearForwarders() {
     _forwarders.clear();
   }
 
-  Future<void> forward(SensorForwardingSample sample) async {
+  Future<void> forward(SensorForwardingSample sample) {
     if (_forwarders.isEmpty) {
-      return;
+      return Future<void>.value();
     }
 
-    for (final forwarder in _forwarders) {
+    if (_pendingForwardSamples >= _maxPendingForwardSamples) {
+      _recordDroppedSample();
+      return Future<void>.value();
+    }
+
+    _pendingForwardSamples += 1;
+    _forwardingQueue = _forwardingQueue.catchError((_) {}).then((_) async {
+      try {
+        await _dispatchToForwarders(sample);
+      } finally {
+        _pendingForwardSamples -= 1;
+      }
+    });
+    return _forwardingQueue;
+  }
+
+  Future<void> _dispatchToForwarders(SensorForwardingSample sample) async {
+    final forwarders = List<SensorForwarder>.from(_forwarders);
+    for (final forwarder in forwarders) {
       if (!forwarder.isEnabled) {
         continue;
       }
@@ -77,7 +151,27 @@ class SensorForwardingPipeline {
     }
   }
 
+  void _recordDroppedSample() {
+    _droppedForwardSamples += 1;
+    final now = DateTime.now();
+    final shouldLog = _lastDroppedSamplesLog == null ||
+        now.difference(_lastDroppedSamplesLog!) >= const Duration(seconds: 5);
+    if (!shouldLog) {
+      return;
+    }
+    final droppedSamples = _droppedForwardSamples;
+    _droppedForwardSamples = 0;
+    _lastDroppedSamplesLog = now;
+    developer.log(
+      'Dropping $droppedSamples sensor samples because forwarding queue is saturated.',
+      name: 'open_earable_flutter',
+    );
+  }
+
   Future<void> close() async {
+    try {
+      await _forwardingQueue;
+    } catch (_) {}
     for (final forwarder in _forwarders) {
       try {
         await forwarder.close();

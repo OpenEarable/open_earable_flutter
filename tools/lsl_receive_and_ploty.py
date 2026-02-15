@@ -13,7 +13,6 @@ import argparse
 import json
 import os
 import queue
-import select
 import socket
 import sys
 import threading
@@ -21,7 +20,12 @@ import time
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Dict, List, Optional, Set
-from urllib.parse import quote, unquote
+
+from network_relay_server import (
+    NetworkRelayServer,
+    UdpSensorSample,
+    clean_text,
+)
 
 try:
     from pylsl import StreamInfo, StreamOutlet, local_clock
@@ -35,9 +39,6 @@ except ImportError as exc:  # pragma: no cover - import guard
     raise SystemExit(2) from exc
 
 
-MAX_UDP_PACKET_SIZE = 65535
-SOURCE_ID_PREFIX = "oe-v1"
-SOURCE_ID_EMPTY_COMPONENT = "-"
 DEFAULT_DASHBOARD_PORT = 8765
 DEFAULT_MAX_EVENTS = 300
 
@@ -68,16 +69,6 @@ class StreamSpec:
     name: str
     stream_type: str
     channel_count: int
-    source_id: str
-    device_name: str
-    device_channel: str
-    sensor_name: str
-    source: str
-
-
-@dataclass(frozen=True)
-class StreamMeta:
-    stream_name: str
     source_id: str
     device_name: str
     device_channel: str
@@ -385,226 +376,59 @@ def _candidate_ips(bind_host: str) -> List[str]:
     return sorted(addresses)
 
 
-def _clean_text(value: object, fallback: str = "") -> str:
-    if value is None:
-        return fallback
-    text = str(value).strip()
-    if not text:
-        return fallback
-    return " ".join(text.split())
-
-
-def _normalize_channel(value: object) -> str:
-    channel = _clean_text(value, "")
-    if not channel:
-        return ""
-    lower = channel.lower()
-    if lower.startswith("l"):
-        return "L"
-    if lower.startswith("r"):
-        return "R"
-    return channel
-
-
-def _encode_source_component(value: str) -> str:
-    cleaned = _clean_text(value, "")
-    if not cleaned:
-        return SOURCE_ID_EMPTY_COMPONENT
-    return quote(cleaned, safe="")
-
-
-def _decode_source_component(value: str) -> str:
-    if value == SOURCE_ID_EMPTY_COMPONENT:
-        return ""
-    return _clean_text(unquote(value), "")
-
-
-def _encode_source_id(
-    device_name: str,
-    device_channel: str,
-    sensor_name: str,
-    source: str,
-) -> str:
-    return ":".join(
-        [
-            SOURCE_ID_PREFIX,
-            _encode_source_component(device_name),
-            _encode_source_component(device_channel),
-            _encode_source_component(sensor_name),
-            _encode_source_component(source),
-        ]
-    )
-
-
-def _decode_source_id(source_id: str) -> Optional[Dict[str, str]]:
-    parts = source_id.split(":")
-    if len(parts) != 5 or parts[0] != SOURCE_ID_PREFIX:
-        return None
-
-    return {
-        "device_name": _decode_source_component(parts[1]),
-        "device_channel": _decode_source_component(parts[2]),
-        "sensor_name": _decode_source_component(parts[3]),
-        "source": _decode_source_component(parts[4]),
-    }
-
-
-def _build_stream_name(
-    device_name: str,
-    device_channel: str,
-    sensor_name: str,
-    source: str,
-) -> str:
-    channel_suffix = f" [{device_channel}]" if device_channel else ""
-    return f"{device_name}{channel_suffix} ({source}) - {sensor_name}"
-
-
-def _resolve_stream_meta(sample: dict) -> StreamMeta:
-    raw_source_id = _clean_text(sample.get("source_id"), "")
-    decoded_source = _decode_source_id(raw_source_id) if raw_source_id else None
-
-    fallback_device = _clean_text(
-        sample.get("device_name")
-        or sample.get("device_token")
-        or sample.get("device_id"),
-        "unknown_device",
-    )
-    fallback_channel = _normalize_channel(
-        sample.get("device_channel") or sample.get("device_side")
-    )
-    fallback_sensor = _clean_text(sample.get("sensor_name"), "unknown_sensor")
-    fallback_source = _clean_text(
-        sample.get("device_source")
-        or sample.get("device_id")
-        or sample.get("device_token"),
-        "unknown_source",
-    )
-
-    device_name = _clean_text(
-        decoded_source.get("device_name") if decoded_source else None,
-        fallback_device,
-    )
-    device_channel = _normalize_channel(
-        decoded_source.get("device_channel") if decoded_source else fallback_channel
-    )
-    sensor_name = _clean_text(
-        decoded_source.get("sensor_name") if decoded_source else None,
-        fallback_sensor,
-    )
-    source = _clean_text(
-        decoded_source.get("source") if decoded_source else None,
-        fallback_source,
-    )
-
-    source_id = raw_source_id or _encode_source_id(
-        device_name=device_name,
-        device_channel=device_channel,
-        sensor_name=sensor_name,
-        source=source,
-    )
-    stream_name = _clean_text(sample.get("stream_name"), "") or _build_stream_name(
-        device_name=device_name,
-        device_channel=device_channel,
-        sensor_name=sensor_name,
-        source=source,
-    )
-
-    return StreamMeta(
-        stream_name=stream_name,
-        source_id=source_id,
-        device_name=device_name,
-        device_channel=device_channel,
-        sensor_name=sensor_name,
-        source=source,
-    )
-
-
-def _parse_values(sample: dict) -> List[float]:
-    raw_values = sample.get("values")
-    if not isinstance(raw_values, list):
-        return []
-
-    parsed: List[float] = []
-    for value in raw_values:
-        try:
-            parsed.append(float(value))
-        except (TypeError, ValueError):
-            continue
-    return parsed
-
-
-def _stream_spec(sample: dict, values: List[float]) -> StreamSpec:
-    meta = _resolve_stream_meta(sample)
+def _stream_spec(sample: UdpSensorSample) -> StreamSpec:
     return StreamSpec(
-        name=meta.stream_name,
+        name=sample.stream.name,
         stream_type="OpenWearables",
-        channel_count=len(values),
-        source_id=meta.source_id,
-        device_name=meta.device_name,
-        device_channel=meta.device_channel,
-        sensor_name=meta.sensor_name,
-        source=meta.source,
+        channel_count=len(sample.values),
+        source_id=sample.stream.source_id,
+        device_name=sample.stream.device.name,
+        device_channel=sample.stream.device.channel,
+        sensor_name=sample.stream.sensor_name,
+        source=sample.stream.device.source,
     )
 
 
-def _sensor_timestamp_seconds(sample: dict) -> Optional[float]:
-    raw_timestamp = sample.get("timestamp")
-    raw_exponent = sample.get("timestamp_exponent")
-    if raw_timestamp is None or raw_exponent is None:
-        return None
-
-    try:
-        timestamp = float(raw_timestamp)
-        exponent = int(raw_exponent)
-    except (TypeError, ValueError):
-        return None
-
-    try:
-        return timestamp * (10.0 ** exponent)
-    except OverflowError:
-        return None
-
-
-def _create_outlet(sample: dict, values: List[float]) -> StreamOutlet:
-    meta = _resolve_stream_meta(sample)
-    device_token = _clean_text(
-        sample.get("device_token") or sample.get("device_id"),
+def _create_outlet(sample: UdpSensorSample, values: List[float]) -> StreamOutlet:
+    spec = _stream_spec(sample)
+    device_token = clean_text(
+        sample.raw.get("device_token") or sample.raw.get("device_id"),
         "unknown_device",
     )
-    axis_names = sample.get("axis_names") or []
-    axis_units = sample.get("axis_units") or []
+    axis_names = list(sample.axis_names)
+    axis_units = list(sample.axis_units)
 
     info = StreamInfo(
-        name=meta.stream_name,
+        name=spec.name,
         type="OpenWearables",
         channel_count=len(values),
         nominal_srate=0.0,
         channel_format="float32",
-        source_id=meta.source_id,
+        source_id=spec.source_id,
     )
 
     desc = info.desc()
     desc.append_child_value("manufacturer", "OpenWearables")
     desc.append_child_value("device_token", device_token)
-    desc.append_child_value("device_name", meta.device_name)
-    desc.append_child_value("device_channel", meta.device_channel)
-    if meta.device_channel:
-        desc.append_child_value("device_side", meta.device_channel)
-    desc.append_child_value("device_source", meta.source)
-    desc.append_child_value("sensor_name", meta.sensor_name)
-    desc.append_child_value("source_id", meta.source_id)
-    desc.append_child_value("timestamp_exponent", str(sample.get("timestamp_exponent", -3)))
+    desc.append_child_value("device_name", spec.device_name)
+    desc.append_child_value("device_channel", spec.device_channel)
+    if spec.device_channel:
+        desc.append_child_value("device_side", spec.device_channel)
+    desc.append_child_value("device_source", spec.source)
+    desc.append_child_value("sensor_name", spec.sensor_name)
+    desc.append_child_value("source_id", spec.source_id)
+    desc.append_child_value("timestamp_exponent", str(sample.timestamp_exponent or -3))
 
     channels = desc.append_child("channels")
     for idx in range(len(values)):
         ch = channels.append_child("channel")
         label = axis_names[idx] if idx < len(axis_names) else f"ch_{idx}"
-        if meta.device_channel:
-            label = f"{meta.device_channel}-{label}"
+        if spec.device_channel:
+            label = f"{spec.device_channel}-{label}"
         unit = axis_units[idx] if idx < len(axis_units) else ""
         ch.append_child_value("label", str(label))
         ch.append_child_value("unit", str(unit))
-        ch.append_child_value("type", meta.sensor_name)
+        ch.append_child_value("type", spec.sensor_name)
 
     return StreamOutlet(info)
 
@@ -612,9 +436,12 @@ def _create_outlet(sample: dict, values: List[float]) -> StreamOutlet:
 class LslBridgeApp:
     def __init__(self, args: argparse.Namespace) -> None:
         self._args = args
-        self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._sock.bind((args.host, args.port))
-        self._sock.setblocking(False)
+        self._relay_server = NetworkRelayServer(
+            host=args.host,
+            port=args.port,
+            on_warning=print,
+        )
+        self._relay_server.add_sample_listener(self._on_sample)
 
         self._outlets: Dict[StreamSpec, StreamOutlet] = {}
         self._clock_alignment: Dict[StreamSpec, SensorClockAlignment] = {}
@@ -622,7 +449,7 @@ class LslBridgeApp:
         self._dashboard_state = DashboardState(
             max_events=args.max_events,
             udp_host=args.host,
-            udp_port=args.port,
+            udp_port=self._relay_server.port,
         )
         self._stop_event = threading.Event()
 
@@ -666,7 +493,7 @@ class LslBridgeApp:
         print(_styled("OpenWearables LSL Dashboard started.", ANSI_BOLD, ANSI_CYAN))
         print(
             _styled(
-                f"Listening for UDP packets on {self._args.host}:{self._args.port}",
+                f"Listening for UDP packets on {self._args.host}:{self._relay_server.port}",
                 ANSI_GREEN,
             )
         )
@@ -677,14 +504,14 @@ class LslBridgeApp:
 
         print("")
         print(_styled("Example app setup:", ANSI_BOLD))
-        print(_styled("  final lslForwarder = LslForwarder.instance;", ANSI_DIM))
+        print(_styled("  final udpBridgeForwarder = UdpBridgeForwarder.instance;", ANSI_DIM))
         print(
             _styled(
-                f"  lslForwarder.configure(host: '{selected_udp_ip}', port: {self._args.port}, enabled: true);",
+                f"  udpBridgeForwarder.configure(host: '{selected_udp_ip}', port: {self._relay_server.port}, enabled: true);",
                 ANSI_DIM,
             )
         )
-        print(_styled("  WearableManager().addSensorForwarder(lslForwarder);", ANSI_DIM))
+        print(_styled("  WearableManager().addSensorForwarder(udpBridgeForwarder);", ANSI_DIM))
 
         print("")
         print(_styled("Web dashboard URLs:", ANSI_BOLD))
@@ -721,26 +548,11 @@ class LslBridgeApp:
         alignment.last_lsl_seconds = lsl_time
         return lsl_time
 
-    def _process_packet(self, packet: bytes, remote: tuple[str, int]) -> None:
-        try:
-            sample = json.loads(packet.decode("utf-8"))
-        except json.JSONDecodeError:
-            print(f"Ignoring non-JSON packet from {remote[0]}:{remote[1]}")
-            return
-
-        if not isinstance(sample, dict):
-            print(f"Ignoring unexpected payload type from {remote[0]}:{remote[1]}")
-            return
-
-        if sample.get("type") != "open_earable_lsl_sample":
-            return
-
-        values = _parse_values(sample)
-        if not values:
-            return
-
-        spec = _stream_spec(sample, values)
-        sensor_time_seconds = _sensor_timestamp_seconds(sample)
+    def _on_sample(self, sample: UdpSensorSample, remote: tuple[str, int]) -> None:
+        _ = remote
+        values = list(sample.values)
+        spec = _stream_spec(sample)
+        sensor_time_seconds = sample.timestamp_seconds
         lsl_timestamp = self._lsl_timestamp_for_sample(spec, sensor_time_seconds)
 
         outlet = self._outlets.get(spec)
@@ -753,33 +565,17 @@ class LslBridgeApp:
             )
 
         outlet.push_sample(values, lsl_timestamp)
-        self._dashboard_state.record_sample(spec, values, sample, lsl_timestamp)
+        self._dashboard_state.record_sample(spec, values, sample.raw, lsl_timestamp)
 
         if self._args.verbose:
             print(
                 f"Sample {spec.name}: {values} "
-                f"(device_ts={sample.get('timestamp')}, lsl_ts={lsl_timestamp:.6f})"
+                f"(device_ts={sample.timestamp}, lsl_ts={lsl_timestamp:.6f})"
             )
-
-    def _drain_udp(self) -> None:
-        while True:
-            try:
-                packet, remote = self._sock.recvfrom(MAX_UDP_PACKET_SIZE)
-            except BlockingIOError:
-                return
-            except OSError:
-                return
-            self._process_packet(packet, remote)
 
     def run(self) -> None:
         self._dashboard_thread.start()
-        while not self._stop_event.is_set():
-            try:
-                ready, _, _ = select.select([self._sock], [], [], 0.25)
-            except (ValueError, OSError):
-                break
-            if ready:
-                self._drain_udp()
+        self._relay_server.run(stop_event=self._stop_event, poll_interval=0.25)
 
     def close(self) -> None:
         self._stop_event.set()
@@ -788,7 +584,7 @@ class LslBridgeApp:
             self._dashboard_server.server_close()
         except Exception:
             pass
-        self._sock.close()
+        self._relay_server.close()
 
 
 DASHBOARD_HTML = """<!doctype html>

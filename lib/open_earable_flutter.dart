@@ -74,7 +74,7 @@ export 'src/managers/ble_gatt_manager.dart';
 export 'src/models/capabilities/time_synchronizable.dart';
 export 'src/forwarding/sensor_forwarder.dart';
 export 'src/forwarding/sensor_forwarding.dart';
-export 'src/forwarding/forwarders/lsl_forwarder.dart';
+export 'src/forwarding/forwarders/udp_bridge_forwarder.dart';
 
 export 'src/fota/fota.dart';
 
@@ -379,6 +379,50 @@ class WearableManager {
   /// Returns whether a specific forwarder is enabled. Null if not registered.
   bool? isSensorForwarderEnabled(SensorForwarder forwarder) {
     return SensorForwardingPipeline.instance.isForwarderEnabled(forwarder);
+  }
+
+  /// Returns current connection state for a specific forwarder.
+  ///
+  /// Returns null if the forwarder is not registered.
+  SensorForwarderConnectionState? getSensorForwarderConnectionState(
+    SensorForwarder forwarder,
+  ) {
+    return SensorForwardingPipeline.instance
+        .forwarderConnectionState(forwarder);
+  }
+
+  /// Returns connection-state changes for a specific forwarder.
+  ///
+  /// Returns null if the forwarder is not registered.
+  Stream<SensorForwarderConnectionState>?
+      getSensorForwarderConnectionStateStream(
+    SensorForwarder forwarder,
+  ) {
+    return SensorForwardingPipeline.instance.forwarderConnectionStateStream(
+      forwarder,
+    );
+  }
+
+  /// Returns the last connection error message for a specific forwarder.
+  ///
+  /// This is typically only non-null when state is `unreachable`.
+  /// Returns null if the forwarder is not registered.
+  String? getSensorForwarderConnectionErrorMessage(
+    SensorForwarder forwarder,
+  ) {
+    return SensorForwardingPipeline.instance.forwarderConnectionErrorMessage(
+      forwarder,
+    );
+  }
+
+  /// Returns updates for the forwarder's connection error message.
+  ///
+  /// Returns null if the forwarder is not registered.
+  Stream<String?>? getSensorForwarderConnectionErrorMessageStream(
+    SensorForwarder forwarder,
+  ) {
+    return SensorForwardingPipeline.instance
+        .forwarderConnectionErrorMessageStream(forwarder);
   }
 
   /// Removes all registered forwarders.

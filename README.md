@@ -118,25 +118,42 @@ To get started with the OpenEarable Flutter package, follow these steps:
 Forwarding is global and protocol-agnostic. Configure LSL as one forwarder:
 
 ```dart
-final lslForwarder = LslForwarder.instance;
-lslForwarder.configure(
+final udpBridgeForwarder = UdpBridgeForwarder.instance;
+udpBridgeForwarder.configure(
   host: "192.168.1.42", // IP/hostname of the bridge machine
   port: 16571, // UDP port of the bridge
   enabled: true,
 );
 
 final manager = WearableManager(
-  sensorForwarders: [lslForwarder],
+  sensorForwarders: [udpBridgeForwarder],
 );
 ```
 
 You can enable/disable/add/remove forwarders at runtime:
 
 ```dart
-manager.setSensorForwarderEnabled(lslForwarder, false); // disable
-manager.setSensorForwarderEnabled(lslForwarder, true); // enable
-manager.removeSensorForwarder(lslForwarder); // remove
-manager.addSensorForwarder(lslForwarder); // add again
+manager.setSensorForwarderEnabled(udpBridgeForwarder, false); // disable
+manager.setSensorForwarderEnabled(udpBridgeForwarder, true); // enable
+manager.removeSensorForwarder(udpBridgeForwarder); // remove
+manager.addSensorForwarder(udpBridgeForwarder); // add again
+```
+
+You can also check forwarding connectivity state:
+
+```dart
+final state = manager.getSensorForwarderConnectionState(udpBridgeForwarder);
+// SensorForwarderConnectionState.active (default)
+// A probe runs after configure/enable.
+// SensorForwarderConnectionState.unreachable (after detected send fault)
+// While enabled + configured, health probes run every 1 second.
+
+manager.getSensorForwarderConnectionStateStream(udpBridgeForwarder)?.listen((state) {
+  // react to state changes
+});
+
+final error = manager.getSensorForwarderConnectionErrorMessage(udpBridgeForwarder);
+// null while active, otherwise a human-readable unreachable error
 ```
 
 This package forwards sensor samples as UDP JSON packets. A middleware process must run on the target machine and publish those samples to Lab Streaming Layer.
@@ -151,7 +168,7 @@ python tools/lsl_receive_and_ploty.py --port 16571 --dashboard-port 8765
 
 At startup it prints the local IP addresses you can use as `host` in your app config and the dashboard URL(s). Open the dashboard URL in a browser to see live stream cards and latest values. The bridge publishes LSL outlets and forwards the same samples to the web dashboard. See [LSL Forwarding](doc/LSL.md) for details.
 
-Minimal receiver example (placeholder hooks for your own handling):
+Minimal network relay consumer example (placeholder hooks for your own handling):
 
 ```bash
 python tools/lsl_receive_minimal.py

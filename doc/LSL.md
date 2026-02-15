@@ -58,25 +58,23 @@ Use a different dashboard port:
 python tools/lsl_receive_and_ploty.py --port 16571 --dashboard-port 9000
 ```
 
-Compatibility alias (same behavior):
-
-```bash
-python tools/lsl_bridge.py --port 16571 --dashboard-port 8765
-```
-
 ## Verify It Is Running
 
 - Dashboard opens and shows `LIVE` once packets arrive.
 - `http://<your-computer-ip>:<dashboard-port>/health` returns JSON status.
 - LSL streams become discoverable with type `OpenWearables`.
 
-## Minimal LSL Consumer Example
+## Minimal Network Relay Consumer Example
 
-If you only want to receive LSL data and process it yourself:
+If you only want to receive UDP relay data and process it yourself:
 
 ```bash
 python tools/lsl_receive_minimal.py
 ```
+
+This script runs the reusable `NetworkRelayServer` from:
+
+- `tools/network_relay_server.py`
 
 The placeholder hooks are in:
 
