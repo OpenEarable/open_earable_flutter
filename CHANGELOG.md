@@ -1,3 +1,17 @@
+## Unreleased
+
+* added global LSL forwarding support for sensor streams
+    * introduced `UdpBridgeForwarder` implementation for UDP -> LSL bridge forwarding
+    * forwards active sensor samples to a configurable UDP bridge endpoint (`host:port`)
+    * introduced generic sensor forwarding abstractions (`SensorForwarder`) with global dependency injection and per-forwarder enable/disable support
+    * added LSL forwarding documentation (`doc/LSL.md`)
+    * bundled Python UDP->LSL bridge script (`tools/lsl_bridge.py`) that prints local IPs for app setup
+
+## 2.3.3
+
+* renamed TauRing to OpenRing
+* added support for OpenRing temperature sensors (`temp0`, `temp1`, `temp2`) as one 3-channel `Temperature` sensor (`°C`) with software-only on/off control
+
 ## 2.3.2
 
 * fixed some bugs with Esense devices

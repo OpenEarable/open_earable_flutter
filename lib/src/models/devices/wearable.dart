@@ -3,6 +3,13 @@ import 'dart:ui';
 
 import '../../managers/wearable_disconnect_notifier.dart';
 
+enum WearableIconVariant {
+  single,
+  left,
+  right,
+  pair,
+}
+
 abstract class Wearable {
   final String name;
 
@@ -85,7 +92,11 @@ abstract class Wearable {
   /// The parameters are best-effort
   ///
   /// @param darkmode: Whether the icon should be for dark mode (if available).
-  String? getWearableIconPath({bool darkmode = false}) {
+  /// @param variant: Which icon variant should be used.
+  String? getWearableIconPath({
+    bool darkmode = false,
+    WearableIconVariant variant = WearableIconVariant.single,
+  }) {
     return null;
   }
 

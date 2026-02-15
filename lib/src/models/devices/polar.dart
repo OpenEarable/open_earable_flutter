@@ -29,7 +29,10 @@ class Polar extends Wearable
         _discoveredDevice = discoveredDevice;
 
   @override
-  String? getWearableIconPath({bool darkmode = false}) {
+  String? getWearableIconPath({
+    bool darkmode = false,
+    WearableIconVariant variant = WearableIconVariant.single,
+  }) {
     String basePath =
         'packages/open_earable_flutter/assets/wearable_icons/polar';
 

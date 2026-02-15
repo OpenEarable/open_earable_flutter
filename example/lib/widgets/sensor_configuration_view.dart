@@ -33,7 +33,8 @@ class _SensorConfigurationViewState extends State<SensorConfigurationView> {
   @override
   void initState() {
     super.initState();
-    _selectedValue = widget.configuration.values.first;
+    _selectedValue =
+        widget.configuration.offValue ?? widget.configuration.values.first;
   }
 
   @override

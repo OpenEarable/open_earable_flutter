@@ -7,6 +7,7 @@ import 'package:open_earable_flutter/src/utils/sensor_scheme_parser/edge_ml_sens
 import 'package:open_earable_flutter/src/utils/sensor_value_parser/sensor_value_parser.dart';
 
 import '../constants.dart';
+import '../../open_earable_flutter.dart' show logger;
 import '../utils/mahony_ahrs.dart';
 import '../utils/sensor_scheme_parser/sensor_scheme_reader.dart';
 import '../utils/sensor_value_parser/edge_ml_sensor_value_parser.dart';
@@ -23,6 +24,7 @@ class OpenEarableSensorHandler extends SensorHandler<OpenEarableSensorConfig> {
   final SensorSchemeReader _sensorSchemeParser;
   final SensorValueParser _sensorValueParser;
   List<SensorScheme>? _sensorSchemes;
+  Future<void>? _sensorSchemesReadFuture;
 
   /// Creates a [OpenEarableSensorHandler] instance with the specified [bleManager].
   OpenEarableSensorHandler({
@@ -31,9 +33,10 @@ class OpenEarableSensorHandler extends SensorHandler<OpenEarableSensorConfig> {
     SensorSchemeReader? sensorSchemeParser,
     SensorValueParser? sensorValueParser,
   })  : _bleManager = bleManager,
-        _sensorSchemeParser = sensorSchemeParser ?? EdgeMlSensorSchemeReader(bleManager, deviceId),
+        _sensorSchemeParser = sensorSchemeParser ??
+            EdgeMlSensorSchemeReader(bleManager, deviceId),
         _sensorValueParser = sensorValueParser ?? EdgeMlSensorValueParser() {
-    _readSensorScheme();
+    unawaited(_ensureSensorSchemesLoaded());
   }
 
   /// Writes the sensor configuration to the OpenEarable device.
@@ -43,7 +46,7 @@ class OpenEarableSensorHandler extends SensorHandler<OpenEarableSensorConfig> {
   @override
   Future<void> writeSensorConfig(OpenEarableSensorConfig sensorConfig) async {
     if (!_bleManager.isConnected(deviceId)) {
-      Exception("Can't write sensor config. Earable not connected");
+      throw Exception("Can't write sensor config. Earable not connected");
     }
     await _bleManager.write(
       deviceId: deviceId,
@@ -51,9 +54,7 @@ class OpenEarableSensorHandler extends SensorHandler<OpenEarableSensorConfig> {
       characteristicId: sensorConfigurationCharacteristicUuid,
       byteData: sensorConfig.byteList,
     );
-    if (_sensorSchemes == null || _sensorSchemes!.isEmpty) {
-      await _readSensorScheme();
-    }
+    await _ensureSensorSchemesLoaded();
   }
 
   /// Subscribes to sensor data for a specific sensor.
@@ -65,73 +66,122 @@ class OpenEarableSensorHandler extends SensorHandler<OpenEarableSensorConfig> {
   @override
   Stream<Map<String, dynamic>> subscribeToSensorData(int sensorId) {
     if (!_bleManager.isConnected(deviceId)) {
-      Exception("Can't subscribe to sensor data. Earable not connected");
+      throw Exception("Can't subscribe to sensor data. Earable not connected");
     }
-    StreamController<Map<String, dynamic>> streamController =
-        StreamController();
+
+    late final StreamController<Map<String, dynamic>> streamController;
+    // ignore: cancel_subscriptions
+    StreamSubscription<List<int>>? subscription;
     int lastTimestamp = 0;
-    _bleManager
-        .subscribe(
-      deviceId: deviceId,
-      serviceId: sensorServiceUuid,
-      characteristicId: sensorDataCharacteristicUuid,
-    )
-        .listen(
-      (data) async {
-        if (data.isNotEmpty && data[0] == sensorId) {
-          List<Map<String, dynamic>> parsedDataList = await _parseData(data);
-          for (var parsedData in parsedDataList) {
-            if (sensorId == imuID) {
-              int timestamp = parsedData["timestamp"];
-              double ax = parsedData["ACC"]["X"];
-              double ay = parsedData["ACC"]["Y"];
-              double az = parsedData["ACC"]["Z"];
 
-              double gx = parsedData["GYRO"]["X"];
-              double gy = parsedData["GYRO"]["Y"];
-              double gz = parsedData["GYRO"]["Z"];
-
-              double dt = (timestamp - lastTimestamp) / 1000.0;
-
-              // x, y, z was changed in firmware to -x, z, y
-              _mahonyAHRS.update(
-                ax,
-                ay,
-                az,
-                gx,
-                gy,
-                gz,
-                dt,
-              );
-
-              lastTimestamp = timestamp;
-              List<double> q = _mahonyAHRS.quaternion;
-              double yaw = -atan2(
-                2 * (q[0] * q[3] + q[1] * q[2]),
-                1 - 2 * (q[2] * q[2] + q[3] * q[3]),
-              );
-
-              // Pitch (around Y-axis)
-              double pitch = -asin(2 * (q[0] * q[2] - q[3] * q[1]));
-
-              // Roll (around X-axis)
-              double roll = -atan2(
-                2 * (q[0] * q[1] + q[2] * q[3]),
-                1 - 2 * (q[1] * q[1] + q[2] * q[2]),
-              );
-
-              parsedData["EULER"] = {};
-              parsedData["EULER"]["YAW"] = yaw;
-              parsedData["EULER"]["PITCH"] = pitch;
-              parsedData["EULER"]["ROLL"] = roll;
-              parsedData["EULER"]
-                  ["units"] = {"YAW": "rad", "PITCH": "rad", "ROLL": "rad"};
+    streamController = StreamController<Map<String, dynamic>>(
+      onListen: () {
+        // ignore: cancel_subscriptions
+        subscription = _bleManager
+            .subscribe(
+          deviceId: deviceId,
+          serviceId: sensorServiceUuid,
+          characteristicId: sensorDataCharacteristicUuid,
+        )
+            .listen(
+          (data) async {
+            if (data.isEmpty || data[0] != sensorId) {
+              return;
             }
-            streamController.add(parsedData);
-          }
+
+            try {
+              List<Map<String, dynamic>> parsedDataList =
+                  await _parseData(data);
+              for (var parsedData in parsedDataList) {
+                if (sensorId == imuID) {
+                  int timestamp = parsedData["timestamp"];
+                  double ax = parsedData["ACC"]["X"];
+                  double ay = parsedData["ACC"]["Y"];
+                  double az = parsedData["ACC"]["Z"];
+
+                  double gx = parsedData["GYRO"]["X"];
+                  double gy = parsedData["GYRO"]["Y"];
+                  double gz = parsedData["GYRO"]["Z"];
+
+                  double dt = (timestamp - lastTimestamp) / 1000.0;
+
+                  // x, y, z was changed in firmware to -x, z, y
+                  _mahonyAHRS.update(
+                    ax,
+                    ay,
+                    az,
+                    gx,
+                    gy,
+                    gz,
+                    dt,
+                  );
+
+                  lastTimestamp = timestamp;
+                  List<double> q = _mahonyAHRS.quaternion;
+                  double yaw = -atan2(
+                    2 * (q[0] * q[3] + q[1] * q[2]),
+                    1 - 2 * (q[2] * q[2] + q[3] * q[3]),
+                  );
+
+                  // Pitch (around Y-axis)
+                  double pitch = -asin(2 * (q[0] * q[2] - q[3] * q[1]));
+
+                  // Roll (around X-axis)
+                  double roll = -atan2(
+                    2 * (q[0] * q[1] + q[2] * q[3]),
+                    1 - 2 * (q[1] * q[1] + q[2] * q[2]),
+                  );
+
+                  parsedData["EULER"] = {};
+                  parsedData["EULER"]["YAW"] = yaw;
+                  parsedData["EULER"]["PITCH"] = pitch;
+                  parsedData["EULER"]["ROLL"] = roll;
+                  parsedData["EULER"]["units"] = {
+                    "YAW": "rad",
+                    "PITCH": "rad",
+                    "ROLL": "rad",
+                  };
+                }
+
+                if (!streamController.isClosed) {
+                  streamController.add(parsedData);
+                }
+              }
+            } catch (error, stackTrace) {
+              logger.e(
+                "Error while processing OpenEarable sensor packet: $error",
+                error: error,
+                stackTrace: stackTrace,
+              );
+              if (!streamController.isClosed) {
+                streamController.addError(error, stackTrace);
+              }
+            }
+          },
+          onError: (error, stackTrace) {
+            logger.e(
+              "Error while subscribing to OpenEarable sensor data: $error",
+              error: error,
+              stackTrace: stackTrace,
+            );
+            if (!streamController.isClosed) {
+              streamController.addError(error, stackTrace);
+            }
+          },
+          onDone: () {
+            if (!streamController.isClosed) {
+              streamController.close();
+            }
+          },
+        );
+      },
+      onCancel: () async {
+        final activeSubscription = subscription;
+        subscription = null;
+        if (activeSubscription != null) {
+          await activeSubscription.cancel();
         }
       },
-      onError: (error) {},
     );
 
     return streamController.stream;
@@ -139,9 +189,31 @@ class OpenEarableSensorHandler extends SensorHandler<OpenEarableSensorConfig> {
 
   /// Parses raw sensor data bytes into a [Map] of sensor values.
   Future<List<Map<String, dynamic>>> _parseData(List<int> data) async {
+    await _ensureSensorSchemesLoaded();
     ByteData byteData = ByteData.sublistView(Uint8List.fromList(data));
-    
+
     return _sensorValueParser.parse(byteData, _sensorSchemes!);
+  }
+
+  Future<void> _ensureSensorSchemesLoaded() async {
+    final schemes = _sensorSchemes;
+    if (schemes != null && schemes.isNotEmpty) {
+      return;
+    }
+
+    final pendingRead = _sensorSchemesReadFuture ??= _readSensorScheme();
+    try {
+      await pendingRead;
+    } finally {
+      if (identical(_sensorSchemesReadFuture, pendingRead)) {
+        _sensorSchemesReadFuture = null;
+      }
+    }
+
+    final loadedSchemes = _sensorSchemes;
+    if (loadedSchemes == null || loadedSchemes.isEmpty) {
+      throw StateError('OpenEarable sensor scheme is not available yet');
+    }
   }
 
   /// Reads the sensor scheme that is needed to parse the raw sensor

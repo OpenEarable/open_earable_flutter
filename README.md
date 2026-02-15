@@ -114,5 +114,65 @@ To get started with the OpenEarable Flutter package, follow these steps:
   > [!WARNING]
   > Checking for capabilities using `is <Capability>` is deprecated. Please use `hasCapability<T>()` instead. You can learn more about capabilities in the [Capabilities](doc/CAPABILITIES.md) documentation.
 
+### 8. Forward Sensor Streams to LSL (Optional)
+Forwarding is global and protocol-agnostic. Configure LSL as one forwarder:
+
+```dart
+final udpBridgeForwarder = UdpBridgeForwarder.instance;
+udpBridgeForwarder.configure(
+  host: "192.168.1.42", // IP/hostname of the bridge machine
+  port: 16571, // UDP port of the bridge
+  enabled: true,
+);
+
+final manager = WearableManager(
+  sensorForwarders: [udpBridgeForwarder],
+);
+```
+
+You can enable/disable/add/remove forwarders at runtime:
+
+```dart
+manager.setSensorForwarderEnabled(udpBridgeForwarder, false); // disable
+manager.setSensorForwarderEnabled(udpBridgeForwarder, true); // enable
+manager.removeSensorForwarder(udpBridgeForwarder); // remove
+manager.addSensorForwarder(udpBridgeForwarder); // add again
+```
+
+You can also check forwarding connectivity state:
+
+```dart
+final state = manager.getSensorForwarderConnectionState(udpBridgeForwarder);
+// SensorForwarderConnectionState.active (default)
+// A probe runs after configure/enable.
+// SensorForwarderConnectionState.unreachable (after detected send fault)
+// While enabled + configured, health probes run every 1 second.
+
+manager.getSensorForwarderConnectionStateStream(udpBridgeForwarder)?.listen((state) {
+  // react to state changes
+});
+
+final error = manager.getSensorForwarderConnectionErrorMessage(udpBridgeForwarder);
+// null while active, otherwise a human-readable unreachable error
+```
+
+This package forwards sensor samples as UDP JSON packets. A middleware process must run on the target machine and publish those samples to Lab Streaming Layer.
+By default, the stream prefix is the local phone/device name. You can still override it via `streamPrefix` if needed.
+
+This repository includes the **OpenWearables LSL Dashboard Example** at `tools/lsl_receive_and_ploty.py`:
+
+```bash
+pip install pylsl
+python tools/lsl_receive_and_ploty.py --port 16571 --dashboard-port 8765
+```
+
+At startup it prints the local IP addresses you can use as `host` in your app config and the dashboard URL(s). Open the dashboard URL in a browser to see live stream cards and latest values. The bridge publishes LSL outlets and forwards the same samples to the web dashboard. See [LSL Forwarding](doc/LSL.md) for details.
+
+Minimal network relay consumer example (placeholder hooks for your own handling):
+
+```bash
+python tools/lsl_receive_minimal.py
+```
+
 ## Add custom Wearable Support
 Learn more about how to add support for your own wearable devices in the [Adding Custom Wearable Support](doc/ADD_CUSTOM_WEARABLE.md) documentation.
