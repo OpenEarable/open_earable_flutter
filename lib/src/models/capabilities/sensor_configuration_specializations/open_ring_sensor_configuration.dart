@@ -9,6 +9,7 @@ class OpenRingSensorConfiguration
   OpenRingSensorConfiguration({
     required super.name,
     required super.values,
+    super.offValue,
     required OpenRingSensorHandler sensorHandler,
   }) : _sensorHandler = sensorHandler;
 

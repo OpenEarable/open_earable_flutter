@@ -38,60 +38,64 @@ class OpenRingFactory extends WearableFactory {
       sensorValueParser: OpenRingValueParser(),
     );
 
+    final imuOnConfig = OpenRingSensorConfigurationValue(
+      key: "On",
+      cmd: OpenRingGatt.cmdIMU,
+      payload: [0x06],
+    );
+    final imuOffConfig = OpenRingSensorConfigurationValue(
+      key: "Off",
+      cmd: OpenRingGatt.cmdIMU,
+      payload: [0x00],
+    );
     final imuSensorConfig = OpenRingSensorConfiguration(
       name: "6-Axis IMU",
-      values: [
-        OpenRingSensorConfigurationValue(key: "On", cmd: 0x40, payload: [0x06]),
-        OpenRingSensorConfigurationValue(
-          key: "Off",
-          cmd: 0x40,
-          payload: [0x00],
-        ),
-      ],
+      values: [imuOffConfig, imuOnConfig],
+      offValue: imuOffConfig,
       sensorHandler: sensorHandler,
     );
 
+    final ppgOnConfig = OpenRingSensorConfigurationValue(
+      key: "On",
+      cmd: OpenRingGatt.cmdPPGQ2,
+      payload: [
+        0x00, // start Q2 collection (LmAPI GET_HEART_Q2)
+        0x1E, // collectionTime = 30s (LmAPI default)
+        0x19, // acquisition parameter (firmware-fixed)
+        0x01, // enable waveform streaming
+        0x01, // enable progress packets
+      ],
+    );
+    final ppgOffConfig = OpenRingSensorConfigurationValue(
+      key: "Off",
+      cmd: OpenRingGatt.cmdPPGQ2,
+      payload: [
+        0x06, // stop Q2 collection (LmAPI STOP_Q2)
+      ],
+    );
     final ppgSensorConfig = OpenRingSensorConfiguration(
       name: "PPG",
-      values: [
-        OpenRingSensorConfigurationValue(
-          key: "On",
-          cmd: OpenRingGatt.cmdPPGQ2,
-          payload: [
-            0x00, // start Q2 collection (LmAPI GET_HEART_Q2)
-            0x1E, // collectionTime = 30s (LmAPI default)
-            0x19, // acquisition parameter (firmware-fixed)
-            0x01, // enable waveform streaming
-            0x01, // enable progress packets
-          ],
-        ),
-        OpenRingSensorConfigurationValue(
-          key: "Off",
-          cmd: OpenRingGatt.cmdPPGQ2,
-          payload: [
-            0x06, // stop Q2 collection (LmAPI STOP_Q2)
-          ],
-        ),
-      ],
+      values: [ppgOffConfig, ppgOnConfig],
+      offValue: ppgOffConfig,
       sensorHandler: sensorHandler,
     );
 
+    final temperatureOnConfig = OpenRingSensorConfigurationValue(
+      key: "On",
+      cmd: OpenRingGatt.cmdPPGQ2,
+      payload: const [],
+      temperatureStreamEnabled: true,
+    );
+    final temperatureOffConfig = OpenRingSensorConfigurationValue(
+      key: "Off",
+      cmd: OpenRingGatt.cmdPPGQ2,
+      payload: const [],
+      temperatureStreamEnabled: false,
+    );
     final temperatureSensorConfig = OpenRingSensorConfiguration(
       name: "Temperature",
-      values: [
-        OpenRingSensorConfigurationValue(
-          key: "On",
-          cmd: OpenRingGatt.cmdPPGQ2,
-          payload: const [],
-          temperatureStreamEnabled: true,
-        ),
-        OpenRingSensorConfigurationValue(
-          key: "Off",
-          cmd: OpenRingGatt.cmdPPGQ2,
-          payload: const [],
-          temperatureStreamEnabled: false,
-        ),
-      ],
+      values: [temperatureOffConfig, temperatureOnConfig],
+      offValue: temperatureOffConfig,
       sensorHandler: sensorHandler,
     );
 
@@ -109,6 +113,7 @@ class OpenRingFactory extends WearableFactory {
         axisNames: ["X", "Y", "Z"],
         axisUnits: ["g", "g", "g"],
         sensorHandler: sensorHandler,
+        relatedConfigurations: [imuSensorConfig],
       ),
       OpenRingSensor(
         sensorId: OpenRingGatt.cmdIMU,
@@ -118,6 +123,7 @@ class OpenRingFactory extends WearableFactory {
         axisNames: ["X", "Y", "Z"],
         axisUnits: ["dps", "dps", "dps"],
         sensorHandler: sensorHandler,
+        relatedConfigurations: [imuSensorConfig],
       ),
       OpenRingSensor(
         sensorId: OpenRingGatt.cmdPPGQ2,
@@ -127,6 +133,7 @@ class OpenRingFactory extends WearableFactory {
         axisNames: ["Infrared", "Red", "Green"],
         axisUnits: ["raw", "raw", "raw"],
         sensorHandler: sensorHandler,
+        relatedConfigurations: [ppgSensorConfig],
       ),
       OpenRingSensor(
         sensorId: OpenRingGatt.cmdPPGQ2,
