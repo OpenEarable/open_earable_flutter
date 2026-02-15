@@ -31,7 +31,7 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
   List<int>? _lastPpgStartPayload;
   int _ppgBusyRetryCount = 0;
   Timer? _ppgBusyRetryTimer;
-  bool _temperatureStreamEnabled = true;
+  bool _temperatureStreamEnabled = false;
   final Set<int> _activeRealtimeStreamingCommands = {};
 
   OpenRingSensorHandler({
