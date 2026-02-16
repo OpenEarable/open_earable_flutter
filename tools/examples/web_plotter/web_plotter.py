@@ -138,6 +138,7 @@ class DashboardState:
         plot_timestamp: float,
     ) -> None:
         now = time.time()
+        relay_name = str(sample.get("stream_prefix") or "").strip()
         payload = {
             "stream_name": spec.name,
             "source_id": spec.source_id,
@@ -145,6 +146,7 @@ class DashboardState:
             "device_channel": spec.device_channel,
             "sensor_name": spec.sensor_name,
             "source": spec.source,
+            "relay_name": relay_name,
             "values": values,
             "axis_names": sample.get("axis_names") or [],
             "axis_units": sample.get("axis_units") or [],
@@ -168,6 +170,7 @@ class DashboardState:
                     "device_channel": spec.device_channel,
                     "sensor_name": spec.sensor_name,
                     "source": spec.source,
+                    "relay_name": relay_name,
                     "channel_count": spec.channel_count,
                     "samples_received": 0,
                     "last_values": [],
@@ -183,6 +186,7 @@ class DashboardState:
             stream_item["last_values"] = values
             stream_item["axis_names"] = payload["axis_names"]
             stream_item["axis_units"] = payload["axis_units"]
+            stream_item["relay_name"] = relay_name
             stream_item["last_lsl_timestamp"] = plot_timestamp
             stream_item["last_received_at"] = now
 
