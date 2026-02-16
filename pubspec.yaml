@@ -53,6 +53,7 @@ flutter:
   assets:
     - assets/wearable_icons/open_earable_v1/
     - assets/wearable_icons/open_earable_v2/
+    - assets/wearable_icons/open_ring/
     - assets/wearable_icons/cosinuss_one/
     - assets/wearable_icons/polar/default/
     - assets/wearable_icons/polar/watch/

@@ -38,6 +38,13 @@ class OpenRing extends Wearable
   final String deviceId;
 
   @override
+  String? getWearableIconPath({
+    bool darkmode = false,
+  }) {
+    return 'packages/open_earable_flutter/assets/wearable_icons/open_ring/openring.png';
+  }
+
+  @override
   List<SensorConfiguration<SensorConfigurationValue>>
       get sensorConfigurations => List.unmodifiable(_sensorConfigs);
   @override
