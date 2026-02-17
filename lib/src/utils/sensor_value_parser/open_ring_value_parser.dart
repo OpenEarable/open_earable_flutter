@@ -69,45 +69,94 @@ class OpenRingValueParser extends SensorValueParser {
     }
 
     final int subOpcode = frame.getUint8(3);
-    if (frame.lengthInBytes < 5) {
-      if (subOpcode == 0x00) {
-        return const [];
-      }
-      throw Exception('IMU frame missing status byte: ${frame.lengthInBytes}');
+    if (subOpcode == 0x00) {
+      return const [];
+    }
+    if (subOpcode != 0x01 && subOpcode != 0x04 && subOpcode != 0x06) {
+      return const [];
     }
 
-    final int status = frame.getUint8(4);
-    final ByteData payload = frame.lengthInBytes > 5
-        ? ByteData.sublistView(frame, 5)
-        : ByteData.sublistView(frame, 5, 5);
+    // Firmware variants differ in IMU stream framing:
+    // - Variant A: [00,seq,40,sub,status,payload...]
+    // - Variant B: [00,seq,40,sub,payload...]
+    // Parse both layouts and keep whichever yields more full samples.
+    int? statusWithLayout;
+    List<Map<String, dynamic>> withStatusLayout = const [];
+    if (frame.lengthInBytes >= 5) {
+      statusWithLayout = frame.getUint8(4);
+      final ByteData payloadWithStatus = frame.lengthInBytes > 5
+          ? ByteData.sublistView(frame, 5)
+          : ByteData.sublistView(frame, 5, 5);
+      withStatusLayout = _parseImuSamples(
+        subOpcode: subOpcode,
+        payload: payloadWithStatus,
+        receiveTs: receiveTs,
+        baseHeader: {
+          'sequenceNum': sequenceNum,
+          'cmd': cmd,
+          'subOpcode': subOpcode,
+          'status': statusWithLayout,
+        },
+      );
+    }
 
-    final Map<String, dynamic> baseHeader = {
-      'sequenceNum': sequenceNum,
-      'cmd': cmd,
-      'subOpcode': subOpcode,
-      'status': status,
-    };
+    List<Map<String, dynamic>> withoutStatusLayout = const [];
+    if (frame.lengthInBytes > 4) {
+      final ByteData payloadWithoutStatus = ByteData.sublistView(frame, 4);
+      withoutStatusLayout = _parseImuSamples(
+        subOpcode: subOpcode,
+        payload: payloadWithoutStatus,
+        receiveTs: receiveTs,
+        baseHeader: {
+          'sequenceNum': sequenceNum,
+          'cmd': cmd,
+          'subOpcode': subOpcode,
+          // Keep a neutral status marker for inferred no-status layout.
+          'status': 0x00,
+        },
+      );
+    }
 
+    if (withoutStatusLayout.length > withStatusLayout.length) {
+      return withoutStatusLayout;
+    }
+    if (withStatusLayout.isNotEmpty) {
+      return withStatusLayout;
+    }
+    if (withoutStatusLayout.isNotEmpty) {
+      return withoutStatusLayout;
+    }
+
+    // Common busy ACK: [00, seq, 40, subOpcode, 0x01]
+    if (statusWithLayout == 0x01 && frame.lengthInBytes == 5) {
+      return const [];
+    }
+
+    return const [];
+  }
+
+  List<Map<String, dynamic>> _parseImuSamples({
+    required int subOpcode,
+    required ByteData payload,
+    required int receiveTs,
+    required Map<String, dynamic> baseHeader,
+  }) {
     switch (subOpcode) {
-      case 0x01: // Accel-only stream (ignored by design)
-      case 0x04: // Accel-only stream (ignored by design)
-        if (status == 0x01) {
-          return const [];
-        }
-        return const [];
-      case 0x06: // Accel + Gyro (12 bytes per sample)
-        if (status == 0x01) {
-          return const [];
-        }
+      case 0x01:
+      case 0x04:
+        return _parseAccelOnly(
+          data: payload,
+          receiveTs: receiveTs,
+          baseHeader: baseHeader,
+          samplePeriodMs: _samplePeriodMs,
+        );
+      case 0x06:
         return _parseAccelGyro(
           data: payload,
           receiveTs: receiveTs,
           baseHeader: baseHeader,
           samplePeriodMs: _samplePeriodMs,
         );
-      case 0x00:
-        // Common non-streaming/control response.
-        return const [];
       default:
         return const [];
     }
@@ -304,6 +353,34 @@ class OpenRingValueParser extends SensorValueParser {
     return parsedData;
   }
 
+  List<Map<String, dynamic>> _parseAccelOnly({
+    required ByteData data,
+    required int receiveTs,
+    required Map<String, dynamic> baseHeader,
+    required int samplePeriodMs,
+  }) {
+    final int usableBytes = data.lengthInBytes - (data.lengthInBytes % 6);
+    if (usableBytes == 0) {
+      return const [];
+    }
+
+    final List<Map<String, dynamic>> parsedData = [];
+    for (int i = 0; i < usableBytes; i += 6) {
+      final int sampleIndex = i ~/ 6;
+      final int ts = receiveTs + (sampleIndex + 1) * samplePeriodMs;
+
+      final ByteData sample = ByteData.sublistView(data, i, i + 6);
+      final Map<String, dynamic> accelData = _parseAccelerometerComp(sample);
+
+      parsedData.add({
+        ...baseHeader,
+        'timestamp': ts,
+        'Accelerometer': accelData,
+      });
+    }
+    return parsedData;
+  }
+
   Map<String, dynamic> _parseAccelerometerComp(ByteData data) {
     return {
       'X': data.getInt16(0, Endian.little) / _accRawToGScale,
@@ -356,6 +433,11 @@ class OpenRingValueParser extends SensorValueParser {
           'Red': data.getUint32(offset, Endian.little),
           'Infrared': data.getUint32(offset + 4, Endian.little),
         },
+        // Legacy Q2 waveform packets also carry accelerometer payload
+        // (bytes 8..13 in each 14-byte sample).
+        'Accelerometer': _parseAccelerometerComp(
+          ByteData.sublistView(data, offset + 8, offset + 14),
+        ),
       });
     }
 
@@ -554,6 +636,14 @@ class OpenRingValueParser extends SensorValueParser {
           'Green': sampleData.getUint32(offset, Endian.little),
           'Red': sampleData.getUint32(offset + 4, Endian.little),
           'Infrared': sampleData.getUint32(offset + 8, Endian.little),
+        },
+        'Accelerometer': _parseAccelerometerComp(
+          ByteData.sublistView(sampleData, offset + 12, offset + 18),
+        ),
+        'Gyroscope': {
+          'X': sampleData.getInt16(offset + 18, Endian.little),
+          'Y': sampleData.getInt16(offset + 20, Endian.little),
+          'Z': sampleData.getInt16(offset + 22, Endian.little),
         },
         'Temperature': {
           'Temp0': (sampleData.getUint16(offset + 24, Endian.little) /

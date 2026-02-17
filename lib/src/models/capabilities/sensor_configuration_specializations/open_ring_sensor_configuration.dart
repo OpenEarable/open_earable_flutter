@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:open_earable_flutter/src/managers/open_ring_sensor_handler.dart';
+import 'package:open_earable_flutter/open_earable_flutter.dart' show logger;
 
 import 'configurable_sensor_configuration.dart';
 import 'sensor_frequency_configuration.dart';
@@ -42,7 +45,18 @@ class OpenRingSensorConfiguration
 
     final payload = value.streamData ? value.startPayload : value.stopPayload;
     final config = OpenRingSensorConfig(cmd: value.cmd, payload: payload);
-    _sensorHandler.writeSensorConfig(config);
+    unawaited(
+      _sensorHandler.writeSensorConfig(config).catchError((
+        Object error,
+        StackTrace stackTrace,
+      ) {
+        logger.e(
+          'Failed to apply OpenRing sensor config '
+          '(cmd=${value.cmd}, stream=${value.streamData}): $error',
+        );
+        logger.t(stackTrace);
+      }),
+    );
   }
 }
 

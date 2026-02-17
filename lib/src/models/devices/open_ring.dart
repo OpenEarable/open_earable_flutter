@@ -187,12 +187,20 @@ class OpenRing extends Wearable
   void _handlePpgSampleForState(Map<String, dynamic> sample) {
     final bool hasPpgPayload = sample.containsKey('PPG');
     final bool hasTemperaturePayload = sample.containsKey('Temperature');
+    final bool hasImuPayload =
+        sample.containsKey('Accelerometer') || sample.containsKey('Gyroscope');
 
     if (hasPpgPayload) {
       _markStatesAsActive(
         (state) =>
             state.streamValue.cmd == OpenRingGatt.cmdPPGQ2 &&
             !state.requiresTemperaturePayload,
+      );
+    }
+
+    if (hasImuPayload) {
+      _markStatesAsActive(
+        (state) => state.streamValue.cmd == OpenRingGatt.cmdIMU,
       );
     }
 

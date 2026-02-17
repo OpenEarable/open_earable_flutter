@@ -68,6 +68,8 @@ class OpenRingFactory extends WearableFactory {
     final imuConfigValues = singleRateValues(
       frequencyHz: imuFrequencyHz,
       cmd: OpenRingGatt.cmdIMU,
+      // 6-axis standalone mode (accel + gyro).
+      // When PPG is active, motion channels are sourced from cmdPPGQ2 packets.
       startPayload: [0x06],
       stopPayload: [0x00],
     );
@@ -84,7 +86,7 @@ class OpenRingFactory extends WearableFactory {
       cmd: OpenRingGatt.cmdPPGQ2,
       startPayload: [
         0x00, // start Q2 collection (LmAPI GET_HEART_Q2)
-        0x1E, // collectionTime = 30s (LmAPI default)
+        0x00, // collectionTime = 0s (continuous streaming mode)
         0x19, // acquisition parameter (firmware-fixed)
         0x01, // enable waveform streaming
         0x01, // enable progress packets
