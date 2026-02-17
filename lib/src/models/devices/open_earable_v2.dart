@@ -77,7 +77,7 @@ class OpenEarableV2 extends BluetoothWearable
         EdgeRecorderManager,
         ButtonManager,
         StereoDevice,
-        SystemDevice {
+        MutableSystemDevice {
   static const String deviceInfoServiceUuid =
       "45622510-6468-465a-b141-0b9b0f96b468";
   static const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
@@ -86,9 +86,14 @@ class OpenEarableV2 extends BluetoothWearable
   final List<Sensor> _sensors;
   final List<SensorConfiguration> _sensorConfigurations;
 
-  final bool _isConnectedViaSystem;
+  bool _isConnectedViaSystem;
   @override
   bool get isConnectedViaSystem => _isConnectedViaSystem;
+
+  @override
+  void setConnectedViaSystem(bool isConnectedViaSystem) {
+    _isConnectedViaSystem = isConnectedViaSystem;
+  }
 
   @override
   Stream<Map<SensorConfiguration, SensorConfigurationValue>>

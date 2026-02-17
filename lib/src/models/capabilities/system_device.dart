@@ -6,6 +6,11 @@ abstract class SystemDevice {
   bool get isConnectedViaSystem;
 }
 
+/// A [SystemDevice] that can be updated after connection metadata is enriched.
+abstract class MutableSystemDevice extends SystemDevice {
+  void setConnectedViaSystem(bool isConnectedViaSystem);
+}
+
 class ConnectedViaSystem extends ConnectionOption {
   const ConnectedViaSystem();
 }

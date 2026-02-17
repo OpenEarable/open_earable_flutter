@@ -227,6 +227,11 @@ class WearableManager {
         if (await wearableFactory.matches(device, connectionResult.$2)) {
           Wearable wearable =
               await wearableFactory.createFromDevice(device, options: options);
+          await _enrichSystemConnectionState(
+            wearable: wearable,
+            device: device,
+            options: options,
+          );
           await _startSensorForwardingSubscriptions(wearable);
 
           _connectedIds.add(device.id);
@@ -246,6 +251,35 @@ class WearableManager {
       throw UnsupportedDeviceException();
     } else {
       throw ConnectionFailedException();
+    }
+  }
+
+  Future<void> _enrichSystemConnectionState({
+    required Wearable wearable,
+    required DiscoveredDevice device,
+    required Set<ConnectionOption> options,
+  }) async {
+    if (wearable is! MutableSystemDevice) {
+      return;
+    }
+    final mutableSystemDevice = wearable as MutableSystemDevice;
+
+    var isConnectedViaSystem = options.contains(const ConnectedViaSystem());
+    if (!isConnectedViaSystem) {
+      isConnectedViaSystem = await _isSystemManagedDevice(device.id);
+    }
+    mutableSystemDevice.setConnectedViaSystem(isConnectedViaSystem);
+  }
+
+  Future<bool> _isSystemManagedDevice(String deviceId) async {
+    try {
+      final systemDevices = await _bleManager.getSystemDevices();
+      return systemDevices.any((device) => device.id == deviceId);
+    } catch (e, st) {
+      logger.w(
+        'Failed to query system Bluetooth devices for $deviceId: $e\n$st',
+      );
+      return false;
     }
   }
 
