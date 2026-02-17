@@ -14,11 +14,11 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
   final SensorValueParser _sensorValueParser;
 
   static const int _defaultSampleDelayMs = 20;
-  static const int _minSampleDelayMs = 2;
-  static const int _maxSampleDelayMs = 20;
+  static const int _minSampleDelayMs = 12;
+  static const int _maxSampleDelayMs = 22;
   static const int _maxScheduleLagMs = 80;
-  static const double _delayAlpha = 0.22;
-  static const double _backlogCompressionPerPacket = 0.18;
+  static const double _delayAlpha = 0.12;
+  static const double _backlogCompressionPerPacket = 0.06;
   static const int _commandSettleDelayMs = 45;
   static const int _imuResyncAfterPpgStopDelayMs = 120;
   static const Set<int> _pacedStreamingCommands = {
