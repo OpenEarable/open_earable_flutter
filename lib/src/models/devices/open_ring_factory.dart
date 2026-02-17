@@ -41,9 +41,9 @@ class OpenRingFactory extends WearableFactory {
     );
 
     // OpenRing exposes one realtime rate per stream; represent it as fixed Hz.
-    const double imuFrequencyHz = 100.0;
-    const double ppgFrequencyHz = 100.0;
-    const double temperatureFrequencyHz = 100.0;
+    const double imuFrequencyHz = 50.0;
+    const double ppgFrequencyHz = 50.0;
+    const double temperatureFrequencyHz = 50.0;
     final streamOnly = Set<SensorConfigurationOption>.unmodifiable({
       StreamSensorConfigOption(),
     });

@@ -5,8 +5,8 @@ import '../sensor_scheme_parser/sensor_scheme_reader.dart';
 import 'sensor_value_parser.dart';
 
 class OpenRingValueParser extends SensorValueParser {
-  // 100 Hz -> 10 ms per sample
-  static const int _samplePeriodMs = 10;
+  // 50 Hz -> 20 ms per sample
+  static const int _samplePeriodMs = 20;
   // OpenRing realtime temperature channels are provided in milli-degrees C.
   static const double _tempRawToCelsiusScale = 1000.0;
 
@@ -249,11 +249,11 @@ class OpenRingValueParser extends SensorValueParser {
 
       final List<Map<String, dynamic>> realtimeType2 =
           _parsePpgWaveformType2Realtime30(
-            data: waveformPayload,
-            nSamples: nSamples,
-            receiveTs: receiveTs,
-            baseHeader: baseHeader,
-          );
+        data: waveformPayload,
+        nSamples: nSamples,
+        receiveTs: receiveTs,
+        baseHeader: baseHeader,
+      );
       if (realtimeType2.isNotEmpty) {
         return realtimeType2;
       }
@@ -546,18 +546,15 @@ class OpenRingValueParser extends SensorValueParser {
           'Infrared': sampleData.getUint32(offset + 8, Endian.little),
         },
         'Temperature': {
-          'Temp0':
-              (sampleData.getUint16(offset + 24, Endian.little) /
-                      _tempRawToCelsiusScale)
-                  .round(),
-          'Temp1':
-              (sampleData.getUint16(offset + 26, Endian.little) /
-                      _tempRawToCelsiusScale)
-                  .round(),
-          'Temp2':
-              (sampleData.getUint16(offset + 28, Endian.little) /
-                      _tempRawToCelsiusScale)
-                  .round(),
+          'Temp0': (sampleData.getUint16(offset + 24, Endian.little) /
+                  _tempRawToCelsiusScale)
+              .round(),
+          'Temp1': (sampleData.getUint16(offset + 26, Endian.little) /
+                  _tempRawToCelsiusScale)
+              .round(),
+          'Temp2': (sampleData.getUint16(offset + 28, Endian.little) /
+                  _tempRawToCelsiusScale)
+              .round(),
           'units': '°C',
         },
       });

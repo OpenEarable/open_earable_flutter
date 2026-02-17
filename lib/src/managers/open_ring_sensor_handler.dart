@@ -13,7 +13,7 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
   final BleGattManager _bleManager;
   final SensorValueParser _sensorValueParser;
 
-  static const int _defaultSampleDelayMs = 10;
+  static const int _defaultSampleDelayMs = 20;
   static const int _minSampleDelayMs = 2;
   static const int _maxSampleDelayMs = 20;
   static const int _maxScheduleLagMs = 80;

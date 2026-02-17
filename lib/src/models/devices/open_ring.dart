@@ -37,7 +37,7 @@ class OpenRing extends Wearable
 
   bool _batteryPollingWasSkippedForStreaming = false;
   static const Duration _sensorStateInactivityCooldown =
-      Duration(milliseconds: 300);
+      Duration(milliseconds: 600);
 
   final List<_OpenRingInferredSensorState> _inferredSensorStates = [];
   Map<SensorConfiguration<SensorConfigurationValue>, SensorConfigurationValue>
@@ -210,13 +210,18 @@ class OpenRing extends Wearable
     bool Function(_OpenRingInferredSensorState state) matches,
   ) {
     var changed = false;
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
 
     for (final state in _inferredSensorStates) {
       if (!matches(state)) {
         continue;
       }
+      if (nowMs < state.reactivateAllowedAtEpochMs) {
+        continue;
+      }
 
       _armInactivityTimer(state);
+      state.reactivateAllowedAtEpochMs = 0;
 
       if (state.isActive) {
         continue;
@@ -250,10 +255,14 @@ class OpenRing extends Wearable
     if (shouldBeActive) {
       _armInactivityTimer(state);
       state.isActive = true;
+      state.reactivateAllowedAtEpochMs = 0;
     } else {
       state.inactivityTimer?.cancel();
       state.inactivityTimer = null;
       state.isActive = false;
+      state.reactivateAllowedAtEpochMs = DateTime.now()
+          .add(_sensorStateInactivityCooldown)
+          .millisecondsSinceEpoch;
     }
 
     _lastInferredSensorConfigMap[state.configuration] = nextValue;
@@ -279,6 +288,7 @@ class OpenRing extends Wearable
       state.inactivityTimer?.cancel();
       state.inactivityTimer = null;
       _lastInferredSensorConfigMap[state.configuration] = state.offValue;
+      state.reactivateAllowedAtEpochMs = 0;
     }
   }
 
@@ -453,6 +463,7 @@ class _OpenRingInferredSensorState {
   final bool requiresTemperaturePayload;
   bool isActive = false;
   Timer? inactivityTimer;
+  int reactivateAllowedAtEpochMs = 0;
 }
 
 // OpenRing GATT constants (from the vendor AAR)
