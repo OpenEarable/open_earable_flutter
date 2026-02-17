@@ -19,20 +19,20 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
   static const int _maxScheduleLagMs = 80;
   static const double _delayAlpha = 0.22;
   static const double _backlogCompressionPerPacket = 0.18;
-  static const int _ppgRestartDelayMs = 140;
-  static const int _ppgBusyRetryDelayMs = 320;
-  static const int _maxPpgBusyRetries = 2;
+  static const int _commandSettleDelayMs = 45;
+  static const int _imuResyncAfterPpgStopDelayMs = 120;
   static const Set<int> _pacedStreamingCommands = {
     OpenRingGatt.cmdIMU,
     OpenRingGatt.cmdPPGQ2,
   };
 
   Stream<Map<String, dynamic>>? _sensorDataStream;
-  List<int>? _lastPpgStartPayload;
-  int _ppgBusyRetryCount = 0;
-  Timer? _ppgBusyRetryTimer;
+  Future<void> _commandQueue = Future<void>.value();
+  List<int>? _lastImuStartPayload;
+  int _imuTimingResetCounter = 0;
   bool _temperatureStreamEnabled = false;
   final Set<int> _activeRealtimeStreamingCommands = {};
+  final Set<int> _desiredRealtimeStreamingCommands = {};
 
   OpenRingSensorHandler({
     required DiscoveredDevice discoveredDevice,
@@ -73,30 +73,68 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
     final bool isPpgStop = isPpgCmd &&
         sensorConfig.payload.isNotEmpty &&
         sensorConfig.payload[0] == 0x06;
+    final bool isImuCmd = sensorConfig.cmd == OpenRingGatt.cmdIMU;
+    final bool isImuStart = isImuCmd && isRealtimeStreamingStart;
+    final bool isImuStop = isImuCmd && isRealtimeStreamingStop;
+    final bool imuWasStandaloneActiveBeforePpgStart = isPpgStart &&
+        _activeRealtimeStreamingCommands.contains(OpenRingGatt.cmdIMU) &&
+        !_activeRealtimeStreamingCommands.contains(OpenRingGatt.cmdPPGQ2);
 
-    if (isPpgStart) {
-      _lastPpgStartPayload = List<int>.from(sensorConfig.payload);
-      _ppgBusyRetryCount = 0;
-      _cancelPpgBusyRetry();
-      await _writeCommand(sensorConfig);
-      if (isRealtimeStreamingStart) {
-        _activeRealtimeStreamingCommands.add(sensorConfig.cmd);
+    if (isImuStart) {
+      _lastImuStartPayload = List<int>.from(sensorConfig.payload);
+    }
+
+    if (isImuStop) {
+      _lastImuStartPayload = null;
+    }
+
+    if (isRealtimeStreamingStart) {
+      _desiredRealtimeStreamingCommands.add(sensorConfig.cmd);
+    } else if (isRealtimeStreamingStop) {
+      _desiredRealtimeStreamingCommands.remove(sensorConfig.cmd);
+      _activeRealtimeStreamingCommands.remove(sensorConfig.cmd);
+    }
+
+    if (imuWasStandaloneActiveBeforePpgStart) {
+      _requestImuTimingReset();
+    }
+    if (isPpgStop &&
+        _desiredRealtimeStreamingCommands.contains(OpenRingGatt.cmdIMU)) {
+      _requestImuTimingReset();
+    }
+
+    if (isImuCmd && _shouldRouteImuThroughPpg()) {
+      if (isImuStart) {
+        logger.d(
+          'OpenRing IMU start skipped because PPG realtime is active; '
+          'routing accelerometer/gyroscope via cmd=0x32',
+        );
+      } else if (isImuStop) {
+        logger.d(
+          'OpenRing IMU stop handled in software while PPG realtime is active',
+        );
       }
+      _activeRealtimeStreamingCommands.remove(OpenRingGatt.cmdIMU);
       return;
     }
 
+    Future<void> writeFuture;
+    if (imuWasStandaloneActiveBeforePpgStart) {
+      writeFuture = _queueImuSuspendForPpgStart().then(
+        (_) => _enqueueCommandWrite(sensorConfig),
+      );
+    } else {
+      writeFuture = _enqueueCommandWrite(sensorConfig);
+    }
     if (isPpgStop) {
-      _lastPpgStartPayload = null;
-      _ppgBusyRetryCount = 0;
-      _cancelPpgBusyRetry();
+      writeFuture = writeFuture.then((_) => _queueImuResyncAfterPpgStop());
     }
 
-    await _writeCommand(sensorConfig);
-    if (isRealtimeStreamingStart) {
-      _activeRealtimeStreamingCommands.add(sensorConfig.cmd);
-    } else if (isRealtimeStreamingStop) {
-      _activeRealtimeStreamingCommands.remove(sensorConfig.cmd);
-    }
+    await writeFuture;
+  }
+
+  void _requestImuTimingReset() {
+    _imuTimingResetCounter += 1;
   }
 
   Future<List<Map<String, dynamic>>> _parseData(List<int> data) async {
@@ -110,13 +148,55 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
   }
 
   bool get hasActiveRealtimeStreaming =>
-      _activeRealtimeStreamingCommands.isNotEmpty;
+      _activeRealtimeStreamingCommands.isNotEmpty ||
+      _desiredRealtimeStreamingCommands.isNotEmpty;
 
   Map<String, dynamic> _filterTemperature(Map<String, dynamic> sample) {
     if (!_temperatureStreamEnabled) {
       sample.remove('Temperature');
     }
     return sample;
+  }
+
+  bool _shouldRouteImuThroughPpg() {
+    return _desiredRealtimeStreamingCommands.contains(OpenRingGatt.cmdPPGQ2) ||
+        _activeRealtimeStreamingCommands.contains(OpenRingGatt.cmdPPGQ2);
+  }
+
+  bool _shouldExposeImuFromPpg() {
+    return _desiredRealtimeStreamingCommands.contains(OpenRingGatt.cmdIMU) ||
+        _activeRealtimeStreamingCommands.contains(OpenRingGatt.cmdIMU);
+  }
+
+  void _emitSample(
+    StreamController<Map<String, dynamic>> streamController,
+    Map<String, dynamic> sample,
+  ) {
+    if (streamController.isClosed) {
+      return;
+    }
+
+    final filtered = _filterTemperature(Map<String, dynamic>.from(sample));
+
+    final dynamic cmd = filtered['cmd'];
+    final bool hasImuPayload = filtered.containsKey('Accelerometer') ||
+        filtered.containsKey('Gyroscope');
+    final bool isPpgSample = cmd is int && cmd == OpenRingGatt.cmdPPGQ2;
+    if (isPpgSample && hasImuPayload && !_shouldExposeImuFromPpg()) {
+      filtered.remove('Accelerometer');
+      filtered.remove('Gyroscope');
+    }
+    streamController.add(filtered);
+
+    if (!isPpgSample || !hasImuPayload || !_shouldExposeImuFromPpg()) {
+      return;
+    }
+
+    final imuAlias = Map<String, dynamic>.from(filtered);
+    imuAlias['cmd'] = OpenRingGatt.cmdIMU;
+    imuAlias.remove('PPG');
+    imuAlias.remove('Temperature');
+    streamController.add(imuAlias);
   }
 
   Stream<Map<String, dynamic>> _createSensorDataStream() {
@@ -140,6 +220,24 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
     final Map<int, int> nextDueByCmd = {};
     final Map<int, int> emittedTimestampByCmd = {};
     final Map<int, int> pendingPacketsByCmd = {};
+    int seenImuTimingResetCounter = _imuTimingResetCounter;
+
+    void resetImuTimingStateIfRequested() {
+      if (seenImuTimingResetCounter == _imuTimingResetCounter) {
+        return;
+      }
+
+      seenImuTimingResetCounter = _imuTimingResetCounter;
+      // IMU source can switch between cmd=0x40 standalone and
+      // cmd=0x32-aliased samples while PPG is active. Reset paced scheduling
+      // state so timestamps re-anchor cleanly across that transition.
+      for (final int key in <int>[OpenRingGatt.cmdIMU, OpenRingGatt.cmdPPGQ2]) {
+        lastArrivalByCmd.remove(key);
+        delayEstimateByCmd.remove(key);
+        nextDueByCmd.remove(key);
+        emittedTimestampByCmd.remove(key);
+      }
+    }
 
     int resolveStepMs({
       required int cmd,
@@ -206,18 +304,14 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
 
         if (cmdKey == null) {
           for (final sample in parsedData) {
-            if (!streamController.isClosed) {
-              streamController.add(_filterTemperature(sample));
-            }
+            _emitSample(streamController, sample);
           }
           return;
         }
 
         if (!_pacedStreamingCommands.contains(cmdKey)) {
           for (final sample in parsedData) {
-            if (!streamController.isClosed) {
-              streamController.add(_filterTemperature(sample));
-            }
+            _emitSample(streamController, sample);
           }
           return;
         }
@@ -243,15 +337,21 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
           }
 
           final int epochNowMs = monotonicToEpochMs(clock.elapsedMilliseconds);
-          final int previousTs =
+          final int previousTsRaw =
               emittedTimestampByCmd[cmdKey] ?? (epochNowMs - stepMs);
-          final int nextTs = previousTs + stepMs;
+          // Mode switches can leave a command timeline slightly ahead; re-anchor
+          // before assigning sample time to avoid future timestamps.
+          final int previousTs = previousTsRaw > epochNowMs
+              ? (epochNowMs - stepMs)
+              : previousTsRaw;
+          int nextTs = previousTs + stepMs;
+          if (nextTs > epochNowMs) {
+            nextTs = epochNowMs;
+          }
           emittedTimestampByCmd[cmdKey] = nextTs;
           sample['timestamp'] = nextTs;
 
-          if (!streamController.isClosed) {
-            streamController.add(_filterTemperature(sample));
-          }
+          _emitSample(streamController, sample);
 
           final int emitNow = clock.elapsedMilliseconds;
           nextDueMs = math.max(nextDueMs, emitNow) + stepMs;
@@ -278,9 +378,7 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
         )
             .listen(
           (data) {
-            if (_isPpgBusyResponse(data)) {
-              _schedulePpgBusyRetry();
-            }
+            resetImuTimingStateIfRequested();
             _updateRealtimeStreamingStateFromPacket(data);
 
             final int? rawCmd = data.length > 2 ? data[2] : null;
@@ -320,10 +418,9 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
           nextDueByCmd.clear();
           emittedTimestampByCmd.clear();
           pendingPacketsByCmd.clear();
-          _cancelPpgBusyRetry();
-          _lastPpgStartPayload = null;
-          _ppgBusyRetryCount = 0;
+          _lastImuStartPayload = null;
           _activeRealtimeStreamingCommands.clear();
+          _desiredRealtimeStreamingCommands.clear();
 
           if (subscription != null) {
             unawaited(subscription.cancel());
@@ -343,6 +440,101 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
       characteristicId: OpenRingGatt.txChar,
       byteData: sensorConfigBytes,
     );
+  }
+
+  Future<void> _enqueueCommandWrite(
+    OpenRingSensorConfig sensorConfig, {
+    Duration delayBefore = Duration.zero,
+  }) {
+    _commandQueue =
+        _commandQueue.catchError((Object error, StackTrace stackTrace) {
+      logger.e('OpenRing previous command failed: $error');
+      logger.t(stackTrace);
+    }).then((_) async {
+      if (!_bleManager.isConnected(_discoveredDevice.id)) {
+        logger.w(
+          'Skipping OpenRing command while disconnected: '
+          'cmd=${sensorConfig.cmd}',
+        );
+        return;
+      }
+
+      if (delayBefore > Duration.zero) {
+        await Future.delayed(delayBefore);
+      }
+
+      await _writeCommand(sensorConfig);
+      await Future.delayed(
+        const Duration(milliseconds: _commandSettleDelayMs),
+      );
+    });
+
+    return _commandQueue;
+  }
+
+  Future<void> _queueImuSuspendForPpgStart() async {
+    _commandQueue =
+        _commandQueue.catchError((Object error, StackTrace stackTrace) {
+      logger.e('OpenRing previous command failed: $error');
+      logger.t(stackTrace);
+    }).then((_) async {
+      if (!_bleManager.isConnected(_discoveredDevice.id)) {
+        return;
+      }
+      if (!_desiredRealtimeStreamingCommands.contains(OpenRingGatt.cmdPPGQ2)) {
+        return;
+      }
+      if (!_desiredRealtimeStreamingCommands.contains(OpenRingGatt.cmdIMU) &&
+          !_activeRealtimeStreamingCommands.contains(OpenRingGatt.cmdIMU)) {
+        return;
+      }
+
+      await _writeCommand(
+        OpenRingSensorConfig(cmd: OpenRingGatt.cmdIMU, payload: const [0x00]),
+      );
+      _activeRealtimeStreamingCommands.remove(OpenRingGatt.cmdIMU);
+      await Future.delayed(
+        const Duration(milliseconds: _commandSettleDelayMs),
+      );
+    });
+
+    await _commandQueue;
+  }
+
+  Future<void> _queueImuResyncAfterPpgStop() async {
+    _commandQueue =
+        _commandQueue.catchError((Object error, StackTrace stackTrace) {
+      logger.e('OpenRing previous command failed: $error');
+      logger.t(stackTrace);
+    }).then((_) async {
+      if (!_bleManager.isConnected(_discoveredDevice.id)) {
+        return;
+      }
+
+      await Future.delayed(
+        const Duration(milliseconds: _imuResyncAfterPpgStopDelayMs),
+      );
+
+      final List<int>? imuStartPayload = _lastImuStartPayload;
+      if (imuStartPayload == null) {
+        return;
+      }
+      if (!_desiredRealtimeStreamingCommands.contains(OpenRingGatt.cmdIMU)) {
+        return;
+      }
+
+      await _writeCommand(
+        OpenRingSensorConfig(
+          cmd: OpenRingGatt.cmdIMU,
+          payload: List<int>.from(imuStartPayload),
+        ),
+      );
+      await Future.delayed(
+        const Duration(milliseconds: _commandSettleDelayMs),
+      );
+    });
+
+    await _commandQueue;
   }
 
   bool _isRealtimeStreamingStart(OpenRingSensorConfig sensorConfig) {
@@ -375,14 +567,6 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
     }
 
     return false;
-  }
-
-  bool _isPpgBusyResponse(List<int> data) {
-    return data.length >= 5 &&
-        data[0] == 0x00 &&
-        data[2] == OpenRingGatt.cmdPPGQ2 &&
-        data[3] == 0x00 &&
-        data[4] == 0x04;
   }
 
   void _updateRealtimeStreamingStateFromPacket(List<int> data) {
@@ -437,60 +621,15 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
         return;
       }
 
+      if ((subOpcode == 0x01 || subOpcode == 0x04) && status != 0x01) {
+        _activeRealtimeStreamingCommands.add(cmd);
+        return;
+      }
+
       if (subOpcode == 0x06 && status != 0x01) {
         _activeRealtimeStreamingCommands.add(cmd);
       }
     }
-  }
-
-  void _schedulePpgBusyRetry() {
-    if (_ppgBusyRetryCount >= _maxPpgBusyRetries) {
-      return;
-    }
-    final List<int>? startPayload = _lastPpgStartPayload;
-    if (startPayload == null) {
-      return;
-    }
-    if (_ppgBusyRetryTimer?.isActive ?? false) {
-      return;
-    }
-
-    _ppgBusyRetryCount += 1;
-    logger.w(
-      'OpenRing PPG busy; retrying start in ${_ppgBusyRetryDelayMs}ms '
-      '($_ppgBusyRetryCount/$_maxPpgBusyRetries)',
-    );
-
-    _ppgBusyRetryTimer = Timer(
-      const Duration(milliseconds: _ppgBusyRetryDelayMs),
-      () {
-        unawaited(_retryPpgStart(startPayload));
-      },
-    );
-  }
-
-  Future<void> _retryPpgStart(List<int> startPayload) async {
-    try {
-      await _writeCommand(
-        OpenRingSensorConfig(cmd: OpenRingGatt.cmdPPGQ2, payload: const [0x06]),
-      );
-      _activeRealtimeStreamingCommands.remove(OpenRingGatt.cmdPPGQ2);
-      await Future.delayed(const Duration(milliseconds: _ppgRestartDelayMs));
-      await _writeCommand(
-        OpenRingSensorConfig(
-          cmd: OpenRingGatt.cmdPPGQ2,
-          payload: List<int>.from(startPayload),
-        ),
-      );
-      _activeRealtimeStreamingCommands.add(OpenRingGatt.cmdPPGQ2);
-    } catch (error) {
-      logger.e('OpenRing PPG busy retry failed: $error');
-    }
-  }
-
-  void _cancelPpgBusyRetry() {
-    _ppgBusyRetryTimer?.cancel();
-    _ppgBusyRetryTimer = null;
   }
 }
 
