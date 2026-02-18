@@ -38,6 +38,9 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
   int _applyVersion = 0;
   int _transportTimingResetCounter = 0;
   bool _isApplying = false;
+  bool _hasRealtimeConfigurationWrite = false;
+  bool _hasAdoptedInitialStreamingState = false;
+  void Function()? _onInitialStreamingDetected;
   _OpenRingTransportCommand _lastAppliedTransport =
       _OpenRingTransportCommand.none;
 
@@ -74,6 +77,7 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
       return;
     }
 
+    _hasRealtimeConfigurationWrite = true;
     _updateDesiredStateFromSensorConfig(sensorConfig);
     await _enqueueApplyDesiredTransport(
       reason: 'config-write-cmd-${sensorConfig.cmd}',
@@ -86,6 +90,7 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
   }
 
   void setTemperatureStreamEnabled(bool enabled) {
+    _hasRealtimeConfigurationWrite = true;
     _desiredState.temperatureEnabled = enabled;
     logger.d('OpenRing software toggle: temperatureStream=$enabled');
 
@@ -94,6 +99,10 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
         reason: 'temperature-set-$enabled',
       ),
     );
+  }
+
+  void setInitialStreamingDetectedCallback(void Function()? callback) {
+    _onInitialStreamingDetected = callback;
   }
 
   bool get hasActiveRealtimeStreaming =>
@@ -331,6 +340,8 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
       return _hasAnySensorPayload(sample);
     }
 
+    _adoptInitialStreamingStateIfNeeded(sample, cmd);
+
     final bool shouldConsumeTransport = _desiredState.hasAnyEnabled;
     final bool hasImuPayload = _hasImuPayload(sample);
     final bool hasPpgPayload = sample.containsKey('PPG');
@@ -352,6 +363,36 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
     }
 
     return _hasAnySensorPayload(sample);
+  }
+
+  void _adoptInitialStreamingStateIfNeeded(
+    Map<String, dynamic> sample,
+    int cmd,
+  ) {
+    if (_hasAdoptedInitialStreamingState ||
+        _hasRealtimeConfigurationWrite ||
+        _desiredState.hasAnyEnabled) {
+      return;
+    }
+    if (cmd != OpenRingGatt.cmdPPGQ2) {
+      return;
+    }
+    if (!_hasAnySensorPayload(sample)) {
+      return;
+    }
+
+    _hasAdoptedInitialStreamingState = true;
+    _desiredState.imuEnabled = true;
+    _desiredState.ppgEnabled = true;
+    _desiredState.temperatureEnabled = true;
+    _lastAppliedTransport = _OpenRingTransportCommand.ppg;
+    _transportTimingResetCounter += 1;
+
+    logger.i(
+      'OpenRing detected active realtime stream on initial start; '
+      'assuming IMU/PPG/Temperature enabled',
+    );
+    _onInitialStreamingDetected?.call();
   }
 
   Stream<Map<String, dynamic>> _createSensorDataStream() {

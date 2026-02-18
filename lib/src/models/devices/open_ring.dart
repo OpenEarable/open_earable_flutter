@@ -34,6 +34,8 @@ class OpenRing extends Wearable
   bool _batteryPollingWasSkippedForStreaming = false;
   final Map<SensorConfiguration<SensorConfigurationValue>,
       OpenRingSensorConfigurationValue> _offValueByConfiguration = {};
+  final Map<SensorConfiguration<SensorConfigurationValue>,
+      OpenRingSensorConfigurationValue> _onValueByConfiguration = {};
   Map<SensorConfiguration<SensorConfigurationValue>, SensorConfigurationValue>
       _currentSensorConfigMap = {};
 
@@ -90,9 +92,9 @@ class OpenRing extends Wearable
 
   void _initializeAssumedSensorStates() {
     _offValueByConfiguration.clear();
-    final initialMap =
-        <SensorConfiguration<SensorConfigurationValue>, SensorConfigurationValue>{
-      };
+    _onValueByConfiguration.clear();
+    final initialMap = <SensorConfiguration<SensorConfigurationValue>,
+        SensorConfigurationValue>{};
 
     for (final rawConfig in _sensorConfigs) {
       if (rawConfig is! OpenRingSensorConfiguration) {
@@ -112,10 +114,15 @@ class OpenRing extends Wearable
               (value) => !value.streamData,
               orElse: () => values.first,
             );
+      final onValue = values.firstWhere(
+        (value) => value.streamData,
+        orElse: () => offValue,
+      );
 
       final configuration =
           rawConfig as SensorConfiguration<SensorConfigurationValue>;
       _offValueByConfiguration[configuration] = offValue;
+      _onValueByConfiguration[configuration] = onValue;
       initialMap[configuration] = offValue;
     }
 
@@ -142,6 +149,20 @@ class OpenRing extends Wearable
 
     _currentSensorConfigMap[configurationKey] = nextValue;
     _emitSensorConfigurationState();
+  }
+
+  void assumeAllConfigurationsEnabledFromDetectedStreaming() {
+    bool changed = false;
+    for (final entry in _onValueByConfiguration.entries) {
+      if (_currentSensorConfigMap[entry.key] == entry.value) {
+        continue;
+      }
+      _currentSensorConfigMap[entry.key] = entry.value;
+      changed = true;
+    }
+    if (changed) {
+      _emitSensorConfigurationState();
+    }
   }
 
   void _emitSensorConfigurationState() {
