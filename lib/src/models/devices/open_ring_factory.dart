@@ -204,6 +204,12 @@ class OpenRingFactory extends WearableFactory {
         deviceId: device.id,
       ),
     );
+    unawaited(
+      _prefetchBatteryOnConnect(
+        openRing: w,
+        deviceId: device.id,
+      ),
+    );
 
     return w;
   }
@@ -217,6 +223,23 @@ class OpenRingFactory extends WearableFactory {
       logger.i('OpenRing time synchronized on connect for $deviceId');
     } catch (error, stack) {
       logger.w('OpenRing time sync on connect failed for $deviceId: $error');
+      logger.t(stack);
+    }
+  }
+
+  Future<void> _prefetchBatteryOnConnect({
+    required OpenRing openRing,
+    required String deviceId,
+  }) async {
+    try {
+      final bool prefetched = await openRing.prefetchBatteryOnConnect();
+      if (prefetched) {
+        logger.i('OpenRing battery prefetched on connect for $deviceId');
+      }
+    } catch (error, stack) {
+      logger.w(
+        'OpenRing battery prefetch on connect failed for $deviceId: $error',
+      );
       logger.t(stack);
     }
   }

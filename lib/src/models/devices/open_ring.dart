@@ -32,6 +32,7 @@ class OpenRing extends Wearable
   final bool Function()? _isSensorStreamingActive;
 
   bool _batteryPollingWasSkippedForStreaming = false;
+  int? _lastKnownBatteryPercentage;
   final Map<SensorConfiguration<SensorConfigurationValue>,
       OpenRingSensorConfigurationValue> _offValueByConfiguration = {};
   final Map<SensorConfiguration<SensorConfigurationValue>,
@@ -198,24 +199,16 @@ class OpenRing extends Wearable
     )
         .listen(
       (data) {
-        if (data.length < 5) {
+        final response = _parseBatteryResponse(data);
+        if (response == null || !response.isRead) {
           return;
         }
-
-        final int responseFrameId = data[1] & 0xFF;
-        final int responseCmd = data[2] & 0xFF;
-        final int responseType = data[3] & 0xFF;
-        if (responseFrameId != frameId || responseCmd != OpenRingGatt.cmdBatt) {
+        if (response.frameId != frameId) {
           return;
         }
-        if (responseType != _batteryReadType &&
-            responseType != _batteryPushType) {
-          return;
-        }
-
-        final int battery = data[4] & 0xFF;
+        _lastKnownBatteryPercentage = response.batteryPercentage;
         if (!completer.isCompleted) {
-          completer.complete(battery);
+          completer.complete(response.batteryPercentage);
         }
       },
       onError: (error, stack) {
@@ -239,11 +232,67 @@ class OpenRing extends Wearable
     }
   }
 
+  /// One-time battery pull triggered on connect/device creation.
+  Future<bool> prefetchBatteryOnConnect() async {
+    if (!_bleManager.isConnected(deviceId)) {
+      return false;
+    }
+
+    try {
+      await readBatteryPercentage();
+      return true;
+    } catch (error) {
+      logger.w('OpenRing initial battery read failed for $deviceId: $error');
+      return false;
+    }
+  }
+
+  _OpenRingBatteryResponse? _parseBatteryResponse(List<int> data) {
+    if (data.length < 5) {
+      return null;
+    }
+
+    final int frameType = data[0] & 0xFF;
+    if (frameType != 0x00) {
+      return null;
+    }
+
+    final int frameId = data[1] & 0xFF;
+    final int cmd = data[2] & 0xFF;
+    if (cmd != OpenRingGatt.cmdBatt) {
+      return null;
+    }
+
+    final int type = data[3] & 0xFF;
+    if (type != _batteryReadType && type != _batteryPushType) {
+      return null;
+    }
+
+    final int batteryPercentage = data[4] & 0xFF;
+    return _OpenRingBatteryResponse(
+      frameId: frameId,
+      type: type,
+      batteryPercentage: batteryPercentage,
+    );
+  }
+
   @override
   Stream<int> get batteryPercentageStream {
     StreamController<int> controller = StreamController<int>();
     Timer? batteryPollingTimer;
+    StreamSubscription<List<int>>? batteryPushSubscription;
     bool batteryPollingInFlight = false;
+    int? lastEmittedBatteryPercentage;
+
+    void emitIfChanged(int batteryPercentage) {
+      if (controller.isClosed ||
+          batteryPercentage == lastEmittedBatteryPercentage) {
+        return;
+      }
+      _lastKnownBatteryPercentage = batteryPercentage;
+      lastEmittedBatteryPercentage = batteryPercentage;
+      controller.add(batteryPercentage);
+    }
 
     Future<void> pollBattery() async {
       if (batteryPollingInFlight) {
@@ -267,9 +316,7 @@ class OpenRing extends Wearable
       batteryPollingInFlight = true;
       try {
         final int batteryPercentage = await readBatteryPercentage();
-        if (!controller.isClosed) {
-          controller.add(batteryPercentage);
-        }
+        emitIfChanged(batteryPercentage);
       } catch (e) {
         logger.e('Error reading OpenRing battery percentage: $e');
       } finally {
@@ -279,9 +326,34 @@ class OpenRing extends Wearable
 
     controller.onCancel = () {
       batteryPollingTimer?.cancel();
+      unawaited(batteryPushSubscription?.cancel());
     };
 
     controller.onListen = () {
+      final initialBatteryPercentage = _lastKnownBatteryPercentage;
+      if (initialBatteryPercentage != null) {
+        emitIfChanged(initialBatteryPercentage);
+      }
+
+      batteryPushSubscription = _bleManager
+          .subscribe(
+        deviceId: deviceId,
+        serviceId: OpenRingGatt.service,
+        characteristicId: OpenRingGatt.rxChar,
+      )
+          .listen(
+        (data) {
+          final response = _parseBatteryResponse(data);
+          if (response == null || !response.isPush) {
+            return;
+          }
+          emitIfChanged(response.batteryPercentage);
+        },
+        onError: (error) {
+          logger.w('OpenRing battery push subscription error: $error');
+        },
+      );
+
       batteryPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
         unawaited(pollBattery());
       });
@@ -290,6 +362,22 @@ class OpenRing extends Wearable
 
     return controller.stream;
   }
+}
+
+class _OpenRingBatteryResponse {
+  const _OpenRingBatteryResponse({
+    required this.frameId,
+    required this.type,
+    required this.batteryPercentage,
+  });
+
+  final int frameId;
+  final int type;
+  final int batteryPercentage;
+
+  bool get isRead => type == OpenRing._batteryReadType;
+
+  bool get isPush => type == OpenRing._batteryPushType;
 }
 
 // OpenRing GATT constants (from the vendor AAR)
