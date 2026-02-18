@@ -142,7 +142,7 @@ class OpenRingFactory extends WearableFactory {
         chartTitle: "Gyroscope",
         shortChartTitle: "Gyr.",
         axisNames: ["X", "Y", "Z"],
-        axisUnits: ["dps", "dps", "dps"],
+        axisUnits: ["rad/s * 10^2", "rad/s * 10^2", "rad/s * 10^2"],
         sensorHandler: sensorHandler,
         relatedConfigurations: [imuSensorConfig],
       ),
@@ -162,7 +162,7 @@ class OpenRingFactory extends WearableFactory {
         chartTitle: "Temperature",
         shortChartTitle: "Temp",
         axisNames: ["Temp0", "Temp1", "Temp2"],
-        axisUnits: ["°C", "°C", "°C"],
+        axisUnits: ["raw", "raw", "raw"],
         sensorHandler: sensorHandler,
         // Temperature uses software on/off and enables PPG transport automatically.
         relatedConfigurations: [temperatureSensorConfig],
