@@ -21,7 +21,7 @@ import 'src/managers/wearable_disconnect_notifier.dart';
 import 'src/models/capabilities/stereo_device.dart';
 import 'src/models/capabilities/system_device.dart';
 import 'src/models/devices/discovered_device.dart';
-import 'src/models/devices/tau_ring_factory.dart';
+import 'src/models/devices/open_ring_factory.dart';
 import 'src/models/devices/wearable.dart';
 
 export 'src/models/devices/discovered_device.dart';
@@ -111,7 +111,7 @@ class WearableManager {
     CosinussOneFactory(),
     PolarFactory(),
     DevKitFactory(),
-    TauRingFactory(),
+    OpenRingFactory(),
     EsenseFactory(),
   ];
 
@@ -262,14 +262,51 @@ class WearableManager {
   }
 
   String deviceErrorMessage(dynamic e, String deviceName) {
+    final normalizedDeviceName = _formatDisplayDeviceName(deviceName);
     return switch (e) {
-      UnsupportedDeviceException _ => 'Device "$deviceName" is not supported.',
+      UnsupportedDeviceException _ =>
+        'Device "$normalizedDeviceName" is not supported.',
       AlreadyConnectedException _ =>
-        'Device "$deviceName" is already connected.',
+        'Device "$normalizedDeviceName" is already connected.',
       ConnectionFailedException _ =>
-        'Failed to connect to device "$deviceName". Please try again.',
-      _ => e.toString(),
+        'Failed to connect to device "$normalizedDeviceName". Please try again.',
+      _ => _normalizeDeviceNameInMessage(
+        message: e.toString(),
+        rawDeviceName: deviceName,
+        normalizedDeviceName: normalizedDeviceName,
+      ),
     };
+  }
+
+  String _formatDisplayDeviceName(String rawName) {
+    final trimmed = rawName.trim();
+    if (trimmed.isEmpty) {
+      return trimmed;
+    }
+
+    final replaced = trimmed.replaceFirst(
+      RegExp(r'^bcl[-_\s]*', caseSensitive: false),
+      'OpenRing-',
+    );
+
+    if (replaced == 'OpenRing-') {
+      return 'OpenRing';
+    }
+
+    return replaced;
+  }
+
+  String _normalizeDeviceNameInMessage({
+    required String message,
+    required String rawDeviceName,
+    required String normalizedDeviceName,
+  }) {
+    if (rawDeviceName.isEmpty ||
+        rawDeviceName == normalizedDeviceName ||
+        message.isEmpty) {
+      return message;
+    }
+    return message.replaceAll(rawDeviceName, normalizedDeviceName);
   }
 
   void addPairingRule(PairingRule rule) {
