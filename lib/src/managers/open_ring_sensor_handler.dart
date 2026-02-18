@@ -20,8 +20,6 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
   static const double _delayAlpha = 0.12;
   static const double _backlogCompressionPerPacket = 0.06;
   static const int _commandSettleDelayMs = 45;
-  static const int _imuResyncAfterPpgStopDelayMs = 120;
-  static const List<int> _imuDefaultStartPayload = <int>[0x06];
   static const List<int> _ppgRealtimeStartPayload = <int>[
     0x00,
     0x00,
@@ -31,13 +29,17 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
   ];
   static const List<int> _ppgRealtimeStopPayload = <int>[0x06];
   static const Set<int> _pacedStreamingCommands = {
-    OpenRingGatt.cmdIMU,
     OpenRingGatt.cmdPPGQ2,
   };
 
   Stream<Map<String, dynamic>>? _sensorDataStream;
   Future<void> _commandQueue = Future<void>.value();
-  final _OpenRingRealtimeState _realtimeState = _OpenRingRealtimeState();
+  final _OpenRingDesiredState _desiredState = _OpenRingDesiredState();
+  int _applyVersion = 0;
+  int _transportTimingResetCounter = 0;
+  bool _isApplying = false;
+  _OpenRingTransportCommand _lastAppliedTransport =
+      _OpenRingTransportCommand.none;
 
   OpenRingSensorHandler({
     required DiscoveredDevice discoveredDevice,
@@ -67,101 +69,15 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
       throw Exception("Can't write sensor config. Earable not connected");
     }
 
-    final bool isRealtimeStreamingStart =
-        _isRealtimeStreamingStart(sensorConfig);
-    final bool isRealtimeStreamingStop = _isRealtimeStreamingStop(sensorConfig);
-
-    final bool isPpgCmd = sensorConfig.cmd == OpenRingGatt.cmdPPGQ2;
-    final bool isPpgStart = isPpgCmd &&
-        sensorConfig.payload.isNotEmpty &&
-        sensorConfig.payload[0] == 0x00;
-    final bool isPpgStop = isPpgCmd &&
-        sensorConfig.payload.isNotEmpty &&
-        sensorConfig.payload[0] == 0x06;
-    final bool isImuCmd = sensorConfig.cmd == OpenRingGatt.cmdIMU;
-    final bool isImuStart = isImuCmd && isRealtimeStreamingStart;
-    final bool isImuStop = isImuCmd && isRealtimeStreamingStop;
-    final bool isPpgStartWhileAlreadyActive =
-        isPpgStart && _realtimeState.isCommandActive(OpenRingGatt.cmdPPGQ2);
-    final bool skipPpgStopBecauseTemperatureRequiresTransport =
-        isPpgStop && _realtimeState.temperatureRequiresPpgTransport;
-    final bool imuWasStandaloneActiveBeforePpgStart = isPpgStart &&
-        _realtimeState.isCommandActive(OpenRingGatt.cmdIMU) &&
-        !_realtimeState.isCommandActive(OpenRingGatt.cmdPPGQ2);
-
-    if (isImuStart) {
-      _realtimeState.noteImuStartPayload(sensorConfig.payload);
-    }
-
-    if (isImuStop) {
-      _realtimeState.clearImuStartPayload();
-    }
-
-    if (isRealtimeStreamingStart) {
-      _realtimeState.markDesiredStart(sensorConfig.cmd);
-    } else if (isRealtimeStreamingStop) {
-      _realtimeState.markDesiredStop(sensorConfig.cmd);
-      if (!skipPpgStopBecauseTemperatureRequiresTransport) {
-        _realtimeState.markInactive(sensorConfig.cmd);
-      }
-    }
-
-    if (imuWasStandaloneActiveBeforePpgStart) {
-      _requestImuTimingReset();
-    }
-    if (isPpgStop &&
-        !skipPpgStopBecauseTemperatureRequiresTransport &&
-        _realtimeState.isCommandDesired(OpenRingGatt.cmdIMU)) {
-      _requestImuTimingReset();
-    }
-
-    if (isPpgStartWhileAlreadyActive) {
-      logger.d(
-        'OpenRing PPG start skipped because cmd=0x32 realtime is already active',
-      );
+    if (!_isRealtimeStreamingCommand(sensorConfig.cmd)) {
+      await _writeCommand(sensorConfig);
       return;
     }
 
-    if (skipPpgStopBecauseTemperatureRequiresTransport) {
-      logger.d(
-        'OpenRing PPG stop skipped because temperature streaming '
-        'still requires cmd=0x32 transport',
-      );
-      return;
-    }
-
-    if (isImuCmd && _shouldRouteImuThroughPpg()) {
-      if (isImuStart) {
-        logger.d(
-          'OpenRing IMU start skipped because PPG realtime is active; '
-          'routing accelerometer/gyroscope via cmd=0x32',
-        );
-      } else if (isImuStop) {
-        logger.d(
-          'OpenRing IMU stop handled in software while PPG realtime is active',
-        );
-      }
-      _realtimeState.markInactive(OpenRingGatt.cmdIMU);
-      return;
-    }
-
-    Future<void> writeFuture;
-    if (imuWasStandaloneActiveBeforePpgStart) {
-      writeFuture = _queueImuSuspendForPpgStart().then(
-        (_) => _enqueueCommandWrite(sensorConfig),
-      );
-    } else {
-      writeFuture = _enqueueCommandWrite(sensorConfig);
-    }
-    if (isPpgStop) {
-      writeFuture = writeFuture.then((_) => _queueImuResyncAfterPpgStop());
-    }
-
-    await writeFuture;
-  }
-
-  void _requestImuTimingReset() {
-    _realtimeState.requestImuTimingReset();
+    _updateDesiredStateFromSensorConfig(sensorConfig);
+    await _enqueueApplyDesiredTransport(
+      reason: 'config-write-cmd-${sensorConfig.cmd}',
+    );
   }
 
   Future<List<Map<String, dynamic>>> _parseData(List<int> data) async {
@@ -170,48 +86,146 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
   }
 
   void setTemperatureStreamEnabled(bool enabled) {
-    final bool changed = _realtimeState.temperatureStreamEnabled != enabled;
-    final int requestVersion = _realtimeState.setTemperatureStreamEnabled(
-      enabled,
-    );
+    _desiredState.temperatureEnabled = enabled;
     logger.d('OpenRing software toggle: temperatureStream=$enabled');
 
-    if (!changed) {
+    unawaited(
+      _enqueueApplyDesiredTransport(
+        reason: 'temperature-set-$enabled',
+      ),
+    );
+  }
+
+  bool get hasActiveRealtimeStreaming =>
+      _desiredState.hasAnyEnabled ||
+      _isApplying ||
+      _lastAppliedTransport != _OpenRingTransportCommand.none;
+
+  bool _isRealtimeStreamingCommand(int cmd) =>
+      cmd == OpenRingGatt.cmdIMU || cmd == OpenRingGatt.cmdPPGQ2;
+
+  void _updateDesiredStateFromSensorConfig(OpenRingSensorConfig sensorConfig) {
+    final bool isStart = _isRealtimeStreamingStart(sensorConfig);
+    final bool isStop = _isRealtimeStreamingStop(sensorConfig);
+    if (!isStart && !isStop) {
+      logger.d(
+        'Ignoring OpenRing realtime config with unknown payload '
+        '(cmd=${sensorConfig.cmd}, payload=${sensorConfig.payload})',
+      );
       return;
     }
 
-    if (enabled) {
-      unawaited(_queuePpgTransportStartForTemperature(requestVersion));
+    if (sensorConfig.cmd == OpenRingGatt.cmdIMU) {
+      if (isStart) {
+        _desiredState.imuEnabled = true;
+      } else {
+        _desiredState.imuEnabled = false;
+      }
       return;
     }
 
-    unawaited(_queuePpgTransportStopIfUnused(requestVersion));
-  }
-
-  bool get hasActiveRealtimeStreaming => _realtimeState.hasAnyRealtimeStreaming;
-
-  Map<String, dynamic> _filterTemperature(Map<String, dynamic> sample) {
-    if (!_realtimeState.temperatureStreamEnabled) {
-      sample.remove('Temperature');
+    if (sensorConfig.cmd == OpenRingGatt.cmdPPGQ2) {
+      _desiredState.ppgEnabled = isStart;
     }
-    return sample;
   }
 
-  bool _shouldRouteImuThroughPpg() {
-    return _isPpgDesiredByAnySource() ||
-        _realtimeState.isCommandActive(OpenRingGatt.cmdPPGQ2);
+  Future<void> _enqueueApplyDesiredTransport({
+    required String reason,
+  }) {
+    _applyVersion += 1;
+    final int requestVersion = _applyVersion;
+
+    _commandQueue =
+        _commandQueue.catchError((Object error, StackTrace stackTrace) {
+      logger.e('OpenRing previous command failed: $error');
+      logger.t(stackTrace);
+    }).then((_) async {
+      if (requestVersion != _applyVersion) {
+        return;
+      }
+      await _applyDesiredTransport(
+        requestVersion: requestVersion,
+        reason: reason,
+      );
+    });
+
+    return _commandQueue;
   }
 
-  bool _isPpgDesiredByAnySource() {
-    return _realtimeState.ppgDesiredByAnySource;
+  Future<void> _applyDesiredTransport({
+    required int requestVersion,
+    required String reason,
+  }) async {
+    if (!_bleManager.isConnected(_discoveredDevice.id)) {
+      return;
+    }
+
+    final _OpenRingTransportCommand desiredTransport =
+        _desiredState.resolveDesiredTransport();
+    if (desiredTransport == _lastAppliedTransport) {
+      return;
+    }
+
+    _isApplying = true;
+    try {
+      logger.d(
+        'OpenRing apply transport ($reason): '
+        '${_desiredState.debugSummary(desiredTransport)}',
+      );
+
+      if (_lastAppliedTransport == _OpenRingTransportCommand.ppg &&
+          desiredTransport == _OpenRingTransportCommand.none) {
+        await _writeCommand(
+          OpenRingSensorConfig(
+            cmd: OpenRingGatt.cmdPPGQ2,
+            payload: List<int>.from(_ppgRealtimeStopPayload),
+          ),
+        );
+        _transportTimingResetCounter += 1;
+        _lastAppliedTransport = _OpenRingTransportCommand.none;
+        await Future.delayed(
+          const Duration(milliseconds: _commandSettleDelayMs),
+        );
+        return;
+      }
+
+      if (desiredTransport == _OpenRingTransportCommand.none) {
+        _lastAppliedTransport = _OpenRingTransportCommand.none;
+        return;
+      }
+
+      await _writeCommand(
+        OpenRingSensorConfig(
+          cmd: OpenRingGatt.cmdPPGQ2,
+          payload: List<int>.from(_ppgRealtimeStopPayload),
+        ),
+      );
+      await Future.delayed(
+        const Duration(milliseconds: _commandSettleDelayMs),
+      );
+      if (!_shouldContinueApply(requestVersion)) {
+        return;
+      }
+
+      await _writeCommand(
+        OpenRingSensorConfig(
+          cmd: OpenRingGatt.cmdPPGQ2,
+          payload: List<int>.from(_ppgRealtimeStartPayload),
+        ),
+      );
+      _transportTimingResetCounter += 1;
+      _lastAppliedTransport = _OpenRingTransportCommand.ppg;
+      await Future.delayed(
+        const Duration(milliseconds: _commandSettleDelayMs),
+      );
+    } finally {
+      _isApplying = false;
+    }
   }
 
-  bool _shouldExposeImuFromPpg() {
-    return _realtimeState.shouldExposeImuFromPpg;
-  }
-
-  bool _shouldExposePpgFromPpg() {
-    return _realtimeState.shouldExposePpgFromPpg;
+  bool _shouldContinueApply(int requestVersion) {
+    return requestVersion == _applyVersion &&
+        _bleManager.isConnected(_discoveredDevice.id);
   }
 
   void _emitSample(
@@ -221,32 +235,123 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
     if (streamController.isClosed) {
       return;
     }
-
-    final filtered = _filterTemperature(Map<String, dynamic>.from(sample));
-
-    final dynamic cmd = filtered['cmd'];
-    final bool hasPpgPayload = filtered.containsKey('PPG');
-    final bool hasImuPayload = filtered.containsKey('Accelerometer') ||
-        filtered.containsKey('Gyroscope');
-    final bool isPpgSample = cmd is int && cmd == OpenRingGatt.cmdPPGQ2;
-    if (isPpgSample && hasPpgPayload && !_shouldExposePpgFromPpg()) {
-      filtered.remove('PPG');
-    }
-    if (isPpgSample && hasImuPayload && !_shouldExposeImuFromPpg()) {
-      filtered.remove('Accelerometer');
-      filtered.remove('Gyroscope');
-    }
-    streamController.add(filtered);
-
-    if (!isPpgSample || !hasImuPayload || !_shouldExposeImuFromPpg()) {
+    if (_isApplying) {
       return;
     }
 
-    final imuAlias = Map<String, dynamic>.from(filtered);
+    final filtered = Map<String, dynamic>.from(sample);
+
+    final dynamic cmd = filtered['cmd'];
+    final bool isPpgSample = cmd is int && cmd == OpenRingGatt.cmdPPGQ2;
+    final bool shouldConsumeTransport = _desiredState.hasAnyEnabled;
+
+    if (isPpgSample) {
+      if (!shouldConsumeTransport) {
+        return;
+      }
+      if (!_desiredState.temperatureEnabled) {
+        filtered.remove('Temperature');
+      }
+      if (!_desiredState.ppgEnabled) {
+        filtered.remove('PPG');
+      }
+
+      final bool hasImuPayload = _hasImuPayload(filtered);
+      if (_desiredState.imuEnabled && hasImuPayload) {
+        final imuAlias = _createImuAliasFromPpg(filtered);
+        _removeImuPayload(filtered);
+        _emitIfSampleHasSensorPayload(streamController, filtered);
+        streamController.add(imuAlias);
+        return;
+      }
+
+      if (!_desiredState.imuEnabled && hasImuPayload) {
+        _removeImuPayload(filtered);
+      }
+
+      _emitIfSampleHasSensorPayload(streamController, filtered);
+      return;
+    }
+
+    // 0x40 transport is intentionally ignored. IMU is emitted via 0x32 aliasing.
+    if (cmd is int && cmd == OpenRingGatt.cmdIMU) {
+      return;
+    }
+
+    _emitIfSampleHasSensorPayload(streamController, filtered);
+  }
+
+  void _emitIfSampleHasSensorPayload(
+    StreamController<Map<String, dynamic>> streamController,
+    Map<String, dynamic> sample,
+  ) {
+    if (!_hasAnySensorPayload(sample)) {
+      return;
+    }
+    streamController.add(sample);
+  }
+
+  bool _hasImuPayload(Map<String, dynamic> sample) {
+    return sample.containsKey('Accelerometer') ||
+        sample.containsKey('Gyroscope');
+  }
+
+  bool _hasAnySensorPayload(Map<String, dynamic> sample) {
+    return _hasImuPayload(sample) ||
+        sample.containsKey('PPG') ||
+        sample.containsKey('Temperature');
+  }
+
+  void _removeImuPayload(Map<String, dynamic> sample) {
+    sample.remove('Accelerometer');
+    sample.remove('Gyroscope');
+  }
+
+  Map<String, dynamic> _createImuAliasFromPpg(Map<String, dynamic> sample) {
+    final imuAlias = Map<String, dynamic>.from(sample);
     imuAlias['cmd'] = OpenRingGatt.cmdIMU;
     imuAlias.remove('PPG');
     imuAlias.remove('Temperature');
-    streamController.add(imuAlias);
+    return imuAlias;
+  }
+
+  List<Map<String, dynamic>> _filterSamplesForScheduling(
+    List<Map<String, dynamic>> parsedSamples,
+  ) {
+    return parsedSamples.where(_shouldScheduleSample).toList(growable: false);
+  }
+
+  bool _shouldScheduleSample(Map<String, dynamic> sample) {
+    if (_isApplying) {
+      return false;
+    }
+
+    final dynamic cmd = sample['cmd'];
+    if (cmd is! int) {
+      return _hasAnySensorPayload(sample);
+    }
+
+    final bool shouldConsumeTransport = _desiredState.hasAnyEnabled;
+    final bool hasImuPayload = _hasImuPayload(sample);
+    final bool hasPpgPayload = sample.containsKey('PPG');
+    final bool hasTemperaturePayload = sample.containsKey('Temperature');
+
+    if (cmd == OpenRingGatt.cmdPPGQ2) {
+      if (!shouldConsumeTransport) {
+        return false;
+      }
+      final bool shouldEmitImu = _desiredState.imuEnabled && hasImuPayload;
+      final bool shouldEmitPpg = _desiredState.ppgEnabled && hasPpgPayload;
+      final bool shouldEmitTemperature =
+          _desiredState.temperatureEnabled && hasTemperaturePayload;
+      return shouldEmitImu || shouldEmitPpg || shouldEmitTemperature;
+    }
+
+    if (cmd == OpenRingGatt.cmdIMU) {
+      return false;
+    }
+
+    return _hasAnySensorPayload(sample);
   }
 
   Stream<Map<String, dynamic>> _createSensorDataStream() {
@@ -284,15 +389,20 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
           cmdKey = parsedCmd;
         }
 
+        final filteredForScheduling = _filterSamplesForScheduling(parsedData);
+        if (filteredForScheduling.isEmpty) {
+          return;
+        }
+
         if (cmdKey == null) {
-          for (final sample in parsedData) {
+          for (final sample in filteredForScheduling) {
             _emitSample(streamController, sample);
           }
           return;
         }
 
         if (!scheduler.isPacedCommand(cmdKey)) {
-          for (final sample in parsedData) {
+          for (final sample in filteredForScheduling) {
             _emitSample(streamController, sample);
           }
           return;
@@ -300,7 +410,7 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
 
         await scheduler.emitPacedSamples(
           cmd: cmdKey,
-          samples: parsedData,
+          samples: filteredForScheduling,
           arrivalMs: arrivalMs,
           onEmitSample: (sample) => _emitSample(streamController, sample),
         );
@@ -320,10 +430,9 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
             .listen(
           (data) {
             scheduler.resetIfRequested(
-              _realtimeState.imuTimingResetCounter,
-              const <int>[OpenRingGatt.cmdIMU, OpenRingGatt.cmdPPGQ2],
+              _transportTimingResetCounter,
+              const <int>[OpenRingGatt.cmdPPGQ2],
             );
-            _updateRealtimeStreamingStateFromPacket(data);
 
             final int? rawCmd = data.length > 2 ? data[2] : null;
             if (rawCmd != null) {
@@ -357,7 +466,6 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
           bleSubscription = null;
           processingQueueByCmd.clear();
           scheduler.clear();
-          _realtimeState.clearRuntimeStreamingState();
 
           if (subscription != null) {
             unawaited(subscription.cancel());
@@ -377,253 +485,6 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
       characteristicId: OpenRingGatt.txChar,
       byteData: sensorConfigBytes,
     );
-  }
-
-  Future<void> _enqueueCommandWrite(
-    OpenRingSensorConfig sensorConfig, {
-    Duration delayBefore = Duration.zero,
-  }) {
-    _commandQueue =
-        _commandQueue.catchError((Object error, StackTrace stackTrace) {
-      logger.e('OpenRing previous command failed: $error');
-      logger.t(stackTrace);
-    }).then((_) async {
-      if (!_bleManager.isConnected(_discoveredDevice.id)) {
-        logger.w(
-          'Skipping OpenRing command while disconnected: '
-          'cmd=${sensorConfig.cmd}',
-        );
-        return;
-      }
-
-      if (delayBefore > Duration.zero) {
-        await Future.delayed(delayBefore);
-      }
-
-      await _writeCommand(sensorConfig);
-      await Future.delayed(
-        const Duration(milliseconds: _commandSettleDelayMs),
-      );
-    });
-
-    return _commandQueue;
-  }
-
-  Future<bool> _enqueueConditionalCommandWrite(
-    OpenRingSensorConfig sensorConfig, {
-    required bool Function() shouldWrite,
-    required String staleReason,
-    Duration delayBefore = Duration.zero,
-  }) {
-    final completer = Completer<bool>();
-
-    _commandQueue =
-        _commandQueue.catchError((Object error, StackTrace stackTrace) {
-      logger.e('OpenRing previous command failed: $error');
-      logger.t(stackTrace);
-    }).then((_) async {
-      try {
-        if (!_bleManager.isConnected(_discoveredDevice.id)) {
-          if (!completer.isCompleted) {
-            completer.complete(false);
-          }
-          return;
-        }
-        if (!shouldWrite()) {
-          logger.d('Skipping OpenRing command (stale): $staleReason');
-          if (!completer.isCompleted) {
-            completer.complete(false);
-          }
-          return;
-        }
-
-        if (delayBefore > Duration.zero) {
-          await Future.delayed(delayBefore);
-        }
-        if (!shouldWrite()) {
-          logger.d('Skipping OpenRing command (stale): $staleReason');
-          if (!completer.isCompleted) {
-            completer.complete(false);
-          }
-          return;
-        }
-
-        await _writeCommand(sensorConfig);
-        await Future.delayed(
-          const Duration(milliseconds: _commandSettleDelayMs),
-        );
-        if (!completer.isCompleted) {
-          completer.complete(true);
-        }
-      } catch (error, stackTrace) {
-        if (!completer.isCompleted) {
-          completer.completeError(error, stackTrace);
-        }
-        rethrow;
-      }
-    });
-
-    return completer.future;
-  }
-
-  Future<void> _queueImuSuspendForPpgStart() async {
-    _commandQueue =
-        _commandQueue.catchError((Object error, StackTrace stackTrace) {
-      logger.e('OpenRing previous command failed: $error');
-      logger.t(stackTrace);
-    }).then((_) async {
-      if (!_bleManager.isConnected(_discoveredDevice.id)) {
-        return;
-      }
-      if (!_isPpgDesiredByAnySource()) {
-        return;
-      }
-      if (!_realtimeState.isCommandDesired(OpenRingGatt.cmdIMU) &&
-          !_realtimeState.isCommandActive(OpenRingGatt.cmdIMU)) {
-        return;
-      }
-
-      await _writeCommand(
-        OpenRingSensorConfig(cmd: OpenRingGatt.cmdIMU, payload: const [0x00]),
-      );
-      _realtimeState.markInactive(OpenRingGatt.cmdIMU);
-      await Future.delayed(
-        const Duration(milliseconds: _commandSettleDelayMs),
-      );
-    });
-
-    await _commandQueue;
-  }
-
-  Future<void> _queuePpgTransportStartForTemperature(int requestVersion) async {
-    if (requestVersion != _realtimeState.temperatureTransportRequestVersion) {
-      return;
-    }
-    if (!_realtimeState.temperatureRequiresPpgTransport) {
-      return;
-    }
-    if (!_bleManager.isConnected(_discoveredDevice.id)) {
-      return;
-    }
-    if (_realtimeState.isCommandActive(OpenRingGatt.cmdPPGQ2) ||
-        _realtimeState.isCommandDesired(OpenRingGatt.cmdPPGQ2)) {
-      return;
-    }
-
-    final bool imuWasStandaloneActive =
-        _realtimeState.isCommandActive(OpenRingGatt.cmdIMU) &&
-            !_realtimeState.isCommandActive(OpenRingGatt.cmdPPGQ2);
-    if (imuWasStandaloneActive) {
-      _requestImuTimingReset();
-      await _queueImuSuspendForPpgStart();
-    }
-
-    await _enqueueConditionalCommandWrite(
-      OpenRingSensorConfig(
-        cmd: OpenRingGatt.cmdPPGQ2,
-        payload: List<int>.from(_ppgRealtimeStartPayload),
-      ),
-      shouldWrite: () =>
-          requestVersion == _realtimeState.temperatureTransportRequestVersion &&
-          _realtimeState.temperatureRequiresPpgTransport &&
-          !_realtimeState.isCommandDesired(OpenRingGatt.cmdPPGQ2) &&
-          !_realtimeState.isCommandActive(OpenRingGatt.cmdPPGQ2),
-      staleReason: 'temperature start superseded',
-    );
-  }
-
-  Future<void> _queuePpgTransportStopIfUnused(int requestVersion) async {
-    if (requestVersion != _realtimeState.temperatureTransportRequestVersion) {
-      return;
-    }
-    if (_realtimeState.temperatureRequiresPpgTransport) {
-      return;
-    }
-    if (!_bleManager.isConnected(_discoveredDevice.id)) {
-      return;
-    }
-    if (_realtimeState.isCommandDesired(OpenRingGatt.cmdPPGQ2)) {
-      return;
-    }
-    final bool imuDesired =
-        _realtimeState.isCommandDesired(OpenRingGatt.cmdIMU);
-
-    if (!_realtimeState.isCommandActive(OpenRingGatt.cmdPPGQ2)) {
-      if (imuDesired && !_isPpgDesiredByAnySource()) {
-        await _queueImuResyncAfterPpgStop();
-      }
-      return;
-    }
-
-    final bool stopWritten = await _enqueueConditionalCommandWrite(
-      OpenRingSensorConfig(
-        cmd: OpenRingGatt.cmdPPGQ2,
-        payload: List<int>.from(_ppgRealtimeStopPayload),
-      ),
-      shouldWrite: () =>
-          requestVersion == _realtimeState.temperatureTransportRequestVersion &&
-          !_realtimeState.temperatureRequiresPpgTransport &&
-          !_realtimeState.isCommandDesired(OpenRingGatt.cmdPPGQ2) &&
-          _realtimeState.isCommandActive(OpenRingGatt.cmdPPGQ2),
-      staleReason: 'temperature stop superseded',
-    );
-    if (!stopWritten) {
-      if (imuDesired &&
-          !_isPpgDesiredByAnySource() &&
-          !_realtimeState.isCommandActive(OpenRingGatt.cmdPPGQ2)) {
-        await _queueImuResyncAfterPpgStop();
-      }
-      return;
-    }
-
-    if (imuDesired) {
-      _requestImuTimingReset();
-    }
-
-    _realtimeState.markInactive(OpenRingGatt.cmdPPGQ2);
-
-    if (imuDesired && !_isPpgDesiredByAnySource()) {
-      await _queueImuResyncAfterPpgStop();
-    }
-  }
-
-  Future<void> _queueImuResyncAfterPpgStop() async {
-    _commandQueue =
-        _commandQueue.catchError((Object error, StackTrace stackTrace) {
-      logger.e('OpenRing previous command failed: $error');
-      logger.t(stackTrace);
-    }).then((_) async {
-      if (!_bleManager.isConnected(_discoveredDevice.id)) {
-        return;
-      }
-
-      await Future.delayed(
-        const Duration(milliseconds: _imuResyncAfterPpgStopDelayMs),
-      );
-
-      if (!_realtimeState.isCommandDesired(OpenRingGatt.cmdIMU)) {
-        return;
-      }
-      if (_isPpgDesiredByAnySource() ||
-          _realtimeState.isCommandActive(OpenRingGatt.cmdPPGQ2)) {
-        return;
-      }
-      final List<int> imuStartPayload = _realtimeState.resolveImuStartPayload(
-        _imuDefaultStartPayload,
-      );
-
-      await _writeCommand(
-        OpenRingSensorConfig(
-          cmd: OpenRingGatt.cmdIMU,
-          payload: imuStartPayload,
-        ),
-      );
-      await Future.delayed(
-        const Duration(milliseconds: _commandSettleDelayMs),
-      );
-    });
-
-    await _commandQueue;
   }
 
   bool _isRealtimeStreamingStart(OpenRingSensorConfig sensorConfig) {
@@ -657,148 +518,31 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
 
     return false;
   }
+}
 
-  void _updateRealtimeStreamingStateFromPacket(List<int> data) {
-    if (data.length < 4 || data[0] != 0x00) {
-      return;
+class _OpenRingDesiredState {
+  bool imuEnabled = false;
+  bool ppgEnabled = false;
+  bool temperatureEnabled = false;
+
+  bool get hasAnyEnabled => imuEnabled || ppgEnabled || temperatureEnabled;
+
+  _OpenRingTransportCommand resolveDesiredTransport() {
+    if (hasAnyEnabled) {
+      return _OpenRingTransportCommand.ppg;
     }
+    return _OpenRingTransportCommand.none;
+  }
 
-    final int cmd = data[2] & 0xFF;
-
-    if (cmd == OpenRingGatt.cmdPPGQ2) {
-      final int packetType = data[3] & 0xFF;
-
-      // Stop ack can be a 4-byte control frame.
-      if (packetType == 0x06) {
-        _realtimeState.markInactive(cmd);
-        return;
-      }
-
-      if (data.length < 5) {
-        return;
-      }
-
-      final int packetValue = data[4] & 0xFF;
-
-      // Realtime waveform packets imply active streaming.
-      if (packetType == 0x01 || packetType == 0x02) {
-        _realtimeState.markActive(cmd);
-        return;
-      }
-
-      // Final/result and terminal error packets indicate no active realtime stream.
-      if (packetType == 0x00 &&
-          (packetValue == 0 || // not worn
-              packetValue == 2 || // charging
-              packetValue == 3 || // final result
-              packetValue == 4)) {
-        _realtimeState.markInactive(cmd);
-      }
-      return;
-    }
-
-    if (cmd == OpenRingGatt.cmdIMU) {
-      if (data.length < 5) {
-        return;
-      }
-
-      final int subOpcode = data[3] & 0xFF;
-      final int status = data[4] & 0xFF;
-
-      if (subOpcode == 0x00) {
-        _realtimeState.markInactive(cmd);
-        return;
-      }
-
-      if ((subOpcode == 0x01 || subOpcode == 0x04) && status != 0x01) {
-        _realtimeState.markActive(cmd);
-        return;
-      }
-
-      if (subOpcode == 0x06 && status != 0x01) {
-        _realtimeState.markActive(cmd);
-      }
-    }
+  String debugSummary(_OpenRingTransportCommand transport) {
+    return 'imu=$imuEnabled ppg=$ppgEnabled temp=$temperatureEnabled '
+        'transport=$transport';
   }
 }
 
-class _OpenRingRealtimeState {
-  List<int>? lastImuStartPayload;
-  int imuTimingResetCounter = 0;
-  bool temperatureStreamEnabled = false;
-  bool temperatureRequiresPpgTransport = false;
-  int temperatureTransportRequestVersion = 0;
-  final Set<int> activeCommands = <int>{};
-  final Set<int> desiredCommands = <int>{};
-
-  bool get hasAnyRealtimeStreaming =>
-      activeCommands.isNotEmpty ||
-      desiredCommands.isNotEmpty ||
-      temperatureRequiresPpgTransport;
-
-  bool get ppgDesiredByAnySource =>
-      desiredCommands.contains(OpenRingGatt.cmdPPGQ2) ||
-      temperatureRequiresPpgTransport;
-
-  bool get shouldExposeImuFromPpg =>
-      desiredCommands.contains(OpenRingGatt.cmdIMU) ||
-      activeCommands.contains(OpenRingGatt.cmdIMU);
-
-  bool get shouldExposePpgFromPpg =>
-      desiredCommands.contains(OpenRingGatt.cmdPPGQ2);
-
-  bool isCommandDesired(int cmd) => desiredCommands.contains(cmd);
-
-  bool isCommandActive(int cmd) => activeCommands.contains(cmd);
-
-  void noteImuStartPayload(List<int> payload) {
-    lastImuStartPayload = List<int>.from(payload);
-  }
-
-  void clearImuStartPayload() {
-    lastImuStartPayload = null;
-  }
-
-  void markDesiredStart(int cmd) {
-    desiredCommands.add(cmd);
-  }
-
-  void markDesiredStop(int cmd) {
-    desiredCommands.remove(cmd);
-  }
-
-  void markActive(int cmd) {
-    activeCommands.add(cmd);
-  }
-
-  void markInactive(int cmd) {
-    activeCommands.remove(cmd);
-  }
-
-  void requestImuTimingReset() {
-    imuTimingResetCounter += 1;
-  }
-
-  int setTemperatureStreamEnabled(bool enabled) {
-    final bool changed = temperatureStreamEnabled != enabled;
-    temperatureStreamEnabled = enabled;
-    temperatureRequiresPpgTransport = enabled;
-    if (changed) {
-      temperatureTransportRequestVersion += 1;
-    }
-    return temperatureTransportRequestVersion;
-  }
-
-  List<int> resolveImuStartPayload(List<int> defaultPayload) {
-    return List<int>.from(lastImuStartPayload ?? defaultPayload);
-  }
-
-  void clearRuntimeStreamingState() {
-    lastImuStartPayload = null;
-    activeCommands.clear();
-    desiredCommands.clear();
-    temperatureRequiresPpgTransport = false;
-  }
+enum _OpenRingTransportCommand {
+  none,
+  ppg,
 }
 
 class _OpenRingPacedScheduler {
@@ -890,8 +634,17 @@ class _OpenRingPacedScheduler {
       final int previousTs =
           previousTsRaw > epochNowMs ? (epochNowMs - stepMs) : previousTsRaw;
       int nextTs = previousTs + stepMs;
+      final int minTs = epochNowMs - maxScheduleLagMs;
+      if (nextTs < minTs) {
+        // After packet stalls, do not keep emitting stale timestamps.
+        // Keep stream time close to "now" so charts do not rewind on resume.
+        nextTs = minTs;
+      }
       if (nextTs > epochNowMs) {
         nextTs = epochNowMs;
+      }
+      if (nextTs <= previousTs) {
+        nextTs = math.min(epochNowMs, previousTs + 1);
       }
       _emittedTimestampByCmd[cmd] = nextTs;
       sample['timestamp'] = nextTs;

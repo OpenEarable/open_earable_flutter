@@ -177,7 +177,6 @@ class OpenRingFactory extends WearableFactory {
       sensorConfigs: sensorConfigs,
       disconnectNotifier: disconnectNotifier!,
       bleManager: bleManager!,
-      sensorDataStreamForId: sensorHandler.subscribeToSensorData,
       isSensorStreamingActive: () => sensorHandler.hasActiveRealtimeStreaming,
     );
     for (final config

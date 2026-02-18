@@ -7,15 +7,15 @@ import 'sensor_value_parser.dart';
 class OpenRingValueParser extends SensorValueParser {
   // 50 Hz -> 20 ms per sample
   static const int _samplePeriodMs = 20;
-  // OpenRing accelerometer channels are reported in milli-g.
-  static const double _accRawToGScale = 1000.0;
+  // IMU (cmd=0x40) accelerometer channels are reported in milli-g.
+  static const double _imuAccRawToGScale = 1000.0;
+  // PPG realtime (cmd=0x32) carries accelerometer with half-scale raw counts.
+  static const double _ppgAccRawToGScale = 500.0;
   // OpenRing realtime temperature channels are provided in milli-degrees C.
   static const double _tempRawToCelsiusScale = 1000.0;
 
   final Map<int, int> _lastSeqByCmd = {};
   final Map<int, int> _lastTsByCmd = {};
-  final Set<String> _seenType2MismatchWarnings = {};
-  final Set<String> _seenType2RealtimeMismatchWarnings = {};
 
   @override
   List<Map<String, dynamic>> parse(
@@ -195,6 +195,10 @@ class OpenRingValueParser extends SensorValueParser {
     }
 
     if (type == 0x00) {
+      if (value == 1) {
+        // Legacy Q2 state packet: ignore.
+        return const [];
+      }
       if (value == 0 || value == 2 || value == 4) {
         final String reason = switch (value) {
           0 => 'not worn',
@@ -215,7 +219,7 @@ class OpenRingValueParser extends SensorValueParser {
 
         final int heart = frame.getUint8(5);
         final int q2 = frame.getUint8(6);
-        final int temp = frame.getInt16(7, Endian.little);
+        final int temp = frame.getUint16(7, Endian.little);
 
         logger.d(
           'OpenRing PPG result received: heart=$heart q2=$q2 temp=$temp',
@@ -232,22 +236,8 @@ class OpenRingValueParser extends SensorValueParser {
         throw Exception('PPG waveform frame too short: ${frame.lengthInBytes}');
       }
 
-      int nSamples = frame.getUint8(5);
-      int payloadOffset = 6;
-
-      // Some firmware variants include an extra byte after sample count.
-      if (nSamples == 0 && frame.lengthInBytes >= 7) {
-        final int altSamples = frame.getUint8(6);
-        if (altSamples > 0) {
-          nSamples = altSamples;
-          payloadOffset = 7;
-        }
-      }
-
-      final ByteData waveformPayload = ByteData.sublistView(
-        frame,
-        payloadOffset,
-      );
+      final int nSamples = frame.getUint8(5);
+      final ByteData waveformPayload = ByteData.sublistView(frame, 6);
 
       final List<Map<String, dynamic>> waveform14 = _parsePpgWaveform(
         data: waveformPayload,
@@ -255,37 +245,13 @@ class OpenRingValueParser extends SensorValueParser {
         receiveTs: receiveTs,
         baseHeader: baseHeader,
       );
-      if (waveform14.isNotEmpty) {
-        return waveform14;
+      if (waveform14.isEmpty && nSamples > 0) {
+        logger.w(
+          'OpenRing PPG waveform length mismatch '
+          '(type=0x01, nSamples=$nSamples, payloadLen=${waveformPayload.lengthInBytes})',
+        );
       }
-
-      // Fallback observed on some OpenRing firmware revisions.
-      final List<Map<String, dynamic>> waveform34 = _parsePpgWaveformType2(
-        data: waveformPayload,
-        nSamples: nSamples,
-        receiveTs: receiveTs,
-        baseHeader: baseHeader,
-      );
-      if (waveform34.isNotEmpty) {
-        return waveform34;
-      }
-
-      // Last-resort fallback (red + infrared only).
-      final List<Map<String, dynamic>> waveform8 = _parsePpgWaveformType8(
-        data: waveformPayload,
-        nSamples: nSamples,
-        receiveTs: receiveTs,
-        baseHeader: baseHeader,
-      );
-      if (waveform8.isNotEmpty) {
-        return waveform8;
-      }
-
-      logger.w(
-        'OpenRing PPG waveform packet could not be parsed '
-        '(type=0x01, nSamples=$nSamples, payloadLen=${waveformPayload.lengthInBytes})',
-      );
-      return const [];
+      return waveform14;
     }
 
     if (type == 0x02) {
@@ -309,12 +275,7 @@ class OpenRingValueParser extends SensorValueParser {
         return realtimeType2;
       }
 
-      return _parsePpgWaveformType2(
-        data: waveformPayload,
-        nSamples: nSamples,
-        receiveTs: receiveTs,
-        baseHeader: baseHeader,
-      );
+      return const [];
     }
 
     return const [];
@@ -381,11 +342,14 @@ class OpenRingValueParser extends SensorValueParser {
     return parsedData;
   }
 
-  Map<String, dynamic> _parseAccelerometerComp(ByteData data) {
+  Map<String, dynamic> _parseAccelerometerComp(
+    ByteData data, {
+    double rawToGScale = _imuAccRawToGScale,
+  }) {
     return {
-      'X': data.getInt16(0, Endian.little) / _accRawToGScale,
-      'Y': data.getInt16(2, Endian.little) / _accRawToGScale,
-      'Z': data.getInt16(4, Endian.little) / _accRawToGScale,
+      'X': data.getInt16(0, Endian.little) / rawToGScale,
+      'Y': data.getInt16(2, Endian.little) / rawToGScale,
+      'Z': data.getInt16(4, Endian.little) / rawToGScale,
     };
   }
 
@@ -403,165 +367,19 @@ class OpenRingValueParser extends SensorValueParser {
     required int receiveTs,
     required Map<String, dynamic> baseHeader,
   }) {
-    final int expectedBytes = nSamples * 14;
-    final int usableBytes = data.lengthInBytes - (data.lengthInBytes % 14);
-    if (usableBytes == 0 || nSamples == 0) {
-      return const [];
-    }
-
-    int usableSamples = usableBytes ~/ 14;
-    if (usableSamples > nSamples) {
-      usableSamples = nSamples;
-    }
-
-    if (data.lengthInBytes != expectedBytes && nSamples > usableSamples) {
-      logger.w(
-        'PPG waveform length mismatch len=${data.lengthInBytes} expected=$expectedBytes; parsing $usableSamples sample(s)',
-      );
-    }
-
-    final List<Map<String, dynamic>> parsedData = [];
-    for (int i = 0; i < usableSamples; i++) {
-      final int offset = i * 14;
-      final int ts = receiveTs + (i + 1) * _samplePeriodMs;
-
-      parsedData.add({
-        ...baseHeader,
-        'timestamp': ts,
-        'PPG': {
-          'Green': 0,
-          'Red': data.getUint32(offset, Endian.little),
-          'Infrared': data.getUint32(offset + 4, Endian.little),
-        },
-        // Legacy Q2 waveform packets also carry accelerometer payload
-        // (bytes 8..13 in each 14-byte sample).
-        'Accelerometer': _parseAccelerometerComp(
-          ByteData.sublistView(data, offset + 8, offset + 14),
-        ),
-      });
-    }
-
-    return parsedData;
-  }
-
-  List<Map<String, dynamic>> _parsePpgWaveformType2({
-    required ByteData data,
-    required int nSamples,
-    required int receiveTs,
-    required Map<String, dynamic> baseHeader,
-  }) {
-    const int sampleSize = 34;
-    const int legacyTailSampleSize = 22;
-
-    final int expectedBytes = nSamples * sampleSize;
     if (nSamples == 0) {
       return const [];
     }
 
-    // Observed firmware variant:
-    // n samples announced, but payload is (n-1)*34 + 22 bytes.
-    if (nSamples > 1 &&
-        data.lengthInBytes ==
-            ((nSamples - 1) * sampleSize + legacyTailSampleSize)) {
-      final List<Map<String, dynamic>> parsedData = [];
-
-      for (int i = 0; i < nSamples - 1; i++) {
-        final int offset = i * sampleSize;
-        final int ts = receiveTs + (i + 1) * _samplePeriodMs;
-        parsedData.add({
-          ...baseHeader,
-          'timestamp': ts,
-          'PPG': {
-            'Green': 0,
-            'Red': data.getUint32(offset + 4, Endian.little),
-            'Infrared': data.getUint32(offset + 8, Endian.little),
-          },
-        });
-      }
-
-      final int tailOffset = (nSamples - 1) * sampleSize;
-      final int tailTs = receiveTs + nSamples * _samplePeriodMs;
-      parsedData.add({
-        ...baseHeader,
-        'timestamp': tailTs,
-        'PPG': {
-          'Green': 0,
-          'Red': data.getUint32(tailOffset + 4, Endian.little),
-          'Infrared': data.getUint32(tailOffset + 8, Endian.little),
-        },
-      });
-
-      return parsedData;
-    }
-
-    final int usableBytes =
-        data.lengthInBytes - (data.lengthInBytes % sampleSize);
-    if (usableBytes == 0) {
-      return const [];
-    }
-
-    int usableSamples = usableBytes ~/ sampleSize;
-    if (usableSamples > nSamples) {
-      usableSamples = nSamples;
-    }
-
-    if (data.lengthInBytes != expectedBytes) {
-      final String warningKey =
-          '${data.lengthInBytes}:$expectedBytes:$usableSamples:$nSamples';
-      if (_seenType2MismatchWarnings.add(warningKey)) {
-        logger.w(
-          'PPG type2 length mismatch len=${data.lengthInBytes} expected=$expectedBytes; parsing $usableSamples sample(s)',
-        );
-      }
-    }
-
-    final List<Map<String, dynamic>> parsedData = [];
-    for (int i = 0; i < usableSamples; i++) {
-      final int offset = i * sampleSize;
-      final int ts = receiveTs + (i + 1) * _samplePeriodMs;
-
-      parsedData.add({
-        ...baseHeader,
-        'timestamp': ts,
-        'PPG': {
-          'Green': 0,
-          'Red': data.getUint32(offset + 4, Endian.little),
-          'Infrared': data.getUint32(offset + 8, Endian.little),
-        },
-      });
-    }
-
-    return parsedData;
-  }
-
-  List<Map<String, dynamic>> _parsePpgWaveformType8({
-    required ByteData data,
-    required int nSamples,
-    required int receiveTs,
-    required Map<String, dynamic> baseHeader,
-  }) {
-    const int sampleSize = 8;
-
+    const int sampleSize = 14;
     final int expectedBytes = nSamples * sampleSize;
-    final int usableBytes =
-        data.lengthInBytes - (data.lengthInBytes % sampleSize);
-    if (usableBytes == 0 || nSamples == 0) {
+    if (data.lengthInBytes < expectedBytes) {
       return const [];
     }
-
-    int usableSamples = usableBytes ~/ sampleSize;
-    if (usableSamples > nSamples) {
-      usableSamples = nSamples;
-    }
-
-    if (data.lengthInBytes != expectedBytes && nSamples > usableSamples) {
-      logger.w(
-        'PPG type8 length mismatch len=${data.lengthInBytes} expected=$expectedBytes; parsing $usableSamples sample(s)',
-      );
-    }
+    final ByteData exactSamples = ByteData.sublistView(data, 0, expectedBytes);
 
     final List<Map<String, dynamic>> parsedData = [];
-    for (int i = 0; i < usableSamples; i++) {
+    for (int i = 0; i < nSamples; i++) {
       final int offset = i * sampleSize;
       final int ts = receiveTs + (i + 1) * _samplePeriodMs;
 
@@ -570,9 +388,15 @@ class OpenRingValueParser extends SensorValueParser {
         'timestamp': ts,
         'PPG': {
           'Green': 0,
-          'Red': data.getUint32(offset, Endian.little),
-          'Infrared': data.getUint32(offset + 4, Endian.little),
+          'Red': exactSamples.getUint32(offset, Endian.little),
+          'Infrared': exactSamples.getUint32(offset + 4, Endian.little),
         },
+        // Legacy Q2 waveform packets also carry accelerometer payload
+        // (bytes 8..13 in each 14-byte sample).
+        'Accelerometer': _parseAccelerometerComp(
+          ByteData.sublistView(exactSamples, offset + 8, offset + 14),
+          rawToGScale: _ppgAccRawToGScale,
+        ),
       });
     }
 
@@ -602,27 +426,14 @@ class OpenRingValueParser extends SensorValueParser {
     }
 
     final ByteData sampleData = ByteData.sublistView(data, headerSize);
-    final int expectedBytes = nSamples * sampleSize;
-    final int usableBytes =
-        sampleData.lengthInBytes - (sampleData.lengthInBytes % sampleSize);
-    if (usableBytes == 0) {
+    final int expectedPayloadBytes = nSamples * sampleSize;
+    if (sampleData.lengthInBytes != expectedPayloadBytes) {
+      // Guard against mis-parsing legacy type-0x02 payload layouts as the
+      // realtime30 format. Fallback parser handles those variants.
       return const [];
     }
 
-    int usableSamples = usableBytes ~/ sampleSize;
-    if (usableSamples > nSamples) {
-      usableSamples = nSamples;
-    }
-
-    if (sampleData.lengthInBytes != expectedBytes) {
-      final String warningKey =
-          '${sampleData.lengthInBytes}:$expectedBytes:$usableSamples:$nSamples';
-      if (_seenType2RealtimeMismatchWarnings.add(warningKey)) {
-        logger.w(
-          'PPG type2 realtime30 length mismatch len=${sampleData.lengthInBytes} expected=$expectedBytes; parsing $usableSamples sample(s)',
-        );
-      }
-    }
+    final int usableSamples = nSamples;
 
     final List<Map<String, dynamic>> parsedData = [];
     for (int i = 0; i < usableSamples; i++) {
@@ -639,6 +450,7 @@ class OpenRingValueParser extends SensorValueParser {
         },
         'Accelerometer': _parseAccelerometerComp(
           ByteData.sublistView(sampleData, offset + 12, offset + 18),
+          rawToGScale: _ppgAccRawToGScale,
         ),
         'Gyroscope': {
           'X': sampleData.getInt16(offset + 18, Endian.little),
