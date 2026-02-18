@@ -224,6 +224,9 @@ class OpenRing extends Wearable
       if (!matches(state)) {
         continue;
       }
+      if (!state.allowPayloadDrivenActivation) {
+        continue;
+      }
       if (nowMs < state.reactivateAllowedAtEpochMs) {
         continue;
       }
@@ -264,6 +267,7 @@ class OpenRing extends Wearable
       _armInactivityTimer(state);
       state.isActive = true;
       state.reactivateAllowedAtEpochMs = 0;
+      state.allowPayloadDrivenActivation = true;
     } else {
       state.inactivityTimer?.cancel();
       state.inactivityTimer = null;
@@ -271,6 +275,7 @@ class OpenRing extends Wearable
       state.reactivateAllowedAtEpochMs = DateTime.now()
           .add(_sensorStateInactivityCooldown)
           .millisecondsSinceEpoch;
+      state.allowPayloadDrivenActivation = false;
     }
 
     _lastInferredSensorConfigMap[state.configuration] = nextValue;
@@ -472,6 +477,7 @@ class _OpenRingInferredSensorState {
   bool isActive = false;
   Timer? inactivityTimer;
   int reactivateAllowedAtEpochMs = 0;
+  bool allowPayloadDrivenActivation = true;
 }
 
 // OpenRing GATT constants (from the vendor AAR)

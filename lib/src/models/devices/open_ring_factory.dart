@@ -164,7 +164,7 @@ class OpenRingFactory extends WearableFactory {
         axisNames: ["Temp0", "Temp1", "Temp2"],
         axisUnits: ["°C", "°C", "°C"],
         sensorHandler: sensorHandler,
-        // Temperature uses software on/off. PPG must be enabled separately.
+        // Temperature uses software on/off and enables PPG transport automatically.
         relatedConfigurations: [temperatureSensorConfig],
       ),
     ];
