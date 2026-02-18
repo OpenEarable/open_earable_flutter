@@ -7,6 +7,8 @@ import 'sensor_value_parser.dart';
 class OpenRingValueParser extends SensorValueParser {
   // 50 Hz -> 20 ms per sample
   static const int _samplePeriodMs = 20;
+  // OpenRing accelerometer channels are reported in milli-g.
+  static const double _accRawToGScale = 1000.0;
   // OpenRing realtime temperature channels are provided in milli-degrees C.
   static const double _tempRawToCelsiusScale = 1000.0;
 
@@ -289,8 +291,8 @@ class OpenRingValueParser extends SensorValueParser {
       final ByteData accBytes = ByteData.sublistView(sample, 0, 6);
       final ByteData gyroBytes = ByteData.sublistView(sample, 6);
 
-      final Map<String, dynamic> accelData = _parseImuComp(accBytes);
-      final Map<String, dynamic> gyroData = _parseImuComp(gyroBytes);
+      final Map<String, dynamic> accelData = _parseAccelerometerComp(accBytes);
+      final Map<String, dynamic> gyroData = _parseGyroscopeComp(gyroBytes);
 
       parsedData.add({
         ...baseHeader,
@@ -302,7 +304,15 @@ class OpenRingValueParser extends SensorValueParser {
     return parsedData;
   }
 
-  Map<String, dynamic> _parseImuComp(ByteData data) {
+  Map<String, dynamic> _parseAccelerometerComp(ByteData data) {
+    return {
+      'X': data.getInt16(0, Endian.little) / _accRawToGScale,
+      'Y': data.getInt16(2, Endian.little) / _accRawToGScale,
+      'Z': data.getInt16(4, Endian.little) / _accRawToGScale,
+    };
+  }
+
+  Map<String, dynamic> _parseGyroscopeComp(ByteData data) {
     return {
       'X': data.getInt16(0, Endian.little),
       'Y': data.getInt16(2, Endian.little),

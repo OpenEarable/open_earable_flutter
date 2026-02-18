@@ -3,7 +3,7 @@ import 'dart:async';
 import '../../../../managers/sensor_handler.dart';
 import '../../sensor.dart';
 
-class OpenRingSensor extends Sensor<SensorIntValue> {
+class OpenRingSensor extends Sensor<SensorDoubleValue> {
   OpenRingSensor({
     required this.sensorId,
     required super.sensorName,
@@ -24,8 +24,8 @@ class OpenRingSensor extends Sensor<SensorIntValue> {
 
   // ignore: cancel_subscriptions
   StreamSubscription<Map<String, dynamic>>? _sensorSubscription;
-  late final StreamController<SensorIntValue> _sensorStreamController =
-      StreamController<SensorIntValue>.broadcast(
+  late final StreamController<SensorDoubleValue> _sensorStreamController =
+      StreamController<SensorDoubleValue>.broadcast(
     onListen: _handleListen,
     onCancel: _handleCancel,
   );
@@ -40,13 +40,13 @@ class OpenRingSensor extends Sensor<SensorIntValue> {
   int get axisCount => _axisNames.length;
 
   @override
-  Stream<SensorIntValue> get sensorStream => _sensorStreamController.stream;
+  Stream<SensorDoubleValue> get sensorStream => _sensorStreamController.stream;
 
   void _handleListen() {
     _sensorSubscription ??=
         sensorHandler.subscribeToSensorData(sensorId).listen(
       (data) {
-        final SensorIntValue? sensorValue = _toSensorValue(data);
+        final SensorDoubleValue? sensorValue = _toSensorValue(data);
         if (sensorValue != null && !_sensorStreamController.isClosed) {
           _sensorStreamController.add(sensorValue);
         }
@@ -71,7 +71,7 @@ class OpenRingSensor extends Sensor<SensorIntValue> {
     }
   }
 
-  SensorIntValue? _toSensorValue(Map<String, dynamic> data) {
+  SensorDoubleValue? _toSensorValue(Map<String, dynamic> data) {
     if (!data.containsKey(sensorName)) {
       return null;
     }
@@ -83,10 +83,12 @@ class OpenRingSensor extends Sensor<SensorIntValue> {
     }
 
     final Map sensorDataMap = sensorData;
-    final List<int> values = [];
+    final List<double> values = [];
     for (final axisName in _axisNames) {
       final dynamic axisValue = sensorDataMap[axisName];
       if (axisValue is int) {
+        values.add(axisValue.toDouble());
+      } else if (axisValue is double) {
         values.add(axisValue);
       }
     }
@@ -97,7 +99,9 @@ class OpenRingSensor extends Sensor<SensorIntValue> {
           continue;
         }
         if (entry.value is int) {
-          values.add(entry.value as int);
+          values.add((entry.value as int).toDouble());
+        } else if (entry.value is double) {
+          values.add(entry.value as double);
         }
       }
     }
@@ -106,6 +110,6 @@ class OpenRingSensor extends Sensor<SensorIntValue> {
       return null;
     }
 
-    return SensorIntValue(values: values, timestamp: timestamp);
+    return SensorDoubleValue(values: values, timestamp: timestamp);
   }
 }
