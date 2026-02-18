@@ -179,6 +179,9 @@ class OpenRingFactory extends WearableFactory {
       bleManager: bleManager!,
       isSensorStreamingActive: () => sensorHandler.hasActiveRealtimeStreaming,
     );
+    sensorHandler.setInitialStreamingDetectedCallback(
+      w.assumeAllConfigurationsEnabledFromDetectedStreaming,
+    );
     for (final config
         in sensorConfigs.whereType<OpenRingSensorConfiguration>()) {
       config.onConfigurationApplied = (configuration, value) {
