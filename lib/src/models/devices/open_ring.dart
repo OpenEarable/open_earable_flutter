@@ -15,15 +15,13 @@ class OpenRing extends Wearable
     List<SensorConfiguration> sensorConfigs = const [],
     required BleGattManager bleManager,
     required super.disconnectNotifier,
-    Stream<Map<String, dynamic>> Function(int sensorId)? sensorDataStreamForId,
     bool Function()? isSensorStreamingActive,
   })  : _sensors = sensors,
         _sensorConfigs = sensorConfigs,
         _bleManager = bleManager,
         _discoveredDevice = discoveredDevice,
-        _sensorDataStreamForId = sensorDataStreamForId,
         _isSensorStreamingActive = isSensorStreamingActive {
-    _initializeInferredSensorStates();
+    _initializeAssumedSensorStates();
   }
 
   final DiscoveredDevice _discoveredDevice;
@@ -31,23 +29,17 @@ class OpenRing extends Wearable
   final List<Sensor> _sensors;
   final List<SensorConfiguration> _sensorConfigs;
   final BleGattManager _bleManager;
-  final Stream<Map<String, dynamic>> Function(int sensorId)?
-      _sensorDataStreamForId;
   final bool Function()? _isSensorStreamingActive;
 
   bool _batteryPollingWasSkippedForStreaming = false;
-  static const Duration _sensorStateInactivityCooldown =
-      Duration(milliseconds: 600);
-
-  final List<_OpenRingInferredSensorState> _inferredSensorStates = [];
+  final Map<SensorConfiguration<SensorConfigurationValue>,
+      OpenRingSensorConfigurationValue> _offValueByConfiguration = {};
   Map<SensorConfiguration<SensorConfigurationValue>, SensorConfigurationValue>
-      _lastInferredSensorConfigMap = {};
+      _currentSensorConfigMap = {};
 
   StreamController<
       Map<SensorConfiguration<SensorConfigurationValue>,
           SensorConfigurationValue>>? _sensorConfigController;
-  StreamSubscription<Map<String, dynamic>>? _imuStateSubscription;
-  StreamSubscription<Map<String, dynamic>>? _ppgStateSubscription;
 
   static const int _batteryReadType = 0x00;
   static const int _batteryPushType = 0x02;
@@ -78,23 +70,28 @@ class OpenRing extends Wearable
   Stream<
       Map<SensorConfiguration<SensorConfigurationValue>,
           SensorConfigurationValue>> get sensorConfigurationStream {
-    if (_sensorDataStreamForId == null || _inferredSensorStates.isEmpty) {
-      return Stream.value(Map.unmodifiable(_lastInferredSensorConfigMap));
-    }
-
     _sensorConfigController ??= StreamController<
         Map<SensorConfiguration<SensorConfigurationValue>,
-            SensorConfigurationValue>>.broadcast(
-      onListen: _startSensorStateTracking,
-      onCancel: _stopSensorStateTracking,
-    );
+            SensorConfigurationValue>>.broadcast();
+    final controller = _sensorConfigController!;
 
-    return _sensorConfigController!.stream;
+    return Stream<
+        Map<SensorConfiguration<SensorConfigurationValue>,
+            SensorConfigurationValue>>.multi((emitter) {
+      emitter.add(Map.unmodifiable(Map.of(_currentSensorConfigMap)));
+      final sub = controller.stream.listen(
+        emitter.add,
+        onError: emitter.addError,
+      );
+      emitter.onCancel = sub.cancel;
+    });
   }
 
-  void _initializeInferredSensorStates() {
-    _inferredSensorStates.clear();
-    final inferredStates = <_OpenRingInferredSensorState>[];
+  void _initializeAssumedSensorStates() {
+    _offValueByConfiguration.clear();
+    final initialMap =
+        <SensorConfiguration<SensorConfigurationValue>, SensorConfigurationValue>{
+      };
 
     for (final rawConfig in _sensorConfigs) {
       if (rawConfig is! OpenRingSensorConfiguration) {
@@ -115,231 +112,44 @@ class OpenRing extends Wearable
               orElse: () => values.first,
             );
 
-      final streamValue = values.firstWhere(
-        (value) => value.streamData,
-        orElse: () => offValue,
-      );
-
-      inferredStates.add(
-        _OpenRingInferredSensorState(
-          configuration:
-              rawConfig as SensorConfiguration<SensorConfigurationValue>,
-          offValue: offValue,
-          streamValue: streamValue,
-          requiresTemperaturePayload: streamValue.softwareToggleOnly,
-        ),
-      );
+      final configuration =
+          rawConfig as SensorConfiguration<SensorConfigurationValue>;
+      _offValueByConfiguration[configuration] = offValue;
+      initialMap[configuration] = offValue;
     }
 
-    _inferredSensorStates.addAll(inferredStates);
-    _lastInferredSensorConfigMap = {
-      for (final state in inferredStates) state.configuration: state.offValue,
-    };
-  }
-
-  void _startSensorStateTracking() {
-    _resetInferredSensorStates();
-    _emitInferredSensorConfigurationState();
-
-    if (_sensorDataStreamForId == null) {
-      return;
-    }
-    final streamForSensorId = _sensorDataStreamForId;
-    try {
-      _imuStateSubscription ??= streamForSensorId(OpenRingGatt.cmdIMU).listen(
-        _handleImuSampleForState,
-        onError: _forwardSensorStateStreamError,
-      );
-
-      _ppgStateSubscription ??= streamForSensorId(OpenRingGatt.cmdPPGQ2).listen(
-        _handlePpgSampleForState,
-        onError: _forwardSensorStateStreamError,
-      );
-    } catch (error, stackTrace) {
-      _forwardSensorStateStreamError(error, stackTrace);
-    }
-  }
-
-  void _stopSensorStateTracking() {
-    unawaited(_imuStateSubscription?.cancel());
-    unawaited(_ppgStateSubscription?.cancel());
-    _imuStateSubscription = null;
-    _ppgStateSubscription = null;
-
-    for (final state in _inferredSensorStates) {
-      state.inactivityTimer?.cancel();
-      state.inactivityTimer = null;
-    }
-  }
-
-  void _handleImuSampleForState(Map<String, dynamic> sample) {
-    final bool hasImuPayload =
-        sample.containsKey('Accelerometer') || sample.containsKey('Gyroscope');
-    if (!hasImuPayload) {
-      return;
-    }
-
-    _markStatesAsActive(
-      (state) => state.streamValue.cmd == OpenRingGatt.cmdIMU,
-    );
-  }
-
-  void _handlePpgSampleForState(Map<String, dynamic> sample) {
-    final bool hasPpgPayload = sample.containsKey('PPG');
-    final bool hasTemperaturePayload = sample.containsKey('Temperature');
-    final bool hasImuPayload =
-        sample.containsKey('Accelerometer') || sample.containsKey('Gyroscope');
-
-    if (hasPpgPayload) {
-      _markStatesAsActive(
-        (state) =>
-            state.streamValue.cmd == OpenRingGatt.cmdPPGQ2 &&
-            !state.requiresTemperaturePayload,
-      );
-    }
-
-    if (hasImuPayload) {
-      _markStatesAsActive(
-        (state) => state.streamValue.cmd == OpenRingGatt.cmdIMU,
-      );
-    }
-
-    if (hasTemperaturePayload) {
-      _markStatesAsActive(
-        (state) =>
-            state.streamValue.cmd == OpenRingGatt.cmdPPGQ2 &&
-            state.requiresTemperaturePayload,
-      );
-    }
-  }
-
-  void _markStatesAsActive(
-    bool Function(_OpenRingInferredSensorState state) matches,
-  ) {
-    var changed = false;
-    final nowMs = DateTime.now().millisecondsSinceEpoch;
-
-    for (final state in _inferredSensorStates) {
-      if (!matches(state)) {
-        continue;
-      }
-      if (!state.allowPayloadDrivenActivation) {
-        continue;
-      }
-      if (nowMs < state.reactivateAllowedAtEpochMs) {
-        continue;
-      }
-
-      _armInactivityTimer(state);
-      state.reactivateAllowedAtEpochMs = 0;
-
-      if (state.isActive) {
-        continue;
-      }
-
-      state.isActive = true;
-      _lastInferredSensorConfigMap[state.configuration] = state.streamValue;
-      changed = true;
-    }
-
-    if (changed) {
-      _emitInferredSensorConfigurationState();
-    }
+    _currentSensorConfigMap = initialMap;
   }
 
   void assumeConfigurationApplied({
     required OpenRingSensorConfiguration configuration,
     required OpenRingSensorConfigurationValue value,
   }) {
-    final state = _findInferredSensorState(configuration);
-    if (state == null) {
+    final configurationKey =
+        configuration as SensorConfiguration<SensorConfigurationValue>;
+    final offValue = _offValueByConfiguration[configurationKey];
+    if (offValue == null) {
       return;
     }
 
-    final bool shouldBeActive = value.streamData;
-    final bool wasActive = state.isActive;
-    final previousValue = _lastInferredSensorConfigMap[state.configuration];
     final SensorConfigurationValue nextValue =
-        shouldBeActive ? value : state.offValue;
-
-    if (shouldBeActive) {
-      _armInactivityTimer(state);
-      state.isActive = true;
-      state.reactivateAllowedAtEpochMs = 0;
-      state.allowPayloadDrivenActivation = true;
-    } else {
-      state.inactivityTimer?.cancel();
-      state.inactivityTimer = null;
-      state.isActive = false;
-      state.reactivateAllowedAtEpochMs = DateTime.now()
-          .add(_sensorStateInactivityCooldown)
-          .millisecondsSinceEpoch;
-      state.allowPayloadDrivenActivation = false;
-    }
-
-    _lastInferredSensorConfigMap[state.configuration] = nextValue;
-    if (previousValue != nextValue || wasActive != state.isActive) {
-      _emitInferredSensorConfigurationState();
-    }
-  }
-
-  void _markStateAsInactive(_OpenRingInferredSensorState state) {
-    state.inactivityTimer = null;
-    if (!state.isActive) {
+        value.streamData ? value : offValue;
+    final previousValue = _currentSensorConfigMap[configurationKey];
+    if (previousValue == nextValue) {
       return;
     }
 
-    state.isActive = false;
-    _lastInferredSensorConfigMap[state.configuration] = state.offValue;
-    _emitInferredSensorConfigurationState();
+    _currentSensorConfigMap[configurationKey] = nextValue;
+    _emitSensorConfigurationState();
   }
 
-  void _resetInferredSensorStates() {
-    for (final state in _inferredSensorStates) {
-      state.isActive = false;
-      state.inactivityTimer?.cancel();
-      state.inactivityTimer = null;
-      _lastInferredSensorConfigMap[state.configuration] = state.offValue;
-      state.reactivateAllowedAtEpochMs = 0;
-    }
-  }
-
-  _OpenRingInferredSensorState? _findInferredSensorState(
-    SensorConfiguration<SensorConfigurationValue> configuration,
-  ) {
-    for (final state in _inferredSensorStates) {
-      if (identical(state.configuration, configuration)) {
-        return state;
-      }
-    }
-    return null;
-  }
-
-  void _armInactivityTimer(_OpenRingInferredSensorState state) {
-    state.inactivityTimer?.cancel();
-    state.inactivityTimer = Timer(
-      _sensorStateInactivityCooldown,
-      () => _markStateAsInactive(state),
-    );
-  }
-
-  void _emitInferredSensorConfigurationState() {
+  void _emitSensorConfigurationState() {
     final controller = _sensorConfigController;
     if (controller == null || controller.isClosed) {
       return;
     }
 
-    controller.add(Map.unmodifiable(Map.of(_lastInferredSensorConfigMap)));
-  }
-
-  void _forwardSensorStateStreamError(Object error, StackTrace stackTrace) {
-    logger.e('Error while inferring OpenRing sensor state: $error');
-    logger.t(stackTrace);
-    final controller = _sensorConfigController;
-    if (controller == null || controller.isClosed) {
-      return;
-    }
-    controller.addError(error, stackTrace);
+    controller.add(Map.unmodifiable(Map.of(_currentSensorConfigMap)));
   }
 
   @override
@@ -459,24 +269,6 @@ class OpenRing extends Wearable
 
     return controller.stream;
   }
-}
-
-class _OpenRingInferredSensorState {
-  _OpenRingInferredSensorState({
-    required this.configuration,
-    required this.offValue,
-    required this.streamValue,
-    required this.requiresTemperaturePayload,
-  });
-
-  final SensorConfiguration<SensorConfigurationValue> configuration;
-  final OpenRingSensorConfigurationValue offValue;
-  final OpenRingSensorConfigurationValue streamValue;
-  final bool requiresTemperaturePayload;
-  bool isActive = false;
-  Timer? inactivityTimer;
-  int reactivateAllowedAtEpochMs = 0;
-  bool allowPayloadDrivenActivation = true;
 }
 
 // OpenRing GATT constants (from the vendor AAR)
