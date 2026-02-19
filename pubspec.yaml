@@ -39,6 +39,8 @@ dependencies:
   bloc: ^9.1.0
   meta: ^1.16.0
   pub_semver: ^2.2.0
+  iirjdart: ^0.1.0
+
 
 dev_dependencies:
   flutter_test:
