@@ -44,6 +44,7 @@ const String _timeSyncRttCharacteristicUuid =
 const String audioResponseServiceUuid = "12345678-1234-5678-9abc-def123456789";
 const String _audioResponseControlCharacteristicUuid = "12345679-1234-5678-9abc-def123456789";
 const String _audioResponseDataCharacteristicUuid = "1234567a-1234-5678-9abc-def123456789";
+const String _audioResponseMicSelectCharacteristicUuid = "1234567b-1234-5678-9abc-def123456789";
 
 final VersionConstraint _versionConstraint =
     VersionConstraint.parse(">=2.1.0 <2.3.0");
@@ -554,8 +555,60 @@ class OpenEarableV2AudioResponseManager implements AudioResponseManager {
     required this.deviceId,
   });
 
-  void _triggerAudioResponseMeasurement() {
-    bleManager.write(
+  bool _readBoolParam(Map<String, dynamic> parameters, String key, bool fallback) {
+    final dynamic value = parameters[key];
+    if (value == null) {
+      return fallback;
+    }
+    if (value is bool) {
+      return value;
+    }
+    if (value is num) {
+      return value != 0;
+    }
+    if (value is String) {
+      final normalized = value.toLowerCase();
+      if (normalized == '1' || normalized == 'true' || normalized == 'yes') {
+        return true;
+      }
+      if (normalized == '0' || normalized == 'false' || normalized == 'no') {
+        return false;
+      }
+    }
+    return fallback;
+  }
+
+  Future<void> _writeMicSelection(Map<String, dynamic> parameters) async {
+    final leftEnabled = _readBoolParam(
+      parameters,
+      'left_enabled',
+      _readBoolParam(parameters, 'leftEnabled', true),
+    );
+    final rightEnabled = _readBoolParam(
+      parameters,
+      'right_enabled',
+      _readBoolParam(parameters, 'rightEnabled', false),
+    );
+
+    if (!leftEnabled && !rightEnabled) {
+      throw ArgumentError(
+        'At least one microphone channel must be enabled for audio response measurement.',
+      );
+    }
+
+    await bleManager.write(
+      deviceId: deviceId,
+      serviceId: audioResponseServiceUuid,
+      characteristicId: _audioResponseMicSelectCharacteristicUuid,
+      byteData: [
+        leftEnabled ? 0x01 : 0x00,
+        rightEnabled ? 0x01 : 0x00,
+      ],
+    );
+  }
+
+  Future<void> _triggerAudioResponseMeasurement() async {
+    await bleManager.write(
       deviceId: deviceId,
       serviceId: audioResponseServiceUuid,
       characteristicId: _audioResponseControlCharacteristicUuid,
@@ -642,7 +695,8 @@ class OpenEarableV2AudioResponseManager implements AudioResponseManager {
   Future<Map<String, dynamic>> measureAudioResponse(
     Map<String, dynamic> parameters,
   ) async {
-    _triggerAudioResponseMeasurement();
+    await _writeMicSelection(parameters);
+    await _triggerAudioResponseMeasurement();
 
     // Wait for the result via notification
     final completer = Completer<Map<String, dynamic>>();
@@ -680,6 +734,28 @@ class OpenEarableV2AudioResponseManager implements AudioResponseManager {
     );
 
     return completer.future;
+  }
+
+  @override
+  Future<Map<String, dynamic>> measureOuterAudioResponse({
+    Map<String, dynamic> parameters = const {},
+  }) {
+    return measureAudioResponse({
+      ...parameters,
+      'left_enabled': true,
+      'right_enabled': false,
+    });
+  }
+
+  @override
+  Future<Map<String, dynamic>> measureInnerAudioResponse({
+    Map<String, dynamic> parameters = const {},
+  }) {
+    return measureAudioResponse({
+      ...parameters,
+      'left_enabled': false,
+      'right_enabled': true,
+    });
   }
 }
 
