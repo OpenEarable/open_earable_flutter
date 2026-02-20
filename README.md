@@ -11,7 +11,7 @@ This Dart package provides functionality for interacting with OpenEarable device
 
   
 
-[![Button](https://raw.githubusercontent.com/OpenEarable/open_earable_flutter/main/.github/assets/get_oe_button.svg)](https://forms.gle/R3LMcqtyKwVH7PZB9)
+[![Button](https://raw.githubusercontent.com/OpenEarable/open_earable_flutter/main/.github/assets/get_oe_button.svg)](https://openearable.com)
 
 [![Button](https://raw.githubusercontent.com/OpenEarable/open_earable_flutter/main/.github/assets/show_on_pub_dev_button.svg)](https://pub.dev/packages/open_earable_flutter)
 
