@@ -37,7 +37,7 @@ class V2SensorHandler extends SensorHandler<V2SensorConfig> {
 
     StreamController<Map<String, dynamic>> streamController =
         StreamController();
-    _bleManager
+    final subscription = _bleManager
         .subscribe(
       deviceId: _discoveredDevice.id,
       serviceId: sensorServiceUuid,
@@ -54,8 +54,11 @@ class V2SensorHandler extends SensorHandler<V2SensorConfig> {
       },
       onError: (error) {
         logger.e("Error while subscribing to sensor data: $error");
+        streamController.addError(error);
       },
     );
+
+    streamController.onCancel = subscription.cancel;
 
     return streamController.stream;
   }
