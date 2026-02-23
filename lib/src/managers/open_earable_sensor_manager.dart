@@ -70,7 +70,7 @@ class OpenEarableSensorHandler extends SensorHandler<OpenEarableSensorConfig> {
     StreamController<Map<String, dynamic>> streamController =
         StreamController();
     int lastTimestamp = 0;
-    _bleManager
+    final subscription = _bleManager
         .subscribe(
       deviceId: deviceId,
       serviceId: sensorServiceUuid,
@@ -131,8 +131,12 @@ class OpenEarableSensorHandler extends SensorHandler<OpenEarableSensorConfig> {
           }
         }
       },
-      onError: (error) {},
+      onError: (error) {
+        streamController.addError(error);
+      },
     );
+
+    streamController.onCancel = subscription.cancel;
 
     return streamController.stream;
   }
