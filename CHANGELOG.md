@@ -2,6 +2,10 @@
 
 * fixed a bug where the stream of sensor values would not be properly closed when the device is disconnected, which could lead to memory leaks and other issues
 * fixed a bug where ble subscriptions whould be cancelled for all devices when a single connection changes
+* added methods to handle wearable factories
+    * remove wearable factory
+    * get all registered wearable factories
+    * clear all registered wearable factories
 
 ## 2.3.3
 
