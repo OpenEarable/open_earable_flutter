@@ -1,3 +1,8 @@
+## 2.3.4
+
+* fixed a bug where the stream of sensor values would not be properly closed when the device is disconnected, which could lead to memory leaks and other issues
+* fixed a bug where ble subscriptions whould be cancelled for all devices when a single connection changes
+
 ## 2.3.3
 
 * renamed TauRing to OpenRing
