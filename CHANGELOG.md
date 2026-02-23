@@ -1,3 +1,10 @@
+## 2.3.4
+
+* added methods to handle wearable factories
+    * remove wearable factory
+    * get all registered wearable factories
+    * clear all registered wearable factories
+
 ## 2.3.3
 
 * renamed TauRing to OpenRing
