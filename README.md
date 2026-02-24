@@ -107,12 +107,12 @@ To get started with the OpenEarable Flutter package, follow these steps:
   }
   ```
 
-  For more information about using sensor data, refer to the [Using Sensor Data](doc/SENSOR_DATA.md) documentation.
+  For more information about using sensor data, refer to the [Using Sensor Data](https://github.com/OpenEarable/open_earable_flutter/blob/main/doc/SENSOR_DATA.md) documentation.
 
-  For most devices, the sensors have to be configured before they start sending data. You can learn more about configuring sensors in the chapter [Configuring Sensors](doc/SENSOR_CONFIG.md).
+  For most devices, the sensors have to be configured before they start sending data. You can learn more about configuring sensors in the chapter [Configuring Sensors](https://github.com/OpenEarable/open_earable_flutter/blob/main/doc/SENSOR_CONFIG.md).
 
   > [!WARNING]
-  > Checking for capabilities using `is <Capability>` is deprecated. Please use `hasCapability<T>()` instead. You can learn more about capabilities in the [Capabilities](doc/CAPABILITIES.md) documentation.
+  > Checking for capabilities using `is <Capability>` is deprecated. Please use `hasCapability<T>()` instead. You can learn more about capabilities in the [Capabilities](https://github.com/OpenEarable/open_earable_flutter/blob/main/doc/CAPABILITIES.md) documentation.
 
 ## Add custom Wearable Support
-Learn more about how to add support for your own wearable devices in the [Adding Custom Wearable Support](doc/ADD_CUSTOM_WEARABLE.md) documentation.
+Learn more about how to add support for your own wearable devices in the [Adding Custom Wearable Support](https://github.com/OpenEarable/open_earable_flutter/blob/main/doc/ADD_CUSTOM_WEARABLE.md) documentation.
