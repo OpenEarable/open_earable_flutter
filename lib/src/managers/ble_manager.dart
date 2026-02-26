@@ -41,6 +41,23 @@ class BleManager extends BleGattManager {
     return _connectedDevicesIds.contains(deviceId);
   }
 
+  void _closeAndRemoveStreamsForDevice(String deviceId) {
+    final prefix = "$deviceId||";
+    final keys = _streamControllers.keys
+        .where((key) => key.startsWith(prefix))
+        .toList();
+
+    for (final key in keys) {
+      final controllers = _streamControllers.remove(key);
+      if (controllers == null) {
+        continue;
+      }
+      for (final controller in controllers) {
+        controller.close();
+      }
+    }
+  }
+
   void _init() {
     _scanStreamController = StreamController<DiscoveredDevice>.broadcast();
 
@@ -56,6 +73,7 @@ class BleManager extends BleGattManager {
         _connectCallbacks.remove(deviceId);
       } else {
         _connectedDevicesIds.remove(deviceId);
+        _closeAndRemoveStreamsForDevice(deviceId);
         _disconnectCallbacks[deviceId]?.call();
         _disconnectCallbacks.remove(deviceId);
       }
@@ -186,11 +204,9 @@ class BleManager extends BleGattManager {
     DiscoveredDevice device,
     VoidCallback onDisconnect,
   ) {
-    for (var list in _streamControllers.values) {
-      for (var e in list) {
-        e.close();
-      }
-    }
+    // Multi-device setup: only reset stale streams for the device that is
+    // being connected, not globally for all devices.
+    _closeAndRemoveStreamsForDevice(device.id);
 
     Completer<(bool, List<BleService>)> completer =
         Completer<(bool, List<BleService>)>();
