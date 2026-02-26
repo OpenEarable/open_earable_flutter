@@ -150,6 +150,25 @@ class WearableManager {
     _wearableFactories.add(factory);
   }
 
+  /// Removes a wearable factory from the manager.
+  /// This can be used to stop supporting certain types of wearables.
+  /// Example usage:
+  /// ```dart
+  /// WearableManager().removeWearableFactory(MyCustomWearableFactory());
+  /// ```
+  void removeWearableFactory(WearableFactory factory) {
+    _wearableFactories.remove(factory);
+  }
+
+  /// Clears all registered wearable factories from the manager.
+  /// This will remove support for all wearables that rely on those factories.
+  void clearWearableFactories() {
+    _wearableFactories.clear();
+  }
+
+  /// Returns an unmodifiable list of the currently registered wearable factories.
+  List<WearableFactory> get wearableFactories => List.unmodifiable(_wearableFactories);
+
   /// Starts scanning for BLE devices.
   /// If `checkAndRequestPermissions` is true, it will check and request the necessary
   /// permissions before starting the scan.
