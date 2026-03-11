@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:logger/logger.dart';
 import 'package:meta/meta.dart';
 import 'package:open_earable_flutter/src/exceptions/device_exception.dart';
+import 'package:open_earable_flutter/src/managers/exg/exg_factory.dart';
 import 'package:open_earable_flutter/src/models/devices/cosinuss_one_factory.dart';
 import 'package:open_earable_flutter/src/models/devices/esense_factory.dart';
 import 'package:open_earable_flutter/src/models/devices/open_earable_factory.dart';
@@ -107,6 +108,7 @@ class WearableManager {
   StreamSubscription<DiscoveredDevice>? _autoconnectScanSubscription;
 
   final List<WearableFactory> _wearableFactories = [
+    ExGFactory(),
     OpenEarableFactory(),
     CosinussOneFactory(),
     PolarFactory(),
