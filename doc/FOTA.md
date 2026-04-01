@@ -6,10 +6,10 @@ This guide is written for app developers using `open_earable_flutter`. It explai
 
 The FOTA API gives you the building blocks for a firmware update flow:
 
+- `FotaCapability` as the device-level abstraction layer for firmware updates
 - `FirmwareImageRepository` to load stable firmware releases from GitHub
 - `UnifiedFirmwareRepository` to load stable releases and optional beta builds
 - `RemoteFirmware` and `LocalFirmware` to represent selectable firmware files
-- `SelectedPeripheral` to identify the target device
 - `SingleImageFirmwareUpdateRequest` and `MultiImageFirmwareUpdateRequest` to describe the update job
 - `UpdateBloc` to execute the update and emit UI-friendly progress states
 
@@ -21,20 +21,23 @@ Make sure your app can already:
 2. Hold on to the connected `Wearable`
 3. Ask the user which firmware they want to install
 
-If you have not connected to a device yet, start there first. A firmware update needs a connected `Wearable` so you can pass its device identifier into `SelectedPeripheral`.
+If you have not connected to a device yet, start there first. A firmware update needs a connected `Wearable` so you can obtain its `FotaCapability`.
 
-## Step 1: Get The Target Device
+## Step 1: Get The FOTA Capability
 
-Once your app has a connected wearable, convert it into a `SelectedPeripheral`:
+Once your app has a connected wearable, obtain its `FotaCapability`:
 
 ```dart
-final SelectedPeripheral selectedPeripheral = SelectedPeripheral(
-  name: wearable.name,
-  identifier: wearable.deviceId,
-);
+final fota = wearable.getCapability<FotaCapability>();
+if (fota == null) {
+  // This wearable does not support firmware updates.
+  return;
+}
 ```
 
-The `identifier` is what the underlying update manager uses to talk to the device.
+This is the abstraction layer your app should use for device-specific firmware
+operations. The wearable may implement it using mcumgr today and a different
+backend in the future.
 
 ## Step 2: Offer Firmware Choices
 
@@ -116,34 +119,20 @@ Use:
 
 ## Step 3: Build The Update Request
 
-The request type depends on the selected firmware format.
-
-### Remote Or Local Multi-Image Firmware
-
-Use `MultiImageFirmwareUpdateRequest` for `.zip`-based updates:
+Ask the wearable's `FotaCapability` to create the request for the selected
+firmware:
 
 ```dart
-final request = MultiImageFirmwareUpdateRequest(
-  peripheral: selectedPeripheral,
-  firmware: selectedFirmware,
-);
+final request = fota.createFirmwareUpdateRequest(selectedFirmware);
 ```
 
-`selectedFirmware` can be either:
+For the current mcumgr-backed implementation, this returns:
 
-- a `RemoteFirmware` with `type == FirmwareType.multiImage`
-- a `LocalFirmware` with `type == FirmwareType.multiImage`
+- `MultiImageFirmwareUpdateRequest` for remote firmware and local `.zip` files
+- `SingleImageFirmwareUpdateRequest` for local `.bin` files
 
-### Local Single-Image Firmware
-
-Use `SingleImageFirmwareUpdateRequest` for local `.bin` updates:
-
-```dart
-final request = SingleImageFirmwareUpdateRequest(
-  peripheral: selectedPeripheral,
-  firmware: localFirmware,
-);
-```
+Apps should depend on `FotaCapability` for request creation instead of building
+device-specific request objects themselves.
 
 ## Step 4: Start The Update With `UpdateBloc`
 
@@ -213,6 +202,42 @@ BlocBuilder<UpdateBloc, UpdateState>(
   },
 )
 ```
+
+## Read The Current Firmware Slot State
+
+Some wearables also expose `FotaSlotInfoCapability` for implementations that
+have a slot or image-table concept. This is separate from `FotaCapability`,
+because not every firmware update backend uses the same slot model.
+
+```dart
+final slotInfo = wearable.getCapability<FotaSlotInfoCapability>();
+if (slotInfo != null) {
+  final slots = await slotInfo.readFirmwareSlots();
+
+  for (final slot in slots) {
+    print(
+      'image=${slot.image} slot=${slot.slot} '
+      'version=${slot.version} active=${slot.active} '
+      'confirmed=${slot.confirmed} pending=${slot.pending}',
+    );
+  }
+}
+```
+
+Each `FirmwareSlotInfo` contains:
+
+- `image`
+- `slot`
+- `version`
+- `hash` and `hashString`
+- `bootable`
+- `pending`
+- `confirmed`
+- `active`
+- `permanent`
+
+This is useful when you want to show the current primary and secondary images
+before or after an update.
 
 ## What Happens Internally
 
@@ -321,6 +346,8 @@ Recommended UX:
 - If a manifest contains multiple images, each file entry must define an image index
 - `UnifiedFirmwareRepository` caches results for 15 minutes unless you request a refresh
 - The current upload path uses `mcumgr_flutter` under the hood
+- `FotaSlotInfoCapability` is optional and only available on wearables whose firmware backend exposes slot-style state
+- `mcumgr_flutter 0.6.1` does not expose an API to erase an individual image slot, so this library does not currently offer slot erase either
 
 ## Related Source Files
 
@@ -331,3 +358,5 @@ If you want to inspect the implementation behind the public APIs, these are the 
 - `lib/src/fota/repository/unified_firmware_image_repository.dart`
 - `lib/src/fota/bloc/update_bloc.dart`
 - `lib/src/fota/providers/firmware_update_request_provider.dart`
+- `lib/src/models/capabilities/fota_capability.dart`
+- `lib/src/models/capabilities/fota_slot_info_capability.dart`
