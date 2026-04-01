@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:open_earable_flutter/open_earable_flutter.dart';
 
+/// Mutable helper used by the example flow to collect firmware update inputs
+/// across multiple UI steps.
 class FirmwareUpdateRequestProvider extends ChangeNotifier {
   FirmwareUpdateRequest _updateParameters = FirmwareUpdateRequest();
+
+  /// The request currently being assembled by the UI.
   FirmwareUpdateRequest get updateParameters => _updateParameters;
+
+  /// The currently selected wearable, if any.
   Wearable? selectedWearable;
+
+  /// Current step index in the example update wizard.
   int currentStep = 0;
 
+  /// Selects a firmware artifact and rebuilds the request with the correct
+  /// concrete request type.
   void setFirmware(SelectedFirmware? firmware) {
     if (firmware == null) {
       _updateParameters =
@@ -36,6 +46,7 @@ class FirmwareUpdateRequestProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Selects the wearable that should receive the update.
   void setSelectedPeripheral(Wearable wearable) {
     selectedWearable = wearable;
     _updateParameters.peripheral = SelectedPeripheral(
@@ -45,12 +56,14 @@ class FirmwareUpdateRequestProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Clears the current request and resets the wizard state.
   void reset() {
     _updateParameters = FirmwareUpdateRequest();
     currentStep = 0;
     notifyListeners();
   }
 
+  /// Advances the example wizard by one step.
   void nextStep() {
     if (currentStep == 1) {
       return;
@@ -59,6 +72,7 @@ class FirmwareUpdateRequestProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Moves the example wizard one step backwards.
   void previousStep() {
     if (currentStep == 0) {
       return;

@@ -10,11 +10,15 @@ import 'package:tuple/tuple.dart';
 part 'update_event.dart';
 part 'update_state.dart';
 
+/// Coordinates the end-to-end firmware update flow and exposes UI-friendly
+/// progress states.
 class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
+  /// The request currently being processed by the bloc.
   final FirmwareUpdateRequest firmwareUpdateRequest;
   UpdateFirmwareStateHistory? _state;
   FirmwareUpdateManager? _firmwareUpdateManager;
 
+  /// Creates a bloc for a single update request.
   UpdateBloc({required this.firmwareUpdateRequest}) : super(UpdateInitial()) {
     on<BeginUpdateProcess>((event, emit) async {
       emit(UpdateFirmware('Begin update process'));
@@ -190,6 +194,7 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
   }
 }
 
+/// Converts handler-level states into bloc events.
 class _StateConverter {
   static UpdateEvent convert(FirmwareUpdateState state) {
     return switch (state) {

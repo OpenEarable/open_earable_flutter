@@ -1,13 +1,16 @@
 part of 'update_bloc.dart';
 
+/// Base state emitted by [UpdateBloc].
 @immutable
 sealed class UpdateState extends Equatable {}
 
+/// Initial state before an update has started.
 final class UpdateInitial extends UpdateState {
   @override
   List<Object?> get props => [true];
 }
 
+/// High-level firmware update stage description.
 class UpdateFirmware extends UpdateState {
   final String stage;
 
@@ -17,6 +20,7 @@ class UpdateFirmware extends UpdateState {
   List<Object?> get props => [stage];
 }
 
+/// Upload stage with progress information for the active image.
 final class UpdateProgressFirmware extends UpdateFirmware {
   final int progress;
   final int imageNumber;
@@ -27,10 +31,12 @@ final class UpdateProgressFirmware extends UpdateFirmware {
   List<Object?> get props => [stage, progress];
 }
 
+/// Successful completion marker for the update flow.
 final class UpdateCompleteSuccess extends UpdateFirmware {
   UpdateCompleteSuccess() : super("Update complete");
 }
 
+/// Failure marker for the update flow.
 final class UpdateCompleteFailure extends UpdateFirmware {
   final String error;
 
@@ -40,6 +46,7 @@ final class UpdateCompleteFailure extends UpdateFirmware {
   List<Object?> get props => [stage, error];
 }
 
+/// Snapshot of the current stage plus the completed stage history.
 class UpdateFirmwareStateHistory extends UpdateState {
   final UpdateFirmware? currentState;
   final List<UpdateFirmware> history;

@@ -2,6 +2,8 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'firmware_image.g.dart';
 
+/// Top-level response describing firmware-capable applications and their
+/// released versions.
 @JsonSerializable(fieldRename: FieldRename.snake)
 class ApplicationResponse {
   final int version;
@@ -16,6 +18,7 @@ class ApplicationResponse {
       _$ApplicationResponseFromJson(json);
 }
 
+/// Application metadata for firmware-distributed builds.
 @JsonSerializable(fieldRename: FieldRename.snake)
 class Application {
   String appId;
@@ -40,6 +43,7 @@ class Application {
       _$ApplicationFromJson(json);
 }
 
+/// Versioned release metadata for an application firmware package.
 @JsonSerializable(fieldRename: FieldRename.snake)
 class Version {
   bool requiresBonding;
@@ -60,6 +64,7 @@ class Version {
       _$VersionFromJson(json);
 }
 
+/// Supported hardware board for a firmware version.
 @JsonSerializable(fieldRename: FieldRename.snake)
 class Board {
   String name;
@@ -73,6 +78,7 @@ class Board {
   factory Board.fromJson(Map<String, dynamic> json) => _$BoardFromJson(json);
 }
 
+/// Build-specific variant of a firmware package for a board.
 @JsonSerializable(fieldRename: FieldRename.snake)
 class BuildConfig {
   String name;
@@ -97,6 +103,7 @@ class BuildConfig {
       _$BuildConfigFromJson(json);
 }
 
+/// Child-core configuration included in a build variant.
 @JsonSerializable(fieldRename: FieldRename.snake)
 class ChildCore {
   String name;
@@ -111,6 +118,7 @@ class ChildCore {
       _$ChildCoreFromJson(json);
 }
 
+/// Optional build-time switch exposed for a firmware build variant.
 @JsonSerializable(fieldRename: FieldRename.snake)
 class Option {
   String name;
@@ -124,6 +132,7 @@ class Option {
   factory Option.fromJson(Map<String, dynamic> json) => _$OptionFromJson(json);
 }
 
+/// Human-facing link associated with a firmware version.
 @JsonSerializable(fieldRename: FieldRename.snake)
 class Link {
   String text;

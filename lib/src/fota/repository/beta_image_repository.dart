@@ -3,11 +3,17 @@ import 'package:http/http.dart' as http;
 
 import '../model/firmware_update_request.dart';
 
+/// Repository for beta or preview firmware bundles published under the
+/// dedicated prerelease tag.
 class BetaFirmwareImageRepository {
   static const _org = 'OpenEarable';
   static const _repo = 'open-earable-2';
   static const _prereleaseTag = 'pr-builds';
 
+  /// Returns preview FOTA bundles generated from pull request builds.
+  ///
+  /// The repository expects assets to follow the
+  /// `pr-<number>-<title>-openearable_v2_fota.zip` naming convention.
   Future<List<RemoteFirmware>> getFirmwareImages() async {
     try {
       final response = await http.get(

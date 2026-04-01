@@ -14,20 +14,31 @@ import 'package:mcumgr_flutter/mcumgr_flutter.dart';
 
 part 'firmware_update_state.dart';
 
+/// Callback used to surface intermediate pipeline states while the request is
+/// being prepared and uploaded.
 typedef FirmwareUpdateCallback = void Function(FirmwareUpdateState state);
 
+/// Base link in the firmware update preparation pipeline.
+///
+/// Concrete handlers implement one step of the process and forward the request
+/// to the next handler once their work is complete.
 abstract class FirmwareUpdateHandler {
   FirmwareUpdateHandler? _nextHandler;
+
+  /// Processes [request] and eventually returns the active firmware update
+  /// manager.
   Future<FirmwareUpdateManager> handleFirmwareUpdate(
     FirmwareUpdateRequest request,
     FirmwareUpdateCallback? callback,
   );
 
+  /// Configures the next handler in the chain.
   Future<void> setNextHandler(FirmwareUpdateHandler handler) async {
     _nextHandler = handler;
   }
 }
 
+/// Downloads remote firmware archives before forwarding the request.
 class FirmwareDownloader extends FirmwareUpdateHandler {
   @override
   Future<FirmwareUpdateManager> handleFirmwareUpdate(
@@ -63,6 +74,7 @@ class FirmwareDownloader extends FirmwareUpdateHandler {
   }
 }
 
+/// Extracts multi-image archives and parses their `manifest.json`.
 class FirmwareUnpacker extends FirmwareUpdateHandler {
   @override
   Future<FirmwareUpdateManager> handleFirmwareUpdate(
@@ -131,6 +143,7 @@ class FirmwareUnpacker extends FirmwareUpdateHandler {
   }
 }
 
+/// Uploads the prepared firmware image data through `mcumgr_flutter`.
 class FirmwareUpdater extends FirmwareUpdateHandler {
   final UpdateManagerFactory _updateManagerFactory =
       FirmwareUpdateManagerFactory();
