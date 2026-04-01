@@ -1,6 +1,8 @@
 import 'package:open_earable_flutter/open_earable_flutter.dart';
 import 'package:open_earable_flutter/src/fota/repository/beta_image_repository.dart';
 
+/// Aggregates stable and beta firmware repositories behind a small caching
+/// layer.
 class UnifiedFirmwareRepository {
   final FirmwareImageRepository _stableRepository = FirmwareImageRepository();
   final BetaFirmwareImageRepository _betaRepository =
@@ -17,6 +19,7 @@ class UnifiedFirmwareRepository {
     return DateTime.now().difference(_lastFetchTime!) > _cacheDuration;
   }
 
+  /// Returns stable firmware entries, optionally bypassing the cache.
   Future<List<FirmwareEntry>> getStableFirmwares({
     bool forceRefresh = false,
   }) async {
@@ -38,6 +41,7 @@ class UnifiedFirmwareRepository {
     return _cachedStable!;
   }
 
+  /// Returns beta firmware entries, optionally bypassing the cache.
   Future<List<FirmwareEntry>> getBetaFirmwares({
     bool forceRefresh = false,
   }) async {
@@ -59,6 +63,7 @@ class UnifiedFirmwareRepository {
     return _cachedBeta!;
   }
 
+  /// Returns stable firmwares and, when requested, beta firmwares in one list.
   Future<List<FirmwareEntry>> getAllFirmwares({
     bool includeBeta = false,
   }) async {
@@ -69,6 +74,7 @@ class UnifiedFirmwareRepository {
     return [...stable, ...beta];
   }
 
+  /// Clears all cached repository results.
   void clearCache() {
     _cachedStable = null;
     _cachedBeta = null;
@@ -76,10 +82,15 @@ class UnifiedFirmwareRepository {
   }
 }
 
+/// Origin of a [FirmwareEntry].
 enum FirmwareSource { stable, beta }
 
+/// Firmware entry annotated with its source repository.
 class FirmwareEntry {
+  /// The underlying firmware metadata used to build update requests.
   final RemoteFirmware firmware;
+
+  /// The repository that produced [firmware].
   final FirmwareSource source;
 
   FirmwareEntry({
@@ -87,6 +98,9 @@ class FirmwareEntry {
     required this.source,
   });
 
+  /// Whether this entry came from the beta repository.
   bool get isBeta => source == FirmwareSource.beta;
+
+  /// Whether this entry came from the stable repository.
   bool get isStable => source == FirmwareSource.stable;
 }

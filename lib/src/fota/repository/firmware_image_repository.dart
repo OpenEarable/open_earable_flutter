@@ -3,7 +3,11 @@ import 'package:http/http.dart' as http;
 
 import '../model/firmware_update_request.dart';
 
+/// Repository for stable firmware releases published from the main GitHub
+/// release feed.
 class FirmwareImageRepository {
+  /// Returns all non-draft, non-prerelease firmware assets from the upstream
+  /// OpenEarable release feed.
   Future<List<RemoteFirmware>> getFirmwareImages() async {
     final response = await http.get(
       Uri.parse(
@@ -50,6 +54,8 @@ class FirmwareImageRepository {
     return firmwares;
   }
 
+  /// Checks whether the newest published stable version is newer than
+  /// [currentVersion].
   Future<bool> newerFirmwareVersionAvailable(
     String? currentVersion,
   ) async {
@@ -65,6 +71,7 @@ class FirmwareImageRepository {
     }
   }
 
+  /// Returns the newest stable firmware version tag without a leading `v`.
   Future<String> getLatestFirmwareVersion() async {
     final response = await http.get(
       Uri.parse(
@@ -80,6 +87,8 @@ class FirmwareImageRepository {
     return (latestRelease['tag_name'] as String).replaceFirst('v', '');
   }
 
+  /// Compares semantic version strings and returns `true` when [latest] is
+  /// newer than [current].
   bool isNewerVersion(String latest, String current) {
     List<int> parse(String v) => v.split('.').map(int.parse).toList();
     final latestParts = parse(latest);

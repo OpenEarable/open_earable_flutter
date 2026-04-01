@@ -2,6 +2,7 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'manifest.g.dart';
 
+/// Parsed MCUboot manifest for a multi-image firmware archive.
 @JsonSerializable(fieldRename: FieldRename.snake)
 class Manifest {
   @JsonKey(name: 'format-version')
@@ -9,6 +10,8 @@ class Manifest {
   int time;
   List<ManifestFile> files;
 
+  /// Parses a manifest and validates that multi-image bundles contain image
+  /// indices for every file entry.
   factory Manifest.fromJson(Map<String, dynamic> json) {
     final manifest = _$ManifestFromJson(json);
 
@@ -30,6 +33,7 @@ class Manifest {
   });
 }
 
+/// Single file entry in a multi-image firmware manifest.
 @JsonSerializable(fieldRename: FieldRename.snake)
 class ManifestFile {
   String? type;
@@ -47,6 +51,7 @@ class ManifestFile {
   String file;
   String? imageIndex;
 
+  /// Numeric image slot derived from [imageIndex].
   int get image => int.parse(imageIndex ?? "0");
 
   factory ManifestFile.fromJson(Map<String, dynamic> json) =>
