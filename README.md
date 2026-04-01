@@ -116,3 +116,6 @@ To get started with the OpenEarable Flutter package, follow these steps:
 
 ## Add custom Wearable Support
 Learn more about how to add support for your own wearable devices in the [Adding Custom Wearable Support](https://github.com/OpenEarable/open_earable_flutter/blob/main/doc/ADD_CUSTOM_WEARABLE.md) documentation.
+
+## Firmware Updates
+Learn more about firmware-over-the-air updates in the [FOTA documentation](https://github.com/OpenEarable/open_earable_flutter/blob/main/doc/FOTA.md).
