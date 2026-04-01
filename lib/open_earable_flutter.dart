@@ -35,6 +35,8 @@ export 'src/managers/wearable_disconnect_notifier.dart';
 
 export 'src/models/capabilities/device_firmware_version.dart'
     hide DeviceFirmwareVersionNumberExt;
+export 'src/models/capabilities/fota_capability.dart';
+export 'src/models/capabilities/fota_slot_info_capability.dart';
 export 'src/models/capabilities/device_hardware_version.dart';
 export 'src/models/capabilities/device_identifier.dart';
 export 'src/models/capabilities/battery_level.dart';

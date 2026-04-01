@@ -10,6 +10,8 @@ import '../../../open_earable_flutter.dart' show logger;
 import '../../managers/v2_sensor_handler.dart';
 import '../../utils/sensor_value_parser/v2_sensor_value_parser.dart';
 import '../capabilities/audio_mode_manager.dart';
+import '../capabilities/fota_capability.dart';
+import '../capabilities/fota_slot_info_capability.dart';
 import '../capabilities/sensor.dart';
 import '../capabilities/sensor_configuration.dart';
 import '../capabilities/sensor_configuration_specializations/recordable_sensor_configuration.dart';
@@ -21,6 +23,7 @@ import 'discovered_device.dart';
 import 'open_earable_v1.dart';
 import 'open_earable_v2.dart';
 import 'wearable.dart';
+import '../../fota/firmware_slot_manager_impl.dart';
 
 const String _deviceInfoServiceUuid = "45622510-6468-465a-b141-0b9b0f96b468";
 const String _deviceFirmwareVersionCharacteristicUuid =
@@ -94,6 +97,20 @@ class OpenEarableFactory extends WearableFactory {
             bleManager: bleManager!,
             deviceId: device.id,
           ),
+        );
+      }
+      if (await bleManager!.hasService(
+        deviceId: device.id,
+        serviceId: mcuMgrSmpServiceUuid,
+      )) {
+        wearable.registerCapability<FotaManager>(
+          McuMgrFotaCapability(
+            deviceId: device.id,
+            deviceName: device.name,
+          ),
+        );
+        wearable.registerCapability<FotaSlotInfoCapability>(
+          McuMgrFotaSlotInfoManager(deviceId: device.id),
         );
       }
       return wearable;

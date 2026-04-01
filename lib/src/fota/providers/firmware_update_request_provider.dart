@@ -21,6 +21,15 @@ class FirmwareUpdateRequestProvider extends ChangeNotifier {
     if (firmware == null) {
       _updateParameters =
           FirmwareUpdateRequest(peripheral: _updateParameters.peripheral);
+      notifyListeners();
+      return;
+    }
+
+    final wearable = selectedWearable;
+    final fota = wearable?.getCapability<FotaManager>();
+    if (fota != null) {
+      _updateParameters = fota.createFirmwareUpdateRequest(firmware);
+      notifyListeners();
       return;
     }
 
@@ -49,10 +58,16 @@ class FirmwareUpdateRequestProvider extends ChangeNotifier {
   /// Selects the wearable that should receive the update.
   void setSelectedPeripheral(Wearable wearable) {
     selectedWearable = wearable;
-    _updateParameters.peripheral = SelectedPeripheral(
-      name: wearable.name,
-      identifier: wearable.deviceId,
-    );
+    final selectedFirmware = _updateParameters.firmware;
+    final fota = wearable.getCapability<FotaManager>();
+    if (selectedFirmware != null && fota != null) {
+      _updateParameters = fota.createFirmwareUpdateRequest(selectedFirmware);
+    } else {
+      _updateParameters.peripheral = SelectedPeripheral(
+        name: wearable.name,
+        identifier: wearable.deviceId,
+      );
+    }
     notifyListeners();
   }
 
