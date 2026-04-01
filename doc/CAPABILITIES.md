@@ -178,6 +178,31 @@ if (deviceIdentifierService != null) {
 }
 ```
 
+#### FotaCapability
+
+Provides the device-level abstraction for firmware update operations.
+
+```dart
+final fota = wearable.getCapability<FotaCapability>();
+if (fota != null) {
+  final request = fota.createFirmwareUpdateRequest(selectedFirmware);
+}
+```
+
+Use `createFirmwareUpdateRequest(...)` to build a wearable-specific update
+request without depending on the underlying FOTA backend.
+
+#### FotaSlotInfoCapability
+
+Provides firmware slot or image-table state for FOTA backends that expose it.
+
+```dart
+final slotInfo = wearable.getCapability<FotaSlotInfoCapability>();
+if (slotInfo != null) {
+  final slots = await slotInfo.readFirmwareSlots();
+}
+```
+
 ---
 
 ## Summary
