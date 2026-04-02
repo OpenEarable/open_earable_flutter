@@ -58,3 +58,6 @@ class PeripheralSelected extends UpdateEvent {
 
 /// Stops the active update manager and resets any in-flight upload.
 class ResetUpdate extends UpdateEvent {}
+
+/// Aborts the active firmware update.
+class AbortUpdate extends UpdateEvent {}

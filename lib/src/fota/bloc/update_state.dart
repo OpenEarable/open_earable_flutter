@@ -46,6 +46,11 @@ final class UpdateCompleteFailure extends UpdateFirmware {
   List<Object?> get props => [stage, error];
 }
 
+/// Aborted marker for the update flow.
+final class UpdateCompleteAborted extends UpdateFirmware {
+  UpdateCompleteAborted() : super("Update aborted");
+}
+
 /// Snapshot of the current stage plus the completed stage history.
 class UpdateFirmwareStateHistory extends UpdateState {
   final UpdateFirmware? currentState;
