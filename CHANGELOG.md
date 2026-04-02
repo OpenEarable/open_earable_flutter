@@ -1,3 +1,9 @@
+## 2.3.5
+
+* added FOTA capabilities for wearables to support capability-based firmware updates
+* added support for aborting an in-progress FOTA update
+* expanded FOTA documentation and API doc comments, including abort flow examples
+
 ## 2.3.4
 
 * fixed a bug where the stream of sensor values would not be properly closed when the device is disconnected, which could lead to memory leaks and other issues
