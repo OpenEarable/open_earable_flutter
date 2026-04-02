@@ -15,6 +15,9 @@ This Dart package provides functionality for interacting with OpenEarable device
 
 [![Button](https://raw.githubusercontent.com/OpenEarable/open_earable_flutter/main/.github/assets/show_on_pub_dev_button.svg)](https://pub.dev/packages/open_earable_flutter)
 
+## Contributing
+
+See [CONTRIBUTING.md](https://github.com/OpenEarable/open_earable_flutter/CONTRIBUTING.md) for the contribution workflow, code quality expectations, rebasing policy, and required verification steps.
 
 ## Permissions
 For your app to be able to use [UniversalBLE](https://pub.dev/packages/universal_ble) in this package, you need to grant the following permissions:
