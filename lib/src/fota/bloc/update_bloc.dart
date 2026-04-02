@@ -1,4 +1,5 @@
 import 'package:bloc/bloc.dart';
+import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:mcumgr_flutter/mcumgr_flutter.dart';
 import '../handlers/firmware_update_handler.dart';
@@ -17,6 +18,9 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
   final FirmwareUpdateRequest firmwareUpdateRequest;
   UpdateFirmwareStateHistory? _state;
   FirmwareUpdateManager? _firmwareUpdateManager;
+  StreamSubscription? _logSubscription;
+  StreamSubscription? _updateSubscription;
+  bool _abortRequested = false;
 
   /// Creates a bloc for a single update request.
   UpdateBloc({required this.firmwareUpdateRequest}) : super(UpdateInitial()) {
@@ -25,6 +29,8 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
       final handler = createFirmwareUpdateHandler();
 
       _state = null;
+      _abortRequested = false;
+      await _cancelSubscriptions();
 
       _firmwareUpdateManager = await handler.handleFirmwareUpdate(
         firmwareUpdateRequest,
@@ -53,7 +59,9 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
 
       final logManager = _firmwareUpdateManager!.logger;
 
-      logManager.logMessageStream.where((log) => log.level.rawValue > 1).listen(
+      _logSubscription = logManager.logMessageStream
+          .where((log) => log.level.rawValue > 1)
+          .listen(
         (log) {
           print(log.message);
         },
@@ -65,7 +73,7 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
         },
       );
 
-      rx.CombineLatestStream.combine2(
+      _updateSubscription = rx.CombineLatestStream.combine2(
         imageProgressStream,
         _firmwareUpdateManager!.updateStateStream!,
         (Tuple2<int, double> progressData, FirmwareUpgradeState updateState) {
@@ -87,6 +95,9 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
       ).listen(
         add,
         onError: (error) {
+          if (_abortRequested) {
+            return;
+          }
           print(error);
           add(UploadFailed(error.toString()));
         },
@@ -123,14 +134,30 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
       emit(_state!);
     });
     on<UploadFailed>((event, emit) {
+      if (_abortRequested) {
+        return;
+      }
       _state = _updatedState(
         UpdateCompleteFailure(event.error),
         updateManager: _firmwareUpdateManager,
       );
       emit(_state!);
     });
-    on<ResetUpdate>((event, emit) {
-      _firmwareUpdateManager?.kill();
+    on<AbortUpdate>((event, emit) async {
+      _abortRequested = true;
+      await _cancelSubscriptions();
+      await _firmwareUpdateManager?.cancel();
+      _state = _updatedState(
+        UpdateCompleteAborted(),
+        updateManager: _firmwareUpdateManager,
+      );
+      emit(_state!);
+    });
+    on<ResetUpdate>((event, emit) async {
+      await _cancelSubscriptions();
+      await _firmwareUpdateManager?.kill();
+      _firmwareUpdateManager = null;
+      _abortRequested = false;
     });
   }
 
@@ -165,7 +192,8 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
         );
       }
     } else if (currentState is UpdateCompleteSuccess ||
-        currentState is UpdateCompleteFailure) {
+        currentState is UpdateCompleteFailure ||
+        currentState is UpdateCompleteAborted) {
       return UpdateFirmwareStateHistory(
         null,
         _state!.history + [currentState],
@@ -191,6 +219,20 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
       );
 
     return handler;
+  }
+
+  Future<void> _cancelSubscriptions() async {
+    await _logSubscription?.cancel();
+    await _updateSubscription?.cancel();
+    _logSubscription = null;
+    _updateSubscription = null;
+  }
+
+  @override
+  Future<void> close() async {
+    await _cancelSubscriptions();
+    await _firmwareUpdateManager?.kill();
+    return super.close();
   }
 }
 
