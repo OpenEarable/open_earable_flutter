@@ -50,6 +50,13 @@ class UpdateStepView extends StatelessWidget {
                       _currentState(state),
                     ],
                   ),
+                if (!state.isComplete)
+                  ElevatedButton(
+                    onPressed: () {
+                      context.read<UpdateBloc>().add(AbortUpdate());
+                    },
+                    child: const Text('Abort Update'),
+                  ),
                 if (state.isComplete && state.updateManager?.logger != null)
                   ElevatedButton(
                       onPressed: () {
@@ -79,7 +86,7 @@ class UpdateStepView extends StatelessWidget {
   }
 
   Icon _stateIcon(UpdateFirmware state, Color successColor) {
-    if (state is UpdateCompleteFailure) {
+    if (state is UpdateCompleteFailure || state is UpdateCompleteAborted) {
       return const Icon(size: 24, Icons.error_outline, color: Colors.red);
     } else {
       return Icon(size: 24, Icons.check_circle_outline, color: successColor);
