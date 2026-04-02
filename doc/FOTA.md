@@ -165,6 +165,7 @@ The most important states are:
 - `UpdateFirmwareStateHistory`: the update is running or has completed
 - `UpdateCompleteSuccess`: appears inside the history as the successful end state
 - `UpdateCompleteFailure`: appears inside the history as the failed end state
+- `UpdateCompleteAborted`: appears inside the history when the user aborts the update
 
 The simplest integration pattern is:
 
@@ -183,13 +184,26 @@ BlocBuilder<UpdateBloc, UpdateState>(
       case UpdateFirmwareStateHistory():
         if (state.currentState is UpdateProgressFirmware) {
           final progressState = state.currentState as UpdateProgressFirmware;
-          return Text('Uploading ${progressState.progress}%');
+          return Column(
+            children: [
+              Text('Uploading ${progressState.progress}%'),
+              ElevatedButton(
+                onPressed: () {
+                  context.read<UpdateBloc>().add(AbortUpdate());
+                },
+                child: const Text('Abort update'),
+              ),
+            ],
+          );
         }
 
         if (state.isComplete) {
           final lastState = state.history.isNotEmpty ? state.history.last : null;
           if (lastState is UpdateCompleteFailure) {
             return Text('Update failed: ${lastState.error}');
+          }
+          if (lastState is UpdateCompleteAborted) {
+            return const Text('Update aborted');
           }
           return const Text('Update completed');
         }
@@ -201,6 +215,12 @@ BlocBuilder<UpdateBloc, UpdateState>(
     }
   },
 )
+```
+
+To abort a running update, dispatch:
+
+```dart
+context.read<UpdateBloc>().add(AbortUpdate());
 ```
 
 ## Read The Current Firmware Slot State
