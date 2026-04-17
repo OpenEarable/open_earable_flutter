@@ -43,9 +43,8 @@ class BleManager extends BleGattManager {
 
   void _closeAndRemoveStreamsForDevice(String deviceId) {
     final prefix = "$deviceId||";
-    final keys = _streamControllers.keys
-        .where((key) => key.startsWith(prefix))
-        .toList();
+    final keys =
+        _streamControllers.keys.where((key) => key.startsWith(prefix)).toList();
 
     for (final key in keys) {
       logger.d("Closing stream for $key due to device disconnection");
@@ -174,8 +173,11 @@ class BleManager extends BleGattManager {
   /// Throws an exception if called on web.
   /// If no devices are found, returns an empty list.
   /// If the platform is not web, it uses `UniversalBle.getSystemDevices`.
-  Future<List<DiscoveredDevice>> getSystemDevices() async {
-    if (!await checkAndRequestPermissions()) {
+  Future<List<DiscoveredDevice>> getSystemDevices({
+    bool checkAndRequestPermissions = true,
+  }) async {
+    if (checkAndRequestPermissions &&
+        !await BleManager.checkAndRequestPermissions()) {
       throw Exception("Permissions not granted");
     }
     if (kIsWeb) {
@@ -241,8 +243,6 @@ class BleManager extends BleGattManager {
     required String deviceId,
     required String serviceId,
   }) async {
-
-
     if (!isConnected(deviceId)) {
       throw Exception("Device is not connected");
     }
@@ -270,7 +270,8 @@ class BleManager extends BleGattManager {
     for (final service in services) {
       if (service.uuid.toLowerCase() == serviceId.toLowerCase()) {
         for (final characteristic in service.characteristics) {
-          if (characteristic.uuid.toLowerCase() == characteristicId.toLowerCase()) {
+          if (characteristic.uuid.toLowerCase() ==
+              characteristicId.toLowerCase()) {
             return true;
           }
         }
@@ -305,9 +306,15 @@ class BleManager extends BleGattManager {
     required String serviceId,
     required String characteristicId,
   }) {
-    logger.d("Subscribing to $deviceId, service $serviceId, characteristic $characteristicId");
-    String streamIdentifier = _getCharacteristicKey(deviceId, characteristicId);
-    StreamController<List<int>>? streamController = _streamControllers[streamIdentifier];
+    logger.d(
+      "Subscribing to $deviceId, service $serviceId, characteristic $characteristicId",
+    );
+    String streamIdentifier = _getCharacteristicKey(
+      deviceId,
+      characteristicId,
+    );
+    StreamController<List<int>>? streamController =
+        _streamControllers[streamIdentifier];
     streamController ??= StreamController<List<int>>.broadcast();
     if (!_streamControllers.containsKey(streamIdentifier)) {
       UniversalBle.subscribeNotifications(
