@@ -14,7 +14,7 @@ class BleManager extends BleGattManager {
   int _mtu = _desiredMtu; // Largest Byte package sent is 42 bytes for IMU
   int get mtu => _mtu;
 
-  final Map<String, List<StreamController<List<int>>>> _streamControllers = {};
+  final Map<String, StreamController<List<int>>> _streamControllers = {};
 
   /// A stream of discovered devices during scanning.
   StreamController<DiscoveredDevice>? _scanStreamController;
@@ -48,13 +48,8 @@ class BleManager extends BleGattManager {
         .toList();
 
     for (final key in keys) {
-      final controllers = _streamControllers.remove(key);
-      if (controllers == null) {
-        continue;
-      }
-      for (final controller in controllers) {
-        controller.close();
-      }
+      logger.d("Closing stream for $key due to device disconnection");
+      _streamControllers.remove(key)?.close();
     }
   }
 
@@ -89,9 +84,11 @@ class BleManager extends BleGattManager {
       if (!_streamControllers.containsKey(streamIdentifier)) {
         return;
       }
-      for (var e in _streamControllers[streamIdentifier]!) {
-        e.add(value);
+      if (_streamControllers[streamIdentifier] == null) {
+        logger.w("Stream controller for $streamIdentifier is null");
+        return;
       }
+      _streamControllers[streamIdentifier]!.add(value);
     };
   }
 
@@ -308,30 +305,28 @@ class BleManager extends BleGattManager {
     required String serviceId,
     required String characteristicId,
   }) {
-    final streamController = StreamController<List<int>>();
+    logger.d("Subscribing to $deviceId, service $serviceId, characteristic $characteristicId");
     String streamIdentifier = _getCharacteristicKey(deviceId, characteristicId);
+    StreamController<List<int>>? streamController = _streamControllers[streamIdentifier];
+    streamController ??= StreamController<List<int>>.broadcast();
     if (!_streamControllers.containsKey(streamIdentifier)) {
       UniversalBle.subscribeNotifications(
         deviceId,
         serviceId,
         characteristicId,
       );
-      _streamControllers[streamIdentifier] = [streamController];
-    } else {
-      _streamControllers[streamIdentifier]!.add(streamController);
+      _streamControllers[streamIdentifier] = streamController;
     }
 
     streamController.onCancel = () {
       if (_streamControllers.containsKey(streamIdentifier)) {
-        _streamControllers[streamIdentifier]!.remove(streamController);
-        if (_streamControllers[streamIdentifier]!.isEmpty) {
-          UniversalBle.unsubscribe(
-            deviceId,
-            serviceId,
-            characteristicId,
-          );
-          _streamControllers.remove(streamIdentifier);
-        }
+        _streamControllers.remove(streamIdentifier)?.close();
+        UniversalBle.unsubscribe(
+          deviceId,
+          serviceId,
+          characteristicId,
+        );
+        _streamControllers.remove(streamIdentifier);
       }
     };
 
@@ -373,10 +368,8 @@ class BleManager extends BleGattManager {
     UniversalBle.onScanResult = (_) {};
     _scanStreamController?.close();
 
-    for (var list in _streamControllers.values) {
-      for (var e in list) {
-        e.close();
-      }
+    for (var controller in _streamControllers.values) {
+      controller.close();
     }
   }
 }
