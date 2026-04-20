@@ -141,18 +141,6 @@ class WearableManager {
     return await BleManager.checkPermissions();
   }
 
-  /// Retrieves Bluetooth devices already known to the operating system.
-  ///
-  /// When [checkAndRequestPermissions] is `true`, the manager first requests
-  /// any missing runtime permissions required for system-device discovery.
-  Future<List<DiscoveredDevice>> getSystemDevices({
-    bool checkAndRequestPermissions = true,
-  }) {
-    return _bleManager.getSystemDevices(
-      checkAndRequestPermissions: checkAndRequestPermissions,
-    );
-  }
-
   /// Adds a wearable factory to the manager.
   /// Wearable factories are used to create wearable instances based on the connected devices.
   /// This allows the manager to support multiple types of wearables.
@@ -181,8 +169,7 @@ class WearableManager {
   }
 
   /// Returns an unmodifiable list of the currently registered wearable factories.
-  List<WearableFactory> get wearableFactories =>
-      List.unmodifiable(_wearableFactories);
+  List<WearableFactory> get wearableFactories => List.unmodifiable(_wearableFactories);
 
   /// Starts scanning for BLE devices.
   /// If `checkAndRequestPermissions` is true, it will check and request the necessary
@@ -305,10 +292,10 @@ class WearableManager {
       ConnectionFailedException _ =>
         'Failed to connect to device "$normalizedDeviceName". Please try again.',
       _ => _normalizeDeviceNameInMessage(
-          message: e.toString(),
-          rawDeviceName: deviceName,
-          normalizedDeviceName: normalizedDeviceName,
-        ),
+        message: e.toString(),
+        rawDeviceName: deviceName,
+        normalizedDeviceName: normalizedDeviceName,
+      ),
     };
   }
 

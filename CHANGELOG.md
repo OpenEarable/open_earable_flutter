@@ -1,8 +1,3 @@
-## 2.3.6
-
-* added function to get all connected system devices
-* fixed some issues with bluetooth handling
-
 ## 2.3.5
 
 * added FOTA capabilities for wearables to support capability-based firmware updates

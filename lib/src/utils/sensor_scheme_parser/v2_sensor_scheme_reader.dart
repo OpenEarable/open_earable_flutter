@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:open_earable_flutter/open_earable_flutter.dart' show logger;
 import 'package:open_earable_flutter/src/constants.dart';
 
 import '../../managers/ble_gatt_manager.dart';
@@ -49,18 +48,13 @@ class V2SensorSchemeReader extends SensorSchemeReader {
     }
 
     // Listen to the notification of the characteristic
-    final Stream<List<int>> stream = _bleManager.subscribe(
+    Stream stream = _bleManager.subscribe(
       deviceId: _deviceId,
       serviceId: parseInfoServiceUuid,
       characteristicId: sensorSchemeCharacteristicUuid,
     );
 
-    final Future<List<int>> responseFuture = stream
-        .cast<List<int>>()
-        .first
-        .timeout(const Duration(seconds: 5));
-
-    // Request sensor value only after the listener/future is set up
+    // Request sensor value
     await _bleManager.write(
       deviceId: _deviceId,
       serviceId: parseInfoServiceUuid,
@@ -68,22 +62,22 @@ class V2SensorSchemeReader extends SensorSchemeReader {
       byteData: [sensorId],
     );
 
+    // Wait for the notification
     try {
-      final value = await responseFuture;
-      logger.d("Received notification for sensor scheme of sensor $sensorId: $value");
-
-      final scheme = _parseSensorScheme(value);
+      await for (List<int> value in stream.timeout(const Duration(seconds: 5))) {
+      SensorScheme scheme = _parseSensorScheme(value);
       if (scheme.sensorId != sensorId) {
-        throw Exception(
-          "Sensor id mismatch. Expected: $sensorId, got: ${scheme.sensorId}",
-        );
+        throw Exception("Sensor id mismatch. Expected: $sensorId, got: ${scheme.sensorId}");
       }
 
       _sensorSchemes[sensorId] = scheme;
       return scheme;
+      }
     } on TimeoutException catch (e) {
-      throw TimeoutException("Timeout while waiting for sensor scheme: $e");
+      throw Exception("Timeout while waiting for sensor scheme: $e");
     }
+
+    throw Exception("Unknown error while waiting for sensor scheme.");
   }
 
   @override

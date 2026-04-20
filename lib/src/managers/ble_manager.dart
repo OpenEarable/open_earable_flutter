@@ -14,7 +14,7 @@ class BleManager extends BleGattManager {
   int _mtu = _desiredMtu; // Largest Byte package sent is 42 bytes for IMU
   int get mtu => _mtu;
 
-  final Map<String, StreamController<List<int>>> _streamControllers = {};
+  final Map<String, List<StreamController<List<int>>>> _streamControllers = {};
 
   /// A stream of discovered devices during scanning.
   StreamController<DiscoveredDevice>? _scanStreamController;
@@ -43,12 +43,18 @@ class BleManager extends BleGattManager {
 
   void _closeAndRemoveStreamsForDevice(String deviceId) {
     final prefix = "$deviceId||";
-    final keys =
-        _streamControllers.keys.where((key) => key.startsWith(prefix)).toList();
+    final keys = _streamControllers.keys
+        .where((key) => key.startsWith(prefix))
+        .toList();
 
     for (final key in keys) {
-      logger.d("Closing stream for $key due to device disconnection");
-      _streamControllers.remove(key)?.close();
+      final controllers = _streamControllers.remove(key);
+      if (controllers == null) {
+        continue;
+      }
+      for (final controller in controllers) {
+        controller.close();
+      }
     }
   }
 
@@ -83,11 +89,9 @@ class BleManager extends BleGattManager {
       if (!_streamControllers.containsKey(streamIdentifier)) {
         return;
       }
-      if (_streamControllers[streamIdentifier] == null) {
-        logger.w("Stream controller for $streamIdentifier is null");
-        return;
+      for (var e in _streamControllers[streamIdentifier]!) {
+        e.add(value);
       }
-      _streamControllers[streamIdentifier]!.add(value);
     };
   }
 
@@ -173,11 +177,8 @@ class BleManager extends BleGattManager {
   /// Throws an exception if called on web.
   /// If no devices are found, returns an empty list.
   /// If the platform is not web, it uses `UniversalBle.getSystemDevices`.
-  Future<List<DiscoveredDevice>> getSystemDevices({
-    bool checkAndRequestPermissions = true,
-  }) async {
-    if (checkAndRequestPermissions &&
-        !await BleManager.checkAndRequestPermissions()) {
+  Future<List<DiscoveredDevice>> getSystemDevices() async {
+    if (!await checkAndRequestPermissions()) {
       throw Exception("Permissions not granted");
     }
     if (kIsWeb) {
@@ -243,6 +244,8 @@ class BleManager extends BleGattManager {
     required String deviceId,
     required String serviceId,
   }) async {
+
+
     if (!isConnected(deviceId)) {
       throw Exception("Device is not connected");
     }
@@ -270,8 +273,7 @@ class BleManager extends BleGattManager {
     for (final service in services) {
       if (service.uuid.toLowerCase() == serviceId.toLowerCase()) {
         for (final characteristic in service.characteristics) {
-          if (characteristic.uuid.toLowerCase() ==
-              characteristicId.toLowerCase()) {
+          if (characteristic.uuid.toLowerCase() == characteristicId.toLowerCase()) {
             return true;
           }
         }
@@ -306,34 +308,30 @@ class BleManager extends BleGattManager {
     required String serviceId,
     required String characteristicId,
   }) {
-    logger.d(
-      "Subscribing to $deviceId, service $serviceId, characteristic $characteristicId",
-    );
-    String streamIdentifier = _getCharacteristicKey(
-      deviceId,
-      characteristicId,
-    );
-    StreamController<List<int>>? streamController =
-        _streamControllers[streamIdentifier];
-    streamController ??= StreamController<List<int>>.broadcast();
+    final streamController = StreamController<List<int>>();
+    String streamIdentifier = _getCharacteristicKey(deviceId, characteristicId);
     if (!_streamControllers.containsKey(streamIdentifier)) {
       UniversalBle.subscribeNotifications(
         deviceId,
         serviceId,
         characteristicId,
       );
-      _streamControllers[streamIdentifier] = streamController;
+      _streamControllers[streamIdentifier] = [streamController];
+    } else {
+      _streamControllers[streamIdentifier]!.add(streamController);
     }
 
     streamController.onCancel = () {
       if (_streamControllers.containsKey(streamIdentifier)) {
-        _streamControllers.remove(streamIdentifier)?.close();
-        UniversalBle.unsubscribe(
-          deviceId,
-          serviceId,
-          characteristicId,
-        );
-        _streamControllers.remove(streamIdentifier);
+        _streamControllers[streamIdentifier]!.remove(streamController);
+        if (_streamControllers[streamIdentifier]!.isEmpty) {
+          UniversalBle.unsubscribe(
+            deviceId,
+            serviceId,
+            characteristicId,
+          );
+          _streamControllers.remove(streamIdentifier);
+        }
       }
     };
 
@@ -375,8 +373,10 @@ class BleManager extends BleGattManager {
     UniversalBle.onScanResult = (_) {};
     _scanStreamController?.close();
 
-    for (var controller in _streamControllers.values) {
-      controller.close();
+    for (var list in _streamControllers.values) {
+      for (var e in list) {
+        e.close();
+      }
     }
   }
 }

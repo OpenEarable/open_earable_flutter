@@ -7,10 +7,6 @@ import 'sensor_value_parser.dart';
 class OpenRingValueParser extends SensorValueParser {
   // 50 Hz -> 20 ms per sample
   static const int _samplePeriodMs = 20;
-  // IMU (cmd=0x40) accelerometer channels are reported in milli-g.
-  static const double _imuAccRawToGScale = 1000.0;
-  // PPG realtime (cmd=0x32) carries accelerometer with half-scale raw counts.
-  static const double _ppgAccRawToGScale = 500.0;
   // OpenRing realtime temperature channels are provided in milli-degrees C.
   static const double _tempRawToCelsiusScale = 1000.0;
 
@@ -195,10 +191,6 @@ class OpenRingValueParser extends SensorValueParser {
     }
 
     if (type == 0x00) {
-      if (value == 1) {
-        // Legacy Q2 state packet: ignore.
-        return const [];
-      }
       if (value == 0 || value == 2 || value == 4) {
         final String reason = switch (value) {
           0 => 'not worn',
@@ -207,6 +199,23 @@ class OpenRingValueParser extends SensorValueParser {
           _ => 'unknown',
         };
         logger.w('OpenRing PPG error packet received: code=$value ($reason)');
+        return const [];
+      }
+
+      if (value == 1) {
+        if (frame.lengthInBytes < 8) {
+          throw Exception(
+            'Invalid vendor Q2 result length: ${frame.lengthInBytes}',
+          );
+        }
+
+        final int q2 = frame.getUint8(5);
+        final int heart = frame.getUint8(6);
+        final int temp = frame.getUint8(7);
+
+        logger.d(
+          'OpenRing vendor Q2 result received: heart=$heart q2=$q2 temp=$temp',
+        );
         return const [];
       }
 
@@ -266,11 +275,11 @@ class OpenRingValueParser extends SensorValueParser {
 
       final List<Map<String, dynamic>> realtimeType2 =
           _parsePpgWaveformType2Realtime30(
-        data: waveformPayload,
-        nSamples: nSamples,
-        receiveTs: receiveTs,
-        baseHeader: baseHeader,
-      );
+            data: waveformPayload,
+            nSamples: nSamples,
+            receiveTs: receiveTs,
+            baseHeader: baseHeader,
+          );
       if (realtimeType2.isNotEmpty) {
         return realtimeType2;
       }
@@ -342,14 +351,11 @@ class OpenRingValueParser extends SensorValueParser {
     return parsedData;
   }
 
-  Map<String, dynamic> _parseAccelerometerComp(
-    ByteData data, {
-    double rawToGScale = _imuAccRawToGScale,
-  }) {
+  Map<String, dynamic> _parseAccelerometerComp(ByteData data) {
     return {
-      'X': data.getInt16(0, Endian.little) / rawToGScale,
-      'Y': data.getInt16(2, Endian.little) / rawToGScale,
-      'Z': data.getInt16(4, Endian.little) / rawToGScale,
+      'X': data.getInt16(0, Endian.little),
+      'Y': data.getInt16(2, Endian.little),
+      'Z': data.getInt16(4, Endian.little),
     };
   }
 
@@ -395,7 +401,6 @@ class OpenRingValueParser extends SensorValueParser {
         // (bytes 8..13 in each 14-byte sample).
         'Accelerometer': _parseAccelerometerComp(
           ByteData.sublistView(exactSamples, offset + 8, offset + 14),
-          rawToGScale: _ppgAccRawToGScale,
         ),
       });
     }
@@ -450,7 +455,6 @@ class OpenRingValueParser extends SensorValueParser {
         },
         'Accelerometer': _parseAccelerometerComp(
           ByteData.sublistView(sampleData, offset + 12, offset + 18),
-          rawToGScale: _ppgAccRawToGScale,
         ),
         'Gyroscope': {
           'X': sampleData.getInt16(offset + 18, Endian.little),
@@ -458,15 +462,18 @@ class OpenRingValueParser extends SensorValueParser {
           'Z': sampleData.getInt16(offset + 22, Endian.little),
         },
         'Temperature': {
-          'Temp0': (sampleData.getUint16(offset + 24, Endian.little) /
-                  _tempRawToCelsiusScale)
-              .round(),
-          'Temp1': (sampleData.getUint16(offset + 26, Endian.little) /
-                  _tempRawToCelsiusScale)
-              .round(),
-          'Temp2': (sampleData.getUint16(offset + 28, Endian.little) /
-                  _tempRawToCelsiusScale)
-              .round(),
+          'Temp0':
+              (sampleData.getUint16(offset + 24, Endian.little) /
+                      _tempRawToCelsiusScale)
+                  .round(),
+          'Temp1':
+              (sampleData.getUint16(offset + 26, Endian.little) /
+                      _tempRawToCelsiusScale)
+                  .round(),
+          'Temp2':
+              (sampleData.getUint16(offset + 28, Endian.little) /
+                      _tempRawToCelsiusScale)
+                  .round(),
           'units': '°C',
         },
       });

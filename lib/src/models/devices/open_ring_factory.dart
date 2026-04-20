@@ -68,8 +68,7 @@ class OpenRingFactory extends WearableFactory {
     final imuConfigValues = singleRateValues(
       frequencyHz: imuFrequencyHz,
       cmd: OpenRingGatt.cmdIMU,
-      // 6-axis standalone mode (accel + gyro).
-      // When PPG is active, motion channels are sourced from cmdPPGQ2 packets.
+      // 6-axis standalone mode (accel + gyro) as used by the vendor app.
       startPayload: [0x06],
       stopPayload: [0x00],
     );
@@ -132,7 +131,7 @@ class OpenRingFactory extends WearableFactory {
         chartTitle: "Accelerometer",
         shortChartTitle: "Acc.",
         axisNames: ["X", "Y", "Z"],
-        axisUnits: ["g", "g", "g"],
+        axisUnits: ["raw", "raw", "raw"],
         sensorHandler: sensorHandler,
         relatedConfigurations: [imuSensorConfig],
       ),
@@ -142,7 +141,7 @@ class OpenRingFactory extends WearableFactory {
         chartTitle: "Gyroscope",
         shortChartTitle: "Gyr.",
         axisNames: ["X", "Y", "Z"],
-        axisUnits: ["rad/s * 10^2", "rad/s * 10^2", "rad/s * 10^2"],
+        axisUnits: ["raw", "raw", "raw"],
         sensorHandler: sensorHandler,
         relatedConfigurations: [imuSensorConfig],
       ),
@@ -151,7 +150,7 @@ class OpenRingFactory extends WearableFactory {
         sensorName: "PPG",
         chartTitle: "PPG",
         shortChartTitle: "PPG",
-        axisNames: ["Infrared", "Red", "Green"],
+        axisNames: ["Red", "Infrared", "Green"],
         axisUnits: ["raw", "raw", "raw"],
         sensorHandler: sensorHandler,
         relatedConfigurations: [ppgSensorConfig],
@@ -162,7 +161,7 @@ class OpenRingFactory extends WearableFactory {
         chartTitle: "Temperature",
         shortChartTitle: "Temp",
         axisNames: ["Temp0", "Temp1", "Temp2"],
-        axisUnits: ["raw", "raw", "raw"],
+        axisUnits: ["°C", "°C", "°C"],
         sensorHandler: sensorHandler,
         // Temperature uses software on/off and enables PPG transport automatically.
         relatedConfigurations: [temperatureSensorConfig],
@@ -199,17 +198,9 @@ class OpenRingFactory extends WearableFactory {
     w.registerCapability<TimeSynchronizable>(timeSync);
 
     unawaited(
-      _synchronizeTimeOnConnect(
-        timeSync: timeSync,
-        deviceId: device.id,
-      ),
+      _synchronizeTimeOnConnect(timeSync: timeSync, deviceId: device.id),
     );
-    unawaited(
-      _prefetchBatteryOnConnect(
-        openRing: w,
-        deviceId: device.id,
-      ),
-    );
+    unawaited(_prefetchBatteryOnConnect(openRing: w, deviceId: device.id));
 
     return w;
   }
