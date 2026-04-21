@@ -43,7 +43,7 @@ class OpenRingFactory extends WearableFactory {
     // OpenRing exposes one realtime rate per stream; represent it as fixed Hz.
     const double imuFrequencyHz = 50.0;
     const double ppgFrequencyHz = 50.0;
-    const double temperatureFrequencyHz = 50.0;
+    const double temperatureFrequencyHz = 1 / 3;
     final streamOnly = Set<SensorConfigurationOption>.unmodifiable({
       StreamSensorConfigOption(),
     });
@@ -104,8 +104,11 @@ class OpenRingFactory extends WearableFactory {
 
     final temperatureConfigValues = singleRateValues(
       frequencyHz: temperatureFrequencyHz,
-      cmd: OpenRingGatt.cmdPPGQ2,
-      startPayload: const [],
+      cmd: OpenRingGatt.cmdTemp,
+      startPayload: [
+        0x00, // READ_TEMP normal mode
+        0x00,
+      ],
       stopPayload: const [],
       softwareToggleOnly: true,
     );
@@ -156,14 +159,14 @@ class OpenRingFactory extends WearableFactory {
         relatedConfigurations: [ppgSensorConfig],
       ),
       OpenRingSensor(
-        sensorId: OpenRingGatt.cmdPPGQ2,
+        sensorId: OpenRingGatt.cmdTemp,
         sensorName: "Temperature",
         chartTitle: "Temperature",
         shortChartTitle: "Temp",
-        axisNames: ["Temp0", "Temp1", "Temp2"],
-        axisUnits: ["°C", "°C", "°C"],
+        axisNames: ["Temperature"],
+        axisUnits: ["°C"],
         sensorHandler: sensorHandler,
-        // Temperature uses software on/off and enables PPG transport automatically.
+        // Temperature uses READ_TEMP polling instead of PPG waveform fields.
         relatedConfigurations: [temperatureSensorConfig],
       ),
     ];

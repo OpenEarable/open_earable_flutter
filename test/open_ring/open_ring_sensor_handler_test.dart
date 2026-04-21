@@ -81,6 +81,38 @@ void main() {
         'Z': 33,
       });
     });
+
+    test('polls READ_TEMP only after temperature live data is subscribed',
+        () async {
+      final ble = _FakeBleGattManager();
+      final parser = _StubSensorValueParser();
+      final handler = OpenRingSensorHandler(
+        discoveredDevice: DiscoveredDevice(
+          id: 'ring-1',
+          name: 'OpenRing',
+          manufacturerData: Uint8List(0),
+          rssi: -42,
+          serviceUuids: <String>[OpenRingGatt.service],
+        ),
+        bleManager: ble,
+        sensorValueParser: parser,
+      );
+
+      handler.setTemperatureStreamEnabled(true);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(ble.writes, isEmpty);
+
+      final subscription =
+          handler.subscribeToSensorData(OpenRingGatt.cmdTemp).listen((_) {});
+      await Future<void>.delayed(Duration.zero);
+
+      expect(ble.writes, hasLength(1));
+      expect(ble.writes.single.byteData[2], OpenRingGatt.cmdTemp);
+      expect(ble.writes.single.byteData.sublist(3), <int>[0x00, 0x00]);
+
+      await subscription.cancel();
+    });
   });
 }
 

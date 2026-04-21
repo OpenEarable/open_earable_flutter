@@ -7,8 +7,15 @@ import 'sensor_value_parser.dart';
 class OpenRingValueParser extends SensorValueParser {
   // 50 Hz -> 20 ms per sample
   static const int _samplePeriodMs = 20;
-  // OpenRing realtime temperature channels are provided in milli-degrees C.
-  static const double _tempRawToCelsiusScale = 1000.0;
+  // GXT310T0 reports temperature as 1/128 °C per LSB. ChipletRing writes the
+  // realtime temper0..2 columns as unsigned raw shorts, so keep this fixed.
+  static const double _waveformTemperatureRawToCelsiusScale = 128.0;
+  // Q2/READ_TEMP result packets are stored and displayed as centi-degrees.
+  static const double _resultTemperatureRawToCelsiusScale = 100.0;
+  // ChipletRing exports three realtime temperature shorts. On BCL603s, the
+  // third channel is the plausible body/surface temperature; the first two may
+  // sit near the unsigned/saturated range.
+  static const int _primaryWaveformTemperatureOffset = 28;
 
   final Map<int, int> _lastSeqByCmd = {};
   final Map<int, int> _lastTsByCmd = {};
@@ -41,6 +48,9 @@ class OpenRingValueParser extends SensorValueParser {
         break;
       case 0x32: // PPG Q2
         result = _parsePpgFrame(data, sequenceNum, cmd, receiveTs);
+        break;
+      case 0x34: // READ_TEMP
+        result = _parseTemperatureFrame(data, sequenceNum, cmd, receiveTs);
         break;
       default:
         return const [];
@@ -202,23 +212,6 @@ class OpenRingValueParser extends SensorValueParser {
         return const [];
       }
 
-      if (value == 1) {
-        if (frame.lengthInBytes < 8) {
-          throw Exception(
-            'Invalid vendor Q2 result length: ${frame.lengthInBytes}',
-          );
-        }
-
-        final int q2 = frame.getUint8(5);
-        final int heart = frame.getUint8(6);
-        final int temp = frame.getUint8(7);
-
-        logger.d(
-          'OpenRing vendor Q2 result received: heart=$heart q2=$q2 temp=$temp',
-        );
-        return const [];
-      }
-
       if (value == 3) {
         if (frame.lengthInBytes < 9) {
           throw Exception(
@@ -232,6 +225,24 @@ class OpenRingValueParser extends SensorValueParser {
 
         logger.d(
           'OpenRing PPG result received: heart=$heart q2=$q2 temp=$temp',
+        );
+        return [
+          {
+            ...baseHeader,
+            'timestamp': receiveTs + _samplePeriodMs,
+            'Temperature': {
+              'Temperature': temp / _resultTemperatureRawToCelsiusScale,
+              'Temp0': temp / _resultTemperatureRawToCelsiusScale,
+              'units': '°C',
+            },
+          },
+        ];
+      }
+
+      if (value == 1) {
+        logger.w(
+          'OpenRing PPG result packet with unsupported legacy value=1 '
+          '(len=${frame.lengthInBytes})',
         );
         return const [];
       }
@@ -275,16 +286,65 @@ class OpenRingValueParser extends SensorValueParser {
 
       final List<Map<String, dynamic>> realtimeType2 =
           _parsePpgWaveformType2Realtime30(
-            data: waveformPayload,
-            nSamples: nSamples,
-            receiveTs: receiveTs,
-            baseHeader: baseHeader,
-          );
+        data: waveformPayload,
+        nSamples: nSamples,
+        receiveTs: receiveTs,
+        baseHeader: baseHeader,
+      );
       if (realtimeType2.isNotEmpty) {
         return realtimeType2;
       }
 
       return const [];
+    }
+
+    return const [];
+  }
+
+  List<Map<String, dynamic>> _parseTemperatureFrame(
+    ByteData frame,
+    int sequenceNum,
+    int cmd,
+    int receiveTs,
+  ) {
+    if (frame.lengthInBytes < 5) {
+      throw Exception('Temperature frame too short: ${frame.lengthInBytes}');
+    }
+
+    final int mode = frame.getUint8(3);
+    final int status = frame.getUint8(4);
+    final Map<String, dynamic> baseHeader = {
+      'sequenceNum': sequenceNum,
+      'cmd': cmd,
+      'mode': mode,
+      'status': status,
+    };
+
+    if (status == 0x00 || status == 0x01) {
+      final int offset = mode == 0x01 ? 6 : 5;
+      if (frame.lengthInBytes < offset + 2) {
+        throw Exception(
+          'Invalid temperature frame length: ${frame.lengthInBytes}',
+        );
+      }
+
+      final double temperature = frame.getUint16(offset, Endian.little) /
+          _resultTemperatureRawToCelsiusScale;
+      return [
+        {
+          ...baseHeader,
+          'timestamp': receiveTs + _samplePeriodMs,
+          'Temperature': {
+            'Temperature': temperature,
+            'Temp0': temperature,
+            'units': '°C',
+          },
+        },
+      ];
+    }
+
+    if (status >= 0x02 && status <= 0x05) {
+      logger.w('OpenRing temperature error packet received: code=$status');
     }
 
     return const [];
@@ -422,7 +482,7 @@ class OpenRingValueParser extends SensorValueParser {
     //   8..11  infrared uint32
     //   12..17 accX/accY/accZ int16
     //   18..23 gyroX/gyroY/gyroZ int16
-    //   24..29 temp0/temp1/temp2 uint16 (milli-degC)
+    //   24..29 temp0/temp1/temp2 temperature values
     const int headerSize = 8;
     const int sampleSize = 30;
 
@@ -444,6 +504,12 @@ class OpenRingValueParser extends SensorValueParser {
     for (int i = 0; i < usableSamples; i++) {
       final int offset = i * sampleSize;
       final int ts = receiveTs + (i + 1) * _samplePeriodMs;
+      final double temp0 = _parseTemperature(sampleData, offset + 24);
+      final double temp1 = _parseTemperature(sampleData, offset + 26);
+      final double temp2 = _parseTemperature(
+        sampleData,
+        offset + _primaryWaveformTemperatureOffset,
+      );
 
       parsedData.add({
         ...baseHeader,
@@ -462,23 +528,20 @@ class OpenRingValueParser extends SensorValueParser {
           'Z': sampleData.getInt16(offset + 22, Endian.little),
         },
         'Temperature': {
-          'Temp0':
-              (sampleData.getUint16(offset + 24, Endian.little) /
-                      _tempRawToCelsiusScale)
-                  .round(),
-          'Temp1':
-              (sampleData.getUint16(offset + 26, Endian.little) /
-                      _tempRawToCelsiusScale)
-                  .round(),
-          'Temp2':
-              (sampleData.getUint16(offset + 28, Endian.little) /
-                      _tempRawToCelsiusScale)
-                  .round(),
+          'Temperature': temp2,
+          'Temp0': temp0,
+          'Temp1': temp1,
+          'Temp2': temp2,
           'units': '°C',
         },
       });
     }
 
     return parsedData;
+  }
+
+  double _parseTemperature(ByteData data, int offset) {
+    return data.getUint16(offset, Endian.little) /
+        _waveformTemperatureRawToCelsiusScale;
   }
 }

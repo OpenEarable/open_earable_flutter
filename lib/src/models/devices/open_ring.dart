@@ -395,6 +395,7 @@ class OpenRingGatt {
   static const int cmdSys = 0x37; // system (reset etc.)
   static const int cmdIMU = 0x40; // start/stop IMU
   static const int cmdPPGQ2 = 0x32; // start/stop PPG Q2
+  static const int cmdTemp = 0x34; // read temperature
 
   // build a framed command: [0x00, rnd, cmdId, payload...]
   static List<int> frame(int cmd, {List<int> payload = const [], int? rnd}) {

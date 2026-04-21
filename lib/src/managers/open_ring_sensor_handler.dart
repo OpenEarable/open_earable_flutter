@@ -30,6 +30,8 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
     0x01,
   ];
   static const List<int> _ppgRealtimeStopPayload = <int>[0x06];
+  static const List<int> _temperatureReadPayload = <int>[0x00, 0x00];
+  static const Duration _temperaturePollInterval = Duration(seconds: 3);
   static const Set<int> _pacedStreamingCommands = {
     OpenRingGatt.cmdIMU,
     OpenRingGatt.cmdPPGQ2,
@@ -50,14 +52,17 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
   void Function()? _onInitialStreamingDetected;
   bool _lastAppliedImuEnabled = false;
   bool _lastAppliedPpgTransportEnabled = false;
+  bool _hasSensorDataListener = false;
+  bool _temperaturePollInFlight = false;
+  Timer? _temperaturePollTimer;
 
   OpenRingSensorHandler({
     required DiscoveredDevice discoveredDevice,
     required BleGattManager bleManager,
     required SensorValueParser sensorValueParser,
-  }) : _discoveredDevice = discoveredDevice,
-       _bleManager = bleManager,
-       _sensorValueParser = sensorValueParser;
+  })  : _discoveredDevice = discoveredDevice,
+        _bleManager = bleManager,
+        _sensorValueParser = sensorValueParser;
 
   @override
   Stream<Map<String, dynamic>> subscribeToSensorData(int sensorId) {
@@ -101,6 +106,12 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
     _desiredState.temperatureEnabled = enabled;
     logger.d('OpenRing software toggle: temperatureStream=$enabled');
 
+    if (enabled) {
+      _startTemperaturePollingIfNeeded();
+    } else {
+      _stopTemperaturePolling();
+    }
+
     unawaited(
       _enqueueApplyDesiredTransport(reason: 'temperature-set-$enabled'),
     );
@@ -118,6 +129,48 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
 
   bool _isRealtimeStreamingCommand(int cmd) =>
       cmd == OpenRingGatt.cmdIMU || cmd == OpenRingGatt.cmdPPGQ2;
+
+  void _startTemperaturePollingIfNeeded() {
+    if (!_hasSensorDataListener || !_desiredState.temperatureEnabled) {
+      return;
+    }
+
+    _temperaturePollTimer ??= Timer.periodic(
+      _temperaturePollInterval,
+      (_) => unawaited(_pollTemperatureOnce()),
+    );
+    unawaited(_pollTemperatureOnce());
+  }
+
+  void _stopTemperaturePolling() {
+    _temperaturePollTimer?.cancel();
+    _temperaturePollTimer = null;
+  }
+
+  Future<void> _pollTemperatureOnce() async {
+    if (!_desiredState.temperatureEnabled ||
+        !_hasSensorDataListener ||
+        _temperaturePollInFlight ||
+        _isApplying ||
+        !_bleManager.isConnected(_discoveredDevice.id)) {
+      return;
+    }
+
+    _temperaturePollInFlight = true;
+    try {
+      await _writeCommand(
+        OpenRingSensorConfig(
+          cmd: OpenRingGatt.cmdTemp,
+          payload: List<int>.from(_temperatureReadPayload),
+        ),
+      );
+    } catch (error, stackTrace) {
+      logger.e('OpenRing temperature poll failed: $error');
+      logger.t(stackTrace);
+    } finally {
+      _temperaturePollInFlight = false;
+    }
+  }
 
   void _updateDesiredStateFromSensorConfig(OpenRingSensorConfig sensorConfig) {
     final bool isStart = _isRealtimeStreamingStart(sensorConfig);
@@ -148,20 +201,19 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
     _applyVersion += 1;
     final int requestVersion = _applyVersion;
 
-    _commandQueue = _commandQueue
-        .catchError((Object error, StackTrace stackTrace) {
-          logger.e('OpenRing previous command failed: $error');
-          logger.t(stackTrace);
-        })
-        .then((_) async {
-          if (requestVersion != _applyVersion) {
-            return;
-          }
-          await _applyDesiredTransport(
-            requestVersion: requestVersion,
-            reason: reason,
-          );
-        });
+    _commandQueue =
+        _commandQueue.catchError((Object error, StackTrace stackTrace) {
+      logger.e('OpenRing previous command failed: $error');
+      logger.t(stackTrace);
+    }).then((_) async {
+      if (requestVersion != _applyVersion) {
+        return;
+      }
+      await _applyDesiredTransport(
+        requestVersion: requestVersion,
+        reason: reason,
+      );
+    });
 
     return _commandQueue;
   }
@@ -302,6 +354,17 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
       return;
     }
 
+    if (cmd is int && cmd == OpenRingGatt.cmdTemp) {
+      if (!_desiredState.temperatureEnabled) {
+        return;
+      }
+      filtered.remove('Accelerometer');
+      filtered.remove('Gyroscope');
+      filtered.remove('PPG');
+      _emitIfSampleHasSensorPayload(streamController, filtered);
+      return;
+    }
+
     _emitIfSampleHasSensorPayload(streamController, filtered);
   }
 
@@ -365,6 +428,10 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
 
     if (cmd == OpenRingGatt.cmdIMU) {
       return _desiredState.imuEnabled && hasImuPayload;
+    }
+
+    if (cmd == OpenRingGatt.cmdTemp) {
+      return _desiredState.temperatureEnabled && hasTemperaturePayload;
     }
 
     return _hasAnySensorPayload(sample);
@@ -480,47 +547,52 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
 
     streamController = StreamController<Map<String, dynamic>>.broadcast(
       onListen: () {
+        _hasSensorDataListener = true;
         bleSubscription ??= _bleManager
             .subscribe(
-              deviceId: _discoveredDevice.id,
-              serviceId: OpenRingGatt.service,
-              characteristicId: OpenRingGatt.rxChar,
-            )
+          deviceId: _discoveredDevice.id,
+          serviceId: OpenRingGatt.service,
+          characteristicId: OpenRingGatt.rxChar,
+        )
             .listen(
-              (data) {
-                scheduler.resetIfRequested(
-                  _transportTimingResetCounter,
-                  _timingResetCommands,
-                );
-
-                final int? rawCmd = data.length > 2 ? data[2] : null;
-                if (rawCmd != null) {
-                  scheduler.notePacketQueued(rawCmd);
-                }
-
-                final int arrivalMs = scheduler.nowMonotonicMs;
-                final int queueKey = rawCmd ?? -1;
-                final Future<void> previousQueue =
-                    processingQueueByCmd[queueKey] ?? Future<void>.value();
-
-                processingQueueByCmd[queueKey] = previousQueue
-                    .then((_) => processPacket(data, arrivalMs, rawCmd))
-                    .catchError((error) {
-                      logger.e(
-                        'Error while parsing OpenRing sensor packet: $error',
-                      );
-                    });
-              },
-              onError: (error) {
-                logger.e('Error while subscribing to sensor data: $error');
-                if (!streamController.isClosed) {
-                  streamController.addError(error);
-                }
-              },
+          (data) {
+            scheduler.resetIfRequested(
+              _transportTimingResetCounter,
+              _timingResetCommands,
             );
+
+            final int? rawCmd = data.length > 2 ? data[2] : null;
+            if (rawCmd != null) {
+              scheduler.notePacketQueued(rawCmd);
+            }
+
+            final int arrivalMs = scheduler.nowMonotonicMs;
+            final int queueKey = rawCmd ?? -1;
+            final Future<void> previousQueue =
+                processingQueueByCmd[queueKey] ?? Future<void>.value();
+
+            processingQueueByCmd[queueKey] = previousQueue
+                .then((_) => processPacket(data, arrivalMs, rawCmd))
+                .catchError((error) {
+              logger.e(
+                'Error while parsing OpenRing sensor packet: $error',
+              );
+            });
+          },
+          onError: (error) {
+            logger.e('Error while subscribing to sensor data: $error');
+            if (!streamController.isClosed) {
+              streamController.addError(error);
+            }
+          },
+        );
+        _startTemperaturePollingIfNeeded();
       },
       onCancel: () {
         if (!streamController.hasListener) {
+          _hasSensorDataListener = false;
+          _stopTemperaturePolling();
+
           final subscription = bleSubscription;
           bleSubscription = null;
           processingQueueByCmd.clear();
@@ -584,9 +656,9 @@ class _OpenRingDesiredState {
   bool ppgEnabled = false;
   bool temperatureEnabled = false;
 
-  bool get requiresPpgTransport => ppgEnabled || temperatureEnabled;
+  bool get requiresPpgTransport => ppgEnabled;
 
-  bool get hasAnyEnabled => imuEnabled || requiresPpgTransport;
+  bool get hasAnyEnabled => imuEnabled || ppgEnabled || temperatureEnabled;
 
   String debugSummary() {
     return 'imu=$imuEnabled ppg=$ppgEnabled temp=$temperatureEnabled '
@@ -603,8 +675,8 @@ class _OpenRingPacedScheduler {
     required this.maxScheduleLagMs,
     required this.delayAlpha,
     required this.backlogCompressionPerPacket,
-  }) : _clock = Stopwatch()..start(),
-       _wallClockAnchorMs = DateTime.now().millisecondsSinceEpoch;
+  })  : _clock = Stopwatch()..start(),
+        _wallClockAnchorMs = DateTime.now().millisecondsSinceEpoch;
 
   final Set<int> pacedCommands;
   final int defaultSampleDelayMs;
@@ -680,9 +752,8 @@ class _OpenRingPacedScheduler {
       final int epochNowMs = _toEpochMs(_clock.elapsedMilliseconds);
       final int previousTsRaw =
           _emittedTimestampByCmd[cmd] ?? (epochNowMs - stepMs);
-      final int previousTs = previousTsRaw > epochNowMs
-          ? (epochNowMs - stepMs)
-          : previousTsRaw;
+      final int previousTs =
+          previousTsRaw > epochNowMs ? (epochNowMs - stepMs) : previousTsRaw;
       int nextTs = previousTs + stepMs;
       final int minTs = epochNowMs - maxScheduleLagMs;
       if (nextTs < minTs) {

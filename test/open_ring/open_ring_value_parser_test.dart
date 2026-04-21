@@ -84,22 +84,124 @@ void main() {
       },
     );
 
-    test('accepts vendor final Q2 result packets with value 1', () {
+    test('parses final Q2 result temperature as centi-degrees', () {
       final parser = OpenRingValueParser();
       final frame = Uint8List.fromList(<int>[
         0x00,
         0x03,
         0x32,
         0x00,
-        0x01,
+        0x03,
         97,
         61,
-        32,
+        0x86,
+        0x0E,
       ]);
 
       final result = parser.parse(ByteData.sublistView(frame), const []);
 
-      expect(result, isEmpty);
+      expect(result, hasLength(1));
+      final temperature = result.single['Temperature'] as Map<String, dynamic>;
+      expect(temperature['Temperature'] as double, closeTo(37.18, 1e-9));
+      expect(temperature['Temp0'] as double, closeTo(37.18, 1e-9));
+      expect(temperature['units'], '°C');
+    });
+
+    test('parses READ_TEMP result temperature as centi-degrees', () {
+      final parser = OpenRingValueParser();
+      final frame = Uint8List.fromList(<int>[
+        0x00,
+        0x04,
+        0x34,
+        0x00,
+        0x01,
+        0xEA,
+        0x0D,
+      ]);
+
+      final result = parser.parse(ByteData.sublistView(frame), const []);
+
+      expect(result, hasLength(1));
+      final temperature = result.single['Temperature'] as Map<String, dynamic>;
+      expect(temperature['Temperature'] as double, closeTo(35.62, 1e-9));
+      expect(temperature['Temp0'] as double, closeTo(35.62, 1e-9));
+      expect(temperature['units'], '°C');
+    });
+
+    test('parses realtime PPG packets with fixed GXT310 temperature scaling',
+        () {
+      final parser = OpenRingValueParser();
+      final frame = Uint8List.fromList(<int>[
+        0x00,
+        0x04,
+        0x32,
+        0x02,
+        0x07,
+        0x01,
+        0x88,
+        0x77,
+        0x66,
+        0x55,
+        0x44,
+        0x33,
+        0x22,
+        0x11,
+        0x04,
+        0x03,
+        0x02,
+        0x01,
+        0x08,
+        0x07,
+        0x06,
+        0x05,
+        0x0C,
+        0x0B,
+        0x0A,
+        0x09,
+        0x34,
+        0x12,
+        0x78,
+        0x56,
+        0xBC,
+        0x9A,
+        0x11,
+        0x00,
+        0x22,
+        0x00,
+        0x33,
+        0x00,
+        0x40,
+        0x12,
+        0x60,
+        0x12,
+        0x80,
+        0x12,
+      ]);
+
+      final result = parser.parse(ByteData.sublistView(frame), const []);
+
+      expect(result, hasLength(1));
+      expect(result.single['PPG'], <String, dynamic>{
+        'Green': 0x01020304,
+        'Red': 0x05060708,
+        'Infrared': 0x090A0B0C,
+      });
+      expect(result.single['Accelerometer'], <String, dynamic>{
+        'X': 0x1234,
+        'Y': 0x5678,
+        'Z': -25924,
+      });
+      expect(result.single['Gyroscope'], <String, dynamic>{
+        'X': 17,
+        'Y': 34,
+        'Z': 51,
+      });
+      final temperature = result.single['Temperature'] as Map<String, dynamic>;
+      expect(temperature['Temperature'] as double, closeTo(37.0, 1e-9));
+      expect(temperature['Temp0'] as double, closeTo(36.5, 1e-9));
+      expect(temperature['Temp1'] as double, closeTo(36.75, 1e-9));
+      expect(temperature['Temp2'] as double, closeTo(37.0, 1e-9));
+      expect(temperature['units'], '°C');
     });
   });
 }
