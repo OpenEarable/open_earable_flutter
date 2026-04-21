@@ -104,6 +104,8 @@ void main() {
       final temperature = result.single['Temperature'] as Map<String, dynamic>;
       expect(temperature['Temperature'] as double, closeTo(37.18, 1e-9));
       expect(temperature['Temp0'] as double, closeTo(37.18, 1e-9));
+      expect(temperature['Temp1'] as double, closeTo(37.18, 1e-9));
+      expect(temperature['Temp2'] as double, closeTo(37.18, 1e-9));
       expect(temperature['units'], '°C');
     });
 
@@ -125,6 +127,8 @@ void main() {
       final temperature = result.single['Temperature'] as Map<String, dynamic>;
       expect(temperature['Temperature'] as double, closeTo(35.62, 1e-9));
       expect(temperature['Temp0'] as double, closeTo(35.62, 1e-9));
+      expect(temperature['Temp1'] as double, closeTo(35.62, 1e-9));
+      expect(temperature['Temp2'] as double, closeTo(35.62, 1e-9));
       expect(temperature['units'], '°C');
     });
 

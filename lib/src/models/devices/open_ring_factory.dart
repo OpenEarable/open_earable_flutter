@@ -43,7 +43,9 @@ class OpenRingFactory extends WearableFactory {
     // OpenRing exposes one realtime rate per stream; represent it as fixed Hz.
     const double imuFrequencyHz = 50.0;
     const double ppgFrequencyHz = 50.0;
-    const double temperatureFrequencyHz = 1 / 3;
+    // Keep the chart metadata dense; READ_TEMP polling is controlled in the
+    // handler and runs slower than the UI sampling model.
+    const double temperatureFrequencyHz = 50.0;
     final streamOnly = Set<SensorConfigurationOption>.unmodifiable({
       StreamSensorConfigOption(),
     });
@@ -163,8 +165,8 @@ class OpenRingFactory extends WearableFactory {
         sensorName: "Temperature",
         chartTitle: "Temperature",
         shortChartTitle: "Temp",
-        axisNames: ["Temperature"],
-        axisUnits: ["°C"],
+        axisNames: ["Temperature", "Temp0", "Temp1", "Temp2"],
+        axisUnits: ["°C", "°C", "°C", "°C"],
         sensorHandler: sensorHandler,
         // Temperature uses READ_TEMP polling instead of PPG waveform fields.
         relatedConfigurations: [temperatureSensorConfig],

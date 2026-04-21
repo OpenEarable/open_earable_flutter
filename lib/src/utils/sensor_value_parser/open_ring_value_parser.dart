@@ -233,6 +233,8 @@ class OpenRingValueParser extends SensorValueParser {
             'Temperature': {
               'Temperature': temp / _resultTemperatureRawToCelsiusScale,
               'Temp0': temp / _resultTemperatureRawToCelsiusScale,
+              'Temp1': temp / _resultTemperatureRawToCelsiusScale,
+              'Temp2': temp / _resultTemperatureRawToCelsiusScale,
               'units': '°C',
             },
           },
@@ -337,6 +339,8 @@ class OpenRingValueParser extends SensorValueParser {
           'Temperature': {
             'Temperature': temperature,
             'Temp0': temperature,
+            'Temp1': temperature,
+            'Temp2': temperature,
             'units': '°C',
           },
         },
