@@ -110,7 +110,7 @@ void main() {
     });
 
     test('parses READ_TEMP result temperature as centi-degrees', () {
-      final parser = OpenRingValueParser();
+      final parser = OpenRingValueParser(nowMilliseconds: () => 123456);
       final frame = Uint8List.fromList(<int>[
         0x00,
         0x04,
@@ -124,12 +124,35 @@ void main() {
       final result = parser.parse(ByteData.sublistView(frame), const []);
 
       expect(result, hasLength(1));
+      expect(result.single['timestamp'], 123456);
       final temperature = result.single['Temperature'] as Map<String, dynamic>;
       expect(temperature['Temperature'] as double, closeTo(35.62, 1e-9));
       expect(temperature['Temp0'] as double, closeTo(35.62, 1e-9));
       expect(temperature['Temp1'] as double, closeTo(35.62, 1e-9));
       expect(temperature['Temp2'] as double, closeTo(35.62, 1e-9));
       expect(temperature['units'], '°C');
+    });
+
+    test('uses wall-clock timestamps for repeated READ_TEMP results', () {
+      final timestamps = <int>[1000, 4000];
+      final parser = OpenRingValueParser(
+        nowMilliseconds: () => timestamps.removeAt(0),
+      );
+      final frame = Uint8List.fromList(<int>[
+        0x00,
+        0x04,
+        0x34,
+        0x00,
+        0x01,
+        0xEA,
+        0x0D,
+      ]);
+
+      final first = parser.parse(ByteData.sublistView(frame), const []);
+      final second = parser.parse(ByteData.sublistView(frame), const []);
+
+      expect(first.single['timestamp'], 1000);
+      expect(second.single['timestamp'], 4000);
     });
 
     test('parses realtime PPG packets with fixed GXT310 temperature scaling',

@@ -19,6 +19,11 @@ class OpenRingValueParser extends SensorValueParser {
 
   final Map<int, int> _lastSeqByCmd = {};
   final Map<int, int> _lastTsByCmd = {};
+  final int Function() _nowMilliseconds;
+
+  OpenRingValueParser({int Function()? nowMilliseconds})
+      : _nowMilliseconds =
+            nowMilliseconds ?? (() => DateTime.now().millisecondsSinceEpoch);
 
   @override
   List<Map<String, dynamic>> parse(
@@ -37,8 +42,8 @@ class OpenRingValueParser extends SensorValueParser {
     final int sequenceNum = data.getUint8(1);
     final int cmd = data.getUint8(2);
 
-    final int receiveTs =
-        _lastTsByCmd[cmd] ?? DateTime.now().millisecondsSinceEpoch;
+    final int nowMs = _nowMilliseconds();
+    final int receiveTs = cmd == 0x34 ? nowMs : (_lastTsByCmd[cmd] ?? nowMs);
     _lastSeqByCmd[cmd] = sequenceNum;
 
     List<Map<String, dynamic>> result;
@@ -335,7 +340,7 @@ class OpenRingValueParser extends SensorValueParser {
       return [
         {
           ...baseHeader,
-          'timestamp': receiveTs + _samplePeriodMs,
+          'timestamp': receiveTs,
           'Temperature': {
             'Temperature': temperature,
             'Temp0': temperature,
