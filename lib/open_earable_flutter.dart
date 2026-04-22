@@ -51,6 +51,8 @@ export 'src/models/capabilities/sensor_specializations/heart_rate_variability_se
 export 'src/models/capabilities/sensor_configuration.dart';
 export 'src/models/capabilities/sensor_configuration_specializations/sensor_frequency_configuration.dart';
 export 'src/models/capabilities/sensor_configuration_specializations/configurable_sensor_configuration.dart';
+export 'src/models/capabilities/sensor_configuration_specializations/open_ring_sensor_configuration.dart'
+    show OpenRingPpgGreenOnlyOption;
 export 'src/models/capabilities/sensor_configuration_specializations/recordable_sensor_configuration.dart';
 export 'src/models/capabilities/sensor_configuration_specializations/streamable_sensor_configuration.dart';
 export 'src/models/capabilities/sensor_manager.dart';
@@ -169,7 +171,8 @@ class WearableManager {
   }
 
   /// Returns an unmodifiable list of the currently registered wearable factories.
-  List<WearableFactory> get wearableFactories => List.unmodifiable(_wearableFactories);
+  List<WearableFactory> get wearableFactories =>
+      List.unmodifiable(_wearableFactories);
 
   /// Starts scanning for BLE devices.
   /// If `checkAndRequestPermissions` is true, it will check and request the necessary
@@ -292,10 +295,10 @@ class WearableManager {
       ConnectionFailedException _ =>
         'Failed to connect to device "$normalizedDeviceName". Please try again.',
       _ => _normalizeDeviceNameInMessage(
-        message: e.toString(),
-        rawDeviceName: deviceName,
-        normalizedDeviceName: normalizedDeviceName,
-      ),
+          message: e.toString(),
+          rawDeviceName: deviceName,
+          normalizedDeviceName: normalizedDeviceName,
+        ),
     };
   }
 

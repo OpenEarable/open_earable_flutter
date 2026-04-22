@@ -8,6 +8,10 @@ import 'configurable_sensor_configuration.dart';
 import 'sensor_frequency_configuration.dart';
 import 'streamable_sensor_configuration.dart';
 
+class OpenRingPpgGreenOnlyOption extends SensorConfigurationOption {
+  const OpenRingPpgGreenOnlyOption() : super(name: 'Green PPG only');
+}
+
 typedef OpenRingConfigurationAppliedCallback = void Function(
   OpenRingSensorConfiguration configuration,
   OpenRingSensorConfigurationValue value,
@@ -73,6 +77,9 @@ class OpenRingSensorConfigurationValue extends SensorFrequencyConfigurationValue
   bool get streamData =>
       options.any((option) => option is StreamSensorConfigOption);
 
+  bool get greenPpgOnly =>
+      options.any((option) => option is OpenRingPpgGreenOnlyOption);
+
   OpenRingSensorConfigurationValue({
     required super.frequencyHz,
     required this.cmd,
@@ -133,10 +140,16 @@ class OpenRingSensorConfigurationValue extends SensorFrequencyConfigurationValue
       options.hashCode;
 
   static String _optionsToString(Set<SensorConfigurationOption> options) {
-    String trailer = 'off';
+    final optionNames = <String>[];
     if (options.any((option) => option is StreamSensorConfigOption)) {
-      trailer = 'stream';
+      optionNames.add('stream');
     }
-    return trailer;
+    if (options.any((option) => option is OpenRingPpgGreenOnlyOption)) {
+      optionNames.add('green-only');
+    }
+    if (optionNames.isEmpty) {
+      return 'off';
+    }
+    return optionNames.join('+');
   }
 }

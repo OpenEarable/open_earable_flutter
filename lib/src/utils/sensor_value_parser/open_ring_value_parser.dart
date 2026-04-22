@@ -7,23 +7,12 @@ import 'sensor_value_parser.dart';
 class OpenRingValueParser extends SensorValueParser {
   // 50 Hz -> 20 ms per sample
   static const int _samplePeriodMs = 20;
-  // GXT310T0 reports temperature as 1/128 °C per LSB. ChipletRing writes the
-  // realtime temper0..2 columns as unsigned raw shorts, so keep this fixed.
-  static const double _waveformTemperatureRawToCelsiusScale = 128.0;
-  // Q2/READ_TEMP result packets are stored and displayed as centi-degrees.
-  static const double _resultTemperatureRawToCelsiusScale = 100.0;
-  // ChipletRing exports three realtime temperature shorts. On BCL603s, the
-  // third channel is the plausible body/surface temperature; the first two may
-  // sit near the unsigned/saturated range.
-  static const int _primaryWaveformTemperatureOffset = 28;
+  // ChipletRing displays OpenRing temperature readings as centi-degrees C.
+  static const double _tempRawToCelsiusScale = 100.0;
 
   final Map<int, int> _lastSeqByCmd = {};
   final Map<int, int> _lastTsByCmd = {};
-  final int Function() _nowMilliseconds;
-
-  OpenRingValueParser({int Function()? nowMilliseconds})
-      : _nowMilliseconds =
-            nowMilliseconds ?? (() => DateTime.now().millisecondsSinceEpoch);
+  final Set<int> _loggedWaveformByCmd = {};
 
   @override
   List<Map<String, dynamic>> parse(
@@ -42,8 +31,8 @@ class OpenRingValueParser extends SensorValueParser {
     final int sequenceNum = data.getUint8(1);
     final int cmd = data.getUint8(2);
 
-    final int nowMs = _nowMilliseconds();
-    final int receiveTs = cmd == 0x34 ? nowMs : (_lastTsByCmd[cmd] ?? nowMs);
+    final int receiveTs =
+        _lastTsByCmd[cmd] ?? DateTime.now().millisecondsSinceEpoch;
     _lastSeqByCmd[cmd] = sequenceNum;
 
     List<Map<String, dynamic>> result;
@@ -54,8 +43,14 @@ class OpenRingValueParser extends SensorValueParser {
       case 0x32: // PPG Q2
         result = _parsePpgFrame(data, sequenceNum, cmd, receiveTs);
         break;
-      case 0x34: // READ_TEMP
-        result = _parseTemperatureFrame(data, sequenceNum, cmd, receiveTs);
+      case 0x31: // Heart/HRV green-only PPG
+        result = _parseHeartRotaFrame(data, sequenceNum, cmd, receiveTs);
+        break;
+      case 0x3D: // PPG SHOUSHI green-only waveform
+        result = _parsePpgShoushiFrame(data, sequenceNum, cmd, receiveTs);
+        break;
+      case 0x3C: // Realtime PPG with configurable LEDs
+        result = _parseRealTimePpgFrame(data, sequenceNum, cmd, receiveTs);
         break;
       default:
         return const [];
@@ -231,19 +226,7 @@ class OpenRingValueParser extends SensorValueParser {
         logger.d(
           'OpenRing PPG result received: heart=$heart q2=$q2 temp=$temp',
         );
-        return [
-          {
-            ...baseHeader,
-            'timestamp': receiveTs + _samplePeriodMs,
-            'Temperature': {
-              'Temperature': temp / _resultTemperatureRawToCelsiusScale,
-              'Temp0': temp / _resultTemperatureRawToCelsiusScale,
-              'Temp1': temp / _resultTemperatureRawToCelsiusScale,
-              'Temp2': temp / _resultTemperatureRawToCelsiusScale,
-              'units': '°C',
-            },
-          },
-        ];
+        return const [];
       }
 
       if (value == 1) {
@@ -308,54 +291,275 @@ class OpenRingValueParser extends SensorValueParser {
     return const [];
   }
 
-  List<Map<String, dynamic>> _parseTemperatureFrame(
+  List<Map<String, dynamic>> _parseHeartRotaFrame(
     ByteData frame,
     int sequenceNum,
     int cmd,
     int receiveTs,
   ) {
     if (frame.lengthInBytes < 5) {
-      throw Exception('Temperature frame too short: ${frame.lengthInBytes}');
+      if (frame.lengthInBytes == 4) {
+        return const [];
+      }
+      throw Exception('Heart Rota frame too short: ${frame.lengthInBytes}');
     }
 
-    final int mode = frame.getUint8(3);
-    final int status = frame.getUint8(4);
+    final int type = frame.getUint8(3);
+    final int value = frame.getUint8(4);
     final Map<String, dynamic> baseHeader = {
       'sequenceNum': sequenceNum,
       'cmd': cmd,
-      'mode': mode,
-      'status': status,
+      'type': type,
+      'value': value,
     };
 
-    if (status == 0x00 || status == 0x01) {
-      final int offset = mode == 0x01 ? 6 : 5;
-      if (frame.lengthInBytes < offset + 2) {
+    if (type == 0xFF) {
+      logger.d('OpenRing heart progress: $value%');
+      return const [];
+    }
+
+    if (type == 0x00) {
+      if (value == 0 || value == 2 || value == 4 || value == 5) {
+        final String reason = switch (value) {
+          0 => 'not worn',
+          2 => 'charging',
+          4 => 'busy',
+          5 => 'timeout',
+          _ => 'unknown',
+        };
+        logger.w(
+          'OpenRing heart measurement error packet received: '
+          'code=$value ($reason)',
+        );
+        return const [];
+      }
+
+      if (value == 3) {
+        if (frame.lengthInBytes < 10) {
+          throw Exception(
+            'Invalid final Heart Rota result length: ${frame.lengthInBytes}',
+          );
+        }
+
+        final int heart = frame.getUint8(5);
+        final int hrv = frame.getUint8(6);
+        final int stress = frame.getUint8(7);
+        final int temp = frame.getUint16(8, Endian.little);
+        logger.d(
+          'OpenRing heart result received: '
+          'heart=$heart hrv=$hrv stress=$stress temp=$temp',
+        );
+      }
+      return const [];
+    }
+
+    if (type == 0x01) {
+      if (frame.lengthInBytes < 6) {
         throw Exception(
-          'Invalid temperature frame length: ${frame.lengthInBytes}',
+          'Heart Rota waveform frame too short: ${frame.lengthInBytes}',
         );
       }
 
-      final double temperature = frame.getUint16(offset, Endian.little) /
-          _resultTemperatureRawToCelsiusScale;
-      return [
-        {
+      final int nSamples = frame.getUint8(5);
+      final ByteData waveformPayload = ByteData.sublistView(frame, 6);
+      final parsed = _parseHeartRotaWaveform(
+        data: waveformPayload,
+        nSamples: nSamples,
+        receiveTs: receiveTs,
+        baseHeader: baseHeader,
+      );
+      if (parsed.isEmpty && nSamples > 0) {
+        logger.w(
+          'OpenRing Heart Rota waveform length mismatch '
+          '(nSamples=$nSamples, payloadLen=${waveformPayload.lengthInBytes})',
+        );
+      }
+      return parsed;
+    }
+
+    // type 0x02 carries RRI values; keep it separate from optical PPG samples.
+    logger.d(
+      'OpenRing Heart Rota non-PPG packet ignored: '
+      'type=$type value=$value len=${frame.lengthInBytes}',
+    );
+    return const [];
+  }
+
+  List<Map<String, dynamic>> _parsePpgShoushiFrame(
+    ByteData frame,
+    int sequenceNum,
+    int cmd,
+    int receiveTs,
+  ) {
+    if (frame.lengthInBytes < 5) {
+      if (frame.lengthInBytes == 4) {
+        return const [];
+      }
+      throw Exception('PPG SHOUSHI frame too short: ${frame.lengthInBytes}');
+    }
+
+    final int type = frame.getUint8(3);
+    final int value = frame.getUint8(4);
+    final Map<String, dynamic> baseHeader = {
+      'sequenceNum': sequenceNum,
+      'cmd': cmd,
+      'type': type,
+      'value': value,
+    };
+
+    if (type == 0xFF) {
+      logger.d('OpenRing PPG SHOUSHI progress: $value%');
+      return const [];
+    }
+
+    if (type == 0x00) {
+      if (value == 0 || value == 2 || value == 4 || value == 5) {
+        final String reason = switch (value) {
+          0 => 'not worn',
+          2 => 'charging',
+          4 => 'busy',
+          5 => 'timeout',
+          _ => 'unknown',
+        };
+        logger.w(
+          'OpenRing PPG SHOUSHI error packet received: '
+          'code=$value ($reason)',
+        );
+        return const [];
+      }
+
+      if (value == 3) {
+        if (frame.lengthInBytes >= 7) {
+          logger.d(
+            'OpenRing PPG SHOUSHI result received: '
+            'heart=${frame.getUint8(5)} spo2=${frame.getUint8(6)}',
+          );
+        }
+        return const [];
+      }
+
+      logger.w('OpenRing PPG SHOUSHI result packet with unknown value=$value');
+      return const [];
+    }
+
+    if (type == 0x01) {
+      if (frame.lengthInBytes < 7) {
+        throw Exception(
+          'PPG SHOUSHI waveform frame too short: ${frame.lengthInBytes}',
+        );
+      }
+
+      final int nSamples = frame.getUint8(5);
+      final int waveType = frame.getUint8(6);
+      final ByteData waveformPayload = ByteData.sublistView(frame, 7);
+      final parsed = _parsePpgShoushiWaveform(
+        data: waveformPayload,
+        nSamples: nSamples,
+        waveType: waveType,
+        receiveTs: receiveTs,
+        baseHeader: {
           ...baseHeader,
-          'timestamp': receiveTs,
-          'Temperature': {
-            'Temperature': temperature,
-            'Temp0': temperature,
-            'Temp1': temperature,
-            'Temp2': temperature,
-            'units': '°C',
-          },
+          'waveType': waveType,
         },
-      ];
+      );
+      if (parsed.isEmpty && nSamples > 0) {
+        logger.w(
+          'OpenRing PPG SHOUSHI waveform length mismatch '
+          '(nSamples=$nSamples, waveType=$waveType, '
+          'payloadLen=${waveformPayload.lengthInBytes})',
+        );
+      } else if (parsed.isNotEmpty && _loggedWaveformByCmd.add(cmd)) {
+        logger.d(
+          'OpenRing PPG SHOUSHI waveform received: '
+          'nSamples=$nSamples waveType=$waveType',
+        );
+      }
+      return parsed;
     }
 
-    if (status >= 0x02 && status <= 0x05) {
-      logger.w('OpenRing temperature error packet received: code=$status');
+    logger.d(
+      'OpenRing PPG SHOUSHI packet ignored: '
+      'type=$type value=$value len=${frame.lengthInBytes}',
+    );
+    return const [];
+  }
+
+  List<Map<String, dynamic>> _parseRealTimePpgFrame(
+    ByteData frame,
+    int sequenceNum,
+    int cmd,
+    int receiveTs,
+  ) {
+    if (frame.lengthInBytes < 4) {
+      throw Exception('Realtime PPG frame too short: ${frame.lengthInBytes}');
     }
 
+    final int type = frame.getUint8(3);
+    final Map<String, dynamic> baseHeader = {
+      'sequenceNum': sequenceNum,
+      'cmd': cmd,
+      'type': type,
+    };
+
+    if (type == 0xFF) {
+      if (frame.lengthInBytes >= 5) {
+        logger.d('OpenRing realtime PPG progress: ${frame.getUint8(4)}%');
+      }
+      return const [];
+    }
+
+    if (type == 0x01) {
+      logger.d('OpenRing realtime PPG time packet received');
+      return const [];
+    }
+
+    if (type == 0x02) {
+      if (frame.lengthInBytes < 14) {
+        throw Exception(
+          'Realtime PPG waveform frame too short: ${frame.lengthInBytes}',
+        );
+      }
+
+      final int packetSeq = frame.getUint8(4);
+      final int nSamples = frame.getUint8(5);
+      final ByteData waveformPayload = ByteData.sublistView(frame, 6);
+      final parsed = _parseRealTimePpgWaveform(
+        data: waveformPayload,
+        nSamples: nSamples,
+        receiveTs: receiveTs,
+        baseHeader: {
+          ...baseHeader,
+          'packetSeq': packetSeq,
+        },
+      );
+      if (parsed.isEmpty && nSamples > 0) {
+        logger.w(
+          'OpenRing realtime PPG waveform length mismatch '
+          '(nSamples=$nSamples, payloadLen=${waveformPayload.lengthInBytes})',
+        );
+      } else if (parsed.isNotEmpty && _loggedWaveformByCmd.add(cmd)) {
+        logger.d(
+          'OpenRing realtime PPG waveform received: '
+          'nSamples=$nSamples packetSeq=$packetSeq',
+        );
+      }
+      return parsed;
+    }
+
+    if (type == 0x05) {
+      if (frame.lengthInBytes >= 9) {
+        logger.d(
+          'OpenRing realtime PPG result received: '
+          'heart=${frame.getUint8(5)} spo2=${frame.getUint8(6)}',
+        );
+      }
+      return const [];
+    }
+
+    logger.d(
+      'OpenRing realtime PPG packet ignored: '
+      'type=$type len=${frame.lengthInBytes}',
+    );
     return const [];
   }
 
@@ -477,6 +681,134 @@ class OpenRingValueParser extends SensorValueParser {
     return parsedData;
   }
 
+  List<Map<String, dynamic>> _parseHeartRotaWaveform({
+    required ByteData data,
+    required int nSamples,
+    required int receiveTs,
+    required Map<String, dynamic> baseHeader,
+  }) {
+    if (nSamples == 0) {
+      return const [];
+    }
+
+    const int sampleSize = 10;
+    final int expectedBytes = nSamples * sampleSize;
+    if (data.lengthInBytes < expectedBytes) {
+      return const [];
+    }
+
+    final List<Map<String, dynamic>> parsedData = [];
+    for (int i = 0; i < nSamples; i++) {
+      final int offset = i * sampleSize;
+      final int ts = receiveTs + (i + 1) * 40;
+
+      parsedData.add({
+        ...baseHeader,
+        'timestamp': ts,
+        'PPG': {'Green': data.getUint32(offset, Endian.little)},
+        'Accelerometer': _parseAccelerometerComp(
+          ByteData.sublistView(data, offset + 4, offset + 10),
+        ),
+      });
+    }
+
+    return parsedData;
+  }
+
+  List<Map<String, dynamic>> _parsePpgShoushiWaveform({
+    required ByteData data,
+    required int nSamples,
+    required int waveType,
+    required int receiveTs,
+    required Map<String, dynamic> baseHeader,
+  }) {
+    if (nSamples == 0) {
+      return const [];
+    }
+
+    // The vendor SDK copies nSamples * 4 bytes and decodes waveType 0 as
+    // a single little-endian green value per sample.
+    const int sampleSize = 4;
+    final int expectedBytes = nSamples * sampleSize;
+    if (data.lengthInBytes < expectedBytes) {
+      return const [];
+    }
+
+    final List<Map<String, dynamic>> parsedData = [];
+    for (int i = 0; i < nSamples; i++) {
+      final int offset = i * sampleSize;
+      final int ts = receiveTs + (i + 1) * 40;
+
+      parsedData.add({
+        ...baseHeader,
+        'timestamp': ts,
+        'PPG': {'Green': data.getUint32(offset, Endian.little)},
+      });
+    }
+
+    return parsedData;
+  }
+
+  List<Map<String, dynamic>> _parseRealTimePpgWaveform({
+    required ByteData data,
+    required int nSamples,
+    required int receiveTs,
+    required Map<String, dynamic> baseHeader,
+  }) {
+    // BaseLmAPi.fileContentQingHua parses [8-byte timestamp][n * 30-byte
+    // samples]. The first three uint32 values follow the established
+    // ired/red/green order used by the vendor helpers.
+    const int headerSize = 8;
+    const int sampleSize = 30;
+    if (nSamples == 0 || data.lengthInBytes <= headerSize) {
+      return const [];
+    }
+
+    final int availableSamples =
+        (data.lengthInBytes - headerSize) ~/ sampleSize;
+    final int usableSamples =
+        nSamples <= availableSamples ? nSamples : availableSamples;
+    if (usableSamples == 0) {
+      return const [];
+    }
+
+    final ByteData sampleData = ByteData.sublistView(data, headerSize);
+    final List<Map<String, dynamic>> parsedData = [];
+    for (int i = 0; i < usableSamples; i++) {
+      final int offset = i * sampleSize;
+      final int ts = receiveTs + (i + 1) * 40;
+
+      parsedData.add({
+        ...baseHeader,
+        'timestamp': ts,
+        'PPG': {
+          'Infrared': sampleData.getUint32(offset, Endian.little),
+          'Red': sampleData.getUint32(offset + 4, Endian.little),
+          'Green': sampleData.getUint32(offset + 8, Endian.little),
+        },
+        'Accelerometer': _parseAccelerometerComp(
+          ByteData.sublistView(sampleData, offset + 12, offset + 18),
+        ),
+        'Gyroscope': {
+          'X': sampleData.getInt16(offset + 18, Endian.little),
+          'Y': sampleData.getInt16(offset + 20, Endian.little),
+          'Z': sampleData.getInt16(offset + 22, Endian.little),
+        },
+        'Temperature': {
+          'Temp0': sampleData.getUint16(offset + 24, Endian.little) /
+              _tempRawToCelsiusScale,
+          'Temp1': sampleData.getUint16(offset + 26, Endian.little) /
+              _tempRawToCelsiusScale,
+          'Temp2': sampleData.getUint16(offset + 28, Endian.little) /
+              _tempRawToCelsiusScale,
+          'units': '°C',
+        },
+      });
+    }
+
+    return parsedData;
+  }
+
   List<Map<String, dynamic>> _parsePpgWaveformType2Realtime30({
     required ByteData data,
     required int nSamples,
@@ -486,12 +818,12 @@ class OpenRingValueParser extends SensorValueParser {
     // Observed OpenRing type-0x02 packet:
     // [8-byte timestamp][n * 30-byte samples]
     // sample bytes (LE):
-    //   0..3   green uint32
+    //   0..3   infrared uint32
     //   4..7   red uint32
-    //   8..11  infrared uint32
+    //   8..11  green uint32
     //   12..17 accX/accY/accZ int16
     //   18..23 gyroX/gyroY/gyroZ int16
-    //   24..29 temp0/temp1/temp2 temperature values
+    //   24..29 temp0/temp1/temp2 uint16 (centi-degC)
     const int headerSize = 8;
     const int sampleSize = 30;
 
@@ -513,20 +845,14 @@ class OpenRingValueParser extends SensorValueParser {
     for (int i = 0; i < usableSamples; i++) {
       final int offset = i * sampleSize;
       final int ts = receiveTs + (i + 1) * _samplePeriodMs;
-      final double temp0 = _parseTemperature(sampleData, offset + 24);
-      final double temp1 = _parseTemperature(sampleData, offset + 26);
-      final double temp2 = _parseTemperature(
-        sampleData,
-        offset + _primaryWaveformTemperatureOffset,
-      );
 
       parsedData.add({
         ...baseHeader,
         'timestamp': ts,
         'PPG': {
-          'Green': sampleData.getUint32(offset, Endian.little),
+          'Infrared': sampleData.getUint32(offset, Endian.little),
           'Red': sampleData.getUint32(offset + 4, Endian.little),
-          'Infrared': sampleData.getUint32(offset + 8, Endian.little),
+          'Green': sampleData.getUint32(offset + 8, Endian.little),
         },
         'Accelerometer': _parseAccelerometerComp(
           ByteData.sublistView(sampleData, offset + 12, offset + 18),
@@ -537,20 +863,17 @@ class OpenRingValueParser extends SensorValueParser {
           'Z': sampleData.getInt16(offset + 22, Endian.little),
         },
         'Temperature': {
-          'Temperature': temp2,
-          'Temp0': temp0,
-          'Temp1': temp1,
-          'Temp2': temp2,
+          'Temp0': sampleData.getUint16(offset + 24, Endian.little) /
+              _tempRawToCelsiusScale,
+          'Temp1': sampleData.getUint16(offset + 26, Endian.little) /
+              _tempRawToCelsiusScale,
+          'Temp2': sampleData.getUint16(offset + 28, Endian.little) /
+              _tempRawToCelsiusScale,
           'units': '°C',
         },
       });
     }
 
     return parsedData;
-  }
-
-  double _parseTemperature(ByteData data, int offset) {
-    return data.getUint16(offset, Endian.little) /
-        _waveformTemperatureRawToCelsiusScale;
   }
 }

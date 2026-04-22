@@ -43,11 +43,21 @@ class OpenRingFactory extends WearableFactory {
     // OpenRing exposes one realtime rate per stream; represent it as fixed Hz.
     const double imuFrequencyHz = 50.0;
     const double ppgFrequencyHz = 50.0;
-    // Keep the chart metadata dense; READ_TEMP polling is controlled in the
-    // handler and runs slower than the UI sampling model.
+    const double ppgGreenOnlyFrequencyHz = 25.0;
     const double temperatureFrequencyHz = 50.0;
     final streamOnly = Set<SensorConfigurationOption>.unmodifiable({
       StreamSensorConfigOption(),
+    });
+    final ppgGreenOnlyMode = Set<SensorConfigurationOption>.unmodifiable({
+      OpenRingPpgGreenOnlyOption(),
+    });
+    final ppgGreenOnlyOptions = Set<SensorConfigurationOption>.unmodifiable({
+      StreamSensorConfigOption(),
+      OpenRingPpgGreenOnlyOption(),
+    });
+    final ppgAvailableOptions = Set<SensorConfigurationOption>.unmodifiable({
+      StreamSensorConfigOption(),
+      OpenRingPpgGreenOnlyOption(),
     });
 
     List<OpenRingSensorConfigurationValue> singleRateValues({
@@ -82,35 +92,59 @@ class OpenRingFactory extends WearableFactory {
       availableOptions: streamOnly,
     );
 
-    final ppgConfigValues = singleRateValues(
+    final ppgRealtimeValue = OpenRingSensorConfigurationValue(
       frequencyHz: ppgFrequencyHz,
       cmd: OpenRingGatt.cmdPPGQ2,
-      startPayload: [
+      startPayload: const [
         0x00, // start Q2 collection (LmAPI GET_HEART_Q2)
         0x00, // collectionTime = 0s (continuous streaming mode)
         0x19, // acquisition parameter (firmware-fixed)
         0x01, // enable waveform streaming
         0x01, // enable progress packets
       ],
-      stopPayload: [
+      stopPayload: const [
         0x06, // stop Q2 collection (LmAPI STOP_Q2)
       ],
     );
+    final ppgGreenOnlyValue = OpenRingSensorConfigurationValue(
+      frequencyHz: ppgGreenOnlyFrequencyHz,
+      cmd: OpenRingGatt.cmdRealTimePpg,
+      startPayload: const [
+        0x00, // start realtime PPG collection (BaseLmAPi START_REAL_TIME_PPG)
+        0x00, // collectionTime = 0s (continuous streaming mode)
+        0x19, // frequency = 25 Hz
+        0x01, // green LED enabled
+        0x00, // infrared LED disabled
+        0x00, // red LED disabled
+        0x01, // enable progress packets
+        0x01, // enable waveform packets
+      ],
+      stopPayload: const [
+        0x04, // stop realtime PPG collection (BaseLmAPi STOP_REAL_TIME_PPG)
+      ],
+      options: ppgGreenOnlyOptions,
+    );
+    final ppgGreenOnlyOffValue = ppgGreenOnlyValue.copyWith(
+      options: ppgGreenOnlyMode,
+    );
+    final ppgConfigValues = [
+      ppgRealtimeValue,
+      ppgRealtimeValue.copyWith(options: streamOnly),
+      ppgGreenOnlyOffValue,
+      ppgGreenOnlyValue,
+    ];
     final ppgSensorConfig = OpenRingSensorConfiguration(
       name: "PPG",
       values: ppgConfigValues,
       offValue: ppgConfigValues.firstWhere((value) => value.options.isEmpty),
       sensorHandler: sensorHandler,
-      availableOptions: streamOnly,
+      availableOptions: ppgAvailableOptions,
     );
 
     final temperatureConfigValues = singleRateValues(
       frequencyHz: temperatureFrequencyHz,
-      cmd: OpenRingGatt.cmdTemp,
-      startPayload: [
-        0x00, // READ_TEMP normal mode
-        0x00,
-      ],
+      cmd: OpenRingGatt.cmdPPGQ2,
+      startPayload: const [],
       stopPayload: const [],
       softwareToggleOnly: true,
     );
@@ -161,14 +195,14 @@ class OpenRingFactory extends WearableFactory {
         relatedConfigurations: [ppgSensorConfig],
       ),
       OpenRingSensor(
-        sensorId: OpenRingGatt.cmdTemp,
+        sensorId: OpenRingGatt.cmdPPGQ2,
         sensorName: "Temperature",
         chartTitle: "Temperature",
         shortChartTitle: "Temp",
-        axisNames: ["Temperature", "Temp0", "Temp1", "Temp2"],
-        axisUnits: ["°C", "°C", "°C", "°C"],
+        axisNames: ["Temp0", "Temp1", "Temp2"],
+        axisUnits: ["°C", "°C", "°C"],
         sensorHandler: sensorHandler,
-        // Temperature uses READ_TEMP polling instead of PPG waveform fields.
+        // Temperature uses software on/off and enables PPG transport automatically.
         relatedConfigurations: [temperatureSensorConfig],
       ),
     ];

@@ -1,0 +1,60 @@
+Running `(cd /Users/miguelkuttner/.pub-cache/hosted/pub.dev/objective_c-9.3.0/; TMPDIR=/var/folders/hd/fmzf1bd529x91vhywqr47l5h0000gn/T/ PATH=/Users/miguelkuttner/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin:/Library/Apple/usr/bin:/Library/TeX/texbin:/usr/local/share/dotnet:/Library/Frameworks/Mono.framework/Versions/Current/Commands:/Applications/Xamarin Workbooks.app/Contents/SharedSupport/path-bin:/Users/miguelkuttner/.codex/tmp/arg0/codex-arg0SMjkQo:/Users/miguelkuttner/bin:/Applications/Codex.app/Contents/Resources HOME=/Users/miguelkuttner /Users/miguelkuttner/dev/Teco/Earable/flutter/flutter/bin/cache/dart-sdk/bin/dart --packages=/Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/package_config.json /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/objective_c/de310349bc/hook.dill --config=/Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/objective_c/de310349bc/input.json )`.
+INFO: 2026-04-21 10:29:08.375139: Running `/Library/Developer/CommandLineTools/usr/bin/clang --version`.
+
+INFO: 2026-04-21 10:29:08.544379: Running `/Library/Developer/CommandLineTools/usr/bin/clang --version`.
+
+INFO: 2026-04-21 10:29:08.562573: Running: /Library/Developer/CommandLineTools/usr/bin/clang -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -target arm64-apple-darwin -mmacos-version-min=13 -c /Users/miguelkuttner/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/include/dart_api_dl.c -fpic -I src -o /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/include/dart_api_dl.c.o
+
+INFO: 2026-04-21 10:29:08.563356: Running: /Library/Developer/CommandLineTools/usr/bin/clang -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -target arm64-apple-darwin -mmacos-version-min=13 -c /Users/miguelkuttner/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/objective_c.c -fpic -I src -o /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/objective_c.c.o
+
+INFO: 2026-04-21 10:29:08.563706: Running: /Library/Developer/CommandLineTools/usr/bin/clang -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -target arm64-apple-darwin -mmacos-version-min=13 -c /Users/miguelkuttner/.pub-cache/hosted/pub.dev/objective_c-9.3.0/test/util.c -fpic -I src -o /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/test/util.c.o
+
+INFO: 2026-04-21 10:29:08.563870: Running: /Library/Developer/CommandLineTools/usr/bin/clang -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -target arm64-apple-darwin -mmacos-version-min=13 -x objective-c -fobjc-arc -c /Users/miguelkuttner/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/input_stream_adapter.m -fpic -I src -o /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/input_stream_adapter.m.o
+
+INFO: 2026-04-21 10:29:08.564139: Running: /Library/Developer/CommandLineTools/usr/bin/clang -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -target arm64-apple-darwin -mmacos-version-min=13 -x objective-c -fobjc-arc -c /Users/miguelkuttner/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/ns_number.m -fpic -I src -o /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/ns_number.m.o
+
+.o
+INFO: 2026-04-21 10:29:08.564057: Running: /Library/Developer/CommandLineTools/usr/bin/clang -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -target arm64-apple-darwin -mmacos-version-min=13 -x objective-c -fobjc-arc -c /Users/miguelkuttner/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/observer.m -fpic -I src -o /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/observer.m.o
+
+INFO: 2026-04-21 10:29:08.564226: Running: /Library/Developer/CommandLineTools/usr/bin/clang -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -target arm64-apple-darwin -mmacos-version-min=13 -x objective-c -fobjc-arc -c /Users/miguelkuttner/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/protocol.m -fpic -I src -o /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/protocol.m.o
+
+INFO: 2026-04-21 10:29:08.564416: Running: /Library/Developer/CommandLineTools/usr/bin/clang -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -target arm64-apple-darwin -mmacos-version-min=13 -x objective-c -fobjc-arc -c /Users/miguelkuttner/.pub-cache/hosted/pub.dev/objective_c-9.3.0/src/objective_c_bindings_generated.m -fpic -I src -o /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/objective_c_bindings_generated.m.o
+
+INFO: 2026-04-21 10:29:08.722229: 
+INFO: 2026-04-21 10:29:08.722325: 
+INFO: 2026-04-21 10:29:08.722356: Generated /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/test/util.c.o
+INFO: 2026-04-21 10:29:08.722449: 
+INFO: 2026-04-21 10:29:08.722459: 
+INFO: 2026-04-21 10:29:08.722466: Generated /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/objective_c.c.o
+INFO: 2026-04-21 10:29:08.722498: 
+INFO: 2026-04-21 10:29:08.722508: 
+INFO: 2026-04-21 10:29:08.722516: Generated /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/include/dart_api_dl.c.o
+
+INFO: 2026-04-21 10:29:08.723738: 
+INFO: 2026-04-21 10:29:08.723773: 
+INFO: 2026-04-21 10:29:08.723784: Generated /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/observer.m.o
+
+INFO: 2026-04-21 10:29:08.727353: 
+INFO: 2026-04-21 10:29:08.727390: 
+INFO: 2026-04-21 10:29:08.727401: Generated /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/protocol.m.o
+
+INFO: 2026-04-21 10:29:09.026169: 
+INFO: 2026-04-21 10:29:09.026202: 
+INFO: 2026-04-21 10:29:09.026211: Generated /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/ns_number.m.o
+
+INFO: 2026-04-21 10:29:09.040711: 
+INFO: 2026-04-21 10:29:09.040757: 
+INFO: 2026-04-21 10:29:09.040768: Generated /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/objective_c.m.o
+
+INFO: 2026-04-21 10:29:09.048228: Generated /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/input_stream_adapter.m.o
+
+shared/objective_c/build/de310349bc/obj/src/objective_c_bindings_generated.m.o
+INFO: 2026-04-21 10:29:09.048210: 
+INFO: 2026-04-21 10:29:09.048220: 
+
+INFO: 2026-04-21 10:29:09.048523: Running: /Library/Developer/CommandLineTools/usr/bin/clang -shared -Wl,-encryptable -undefined dynamic_lookup -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -target arm64-apple-darwin -mmacos-version-min=13 /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/include/dart_api_dl.c.o /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/objective_c.c.o /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/test/util.c.o /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/input_stream_adapter.m.o /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/objective_c.m.o /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/observer.m.o /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/ns_number.m.o /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/protocol.m.o /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/obj/src/objective_c_bindings_generated.m.o -o /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/objective_c.dylib
+
+INFO: 2026-04-21 10:29:09.372525: 
+INFO: 2026-04-21 10:29:09.372589: 
+INFO: 2026-04-21 10:29:09.372610: Generated /Users/miguelkuttner/dev/Teco/Calmables/heatables_app/vendor/open_earable_flutter/.dart_tool/hooks_runner/shared/objective_c/build/de310349bc/objective_c.dylib
+
