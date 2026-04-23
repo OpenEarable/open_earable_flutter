@@ -112,6 +112,36 @@ void main() {
       );
     });
 
+    test('starts full PPG through the realtime PPG command', () async {
+      final ble = _FakeBleGattManager();
+      final parser = _StubSensorValueParser();
+      final handler = OpenRingSensorHandler(
+        discoveredDevice: DiscoveredDevice(
+          id: 'ring-1',
+          name: 'OpenRing',
+          manufacturerData: Uint8List(0),
+          rssi: -42,
+          serviceUuids: <String>[OpenRingGatt.service],
+        ),
+        bleManager: ble,
+        sensorValueParser: parser,
+      );
+
+      await handler.writeSensorConfig(
+        OpenRingSensorConfig(
+          cmd: OpenRingGatt.cmdRealTimePpg,
+          payload: const <int>[0x00, 0x00, 0x32, 0x01, 0x01, 0x01, 0x01, 0x01],
+        ),
+      );
+
+      expect(ble.writes, hasLength(1));
+      expect(ble.writes.single.byteData[2], OpenRingGatt.cmdRealTimePpg);
+      expect(
+        ble.writes.single.byteData.sublist(3),
+        <int>[0x00, 0x00, 0x32, 0x01, 0x01, 0x01, 0x01, 0x01],
+      );
+    });
+
     test('routes realtime PPG samples to the PPG stream', () async {
       final ble = _FakeBleGattManager();
       final parser = _StubSensorValueParser();
@@ -160,7 +190,7 @@ void main() {
     });
 
     test(
-      'mirrors Q2 IMU payloads to the IMU stream when IMU is enabled',
+      'mirrors realtime PPG IMU payloads to the IMU stream when IMU is enabled',
       () async {
         final ble = _FakeBleGattManager();
         final parser = _StubSensorValueParser();
@@ -183,8 +213,17 @@ void main() {
 
         await handler.writeSensorConfig(
           OpenRingSensorConfig(
-            cmd: OpenRingGatt.cmdPPGQ2,
-            payload: const <int>[0x00, 0x00, 0x19, 0x01, 0x01],
+            cmd: OpenRingGatt.cmdRealTimePpg,
+            payload: const <int>[
+              0x00,
+              0x00,
+              0x32,
+              0x01,
+              0x01,
+              0x01,
+              0x01,
+              0x01,
+            ],
           ),
         );
         await handler.writeSensorConfig(
@@ -196,18 +235,18 @@ void main() {
 
         parser.nextResult = <Map<String, dynamic>>[
           <String, dynamic>{
-            'cmd': OpenRingGatt.cmdPPGQ2,
+            'cmd': OpenRingGatt.cmdRealTimePpg,
             'timestamp': 1234,
             'PPG': <String, dynamic>{'Red': 1, 'Infrared': 2, 'Green': 3},
             'Accelerometer': <String, dynamic>{'X': 11, 'Y': 22, 'Z': 33},
             'Gyroscope': <String, dynamic>{'X': 44, 'Y': 55, 'Z': 66},
           },
         ];
-        ble.emit(const <int>[0x00, 0x01, 0x32, 0x02]);
+        ble.emit(const <int>[0x00, 0x01, 0x3C, 0x02]);
 
         final emitted = await sampleFuture;
         expect(emitted['cmd'], OpenRingGatt.cmdIMU);
-        expect(emitted['sourceCmd'], OpenRingGatt.cmdPPGQ2);
+        expect(emitted['sourceCmd'], OpenRingGatt.cmdRealTimePpg);
         expect(emitted['Accelerometer'], <String, dynamic>{
           'X': 11,
           'Y': 22,

@@ -94,16 +94,19 @@ class OpenRingFactory extends WearableFactory {
 
     final ppgRealtimeValue = OpenRingSensorConfigurationValue(
       frequencyHz: ppgFrequencyHz,
-      cmd: OpenRingGatt.cmdPPGQ2,
+      cmd: OpenRingGatt.cmdRealTimePpg,
       startPayload: const [
-        0x00, // start Q2 collection (LmAPI GET_HEART_Q2)
+        0x00, // start realtime PPG collection (BaseLmAPi START_REAL_TIME_PPG)
         0x00, // collectionTime = 0s (continuous streaming mode)
-        0x19, // acquisition parameter (firmware-fixed)
-        0x01, // enable waveform streaming
+        0x32, // frequency = 50 Hz
+        0x01, // green LED enabled
+        0x01, // infrared LED enabled
+        0x01, // red LED enabled
         0x01, // enable progress packets
+        0x01, // enable waveform packets
       ],
       stopPayload: const [
-        0x06, // stop Q2 collection (LmAPI STOP_Q2)
+        0x04, // stop realtime PPG collection (BaseLmAPi STOP_REAL_TIME_PPG)
       ],
     );
     final ppgGreenOnlyValue = OpenRingSensorConfigurationValue(

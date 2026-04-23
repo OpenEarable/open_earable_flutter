@@ -22,14 +22,25 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
   static const int _commandSettleDelayMs = 45;
   static const List<int> _imuStartPayload = <int>[0x06];
   static const List<int> _imuStopPayload = <int>[0x00];
-  static const List<int> _ppgRealtimeStartPayload = <int>[
+  static const List<int> _ppgQ2StartPayload = <int>[
     0x00,
     0x00,
     0x19,
     0x01,
     0x01,
   ];
-  static const List<int> _ppgRealtimeStopPayload = <int>[0x06];
+  static const List<int> _ppgQ2StopPayload = <int>[0x06];
+  static const List<int> _ppgRealtimeStartPayload = <int>[
+    0x00,
+    0x00,
+    0x32,
+    0x01,
+    0x01,
+    0x01,
+    0x01,
+    0x01,
+  ];
+  static const List<int> _ppgRealtimeStopPayload = <int>[0x04];
   static const List<int> _ppgGreenOnlyStartPayload = <int>[
     0x00,
     0x00,
@@ -55,11 +66,7 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
     OpenRingGatt.cmdPpgShoushi,
     OpenRingGatt.cmdRealTimePpg,
   ];
-  static const Map<int, int> _sampleDelayMsByCommand = <int, int>{
-    OpenRingGatt.cmdHeartRota: 40,
-    OpenRingGatt.cmdPpgShoushi: 40,
-    OpenRingGatt.cmdRealTimePpg: 40,
-  };
+  static const Map<int, int> _sampleDelayMsByCommand = <int, int>{};
 
   Stream<Map<String, dynamic>>? _sensorDataStream;
   Future<void> _commandQueue = Future<void>.value();
@@ -97,7 +104,7 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
       if (cmd == sensorId) {
         return true;
       }
-      return sensorId == OpenRingGatt.cmdPPGQ2 && _isGreenOnlyPpgCommand(cmd);
+      return sensorId == OpenRingGatt.cmdPPGQ2 && _isPpgTransportCommand(cmd);
     });
   }
 
@@ -146,13 +153,36 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
 
   bool _isRealtimeStreamingCommand(int cmd) =>
       cmd == OpenRingGatt.cmdIMU ||
-      cmd == OpenRingGatt.cmdPPGQ2 ||
-      _isGreenOnlyPpgCommand(cmd);
+      _isPpgTransportCommand(cmd);
 
-  bool _isGreenOnlyPpgCommand(int cmd) =>
+  bool _isPpgTransportCommand(int cmd) =>
+      cmd == OpenRingGatt.cmdPPGQ2 ||
+      cmd == OpenRingGatt.cmdRealTimePpg ||
+      _isLegacyGreenOnlyPpgCommand(cmd);
+
+  bool _isLegacyGreenOnlyPpgCommand(int cmd) =>
       cmd == OpenRingGatt.cmdHeartRota ||
-      cmd == OpenRingGatt.cmdPpgShoushi ||
-      cmd == OpenRingGatt.cmdRealTimePpg;
+      cmd == OpenRingGatt.cmdPpgShoushi;
+
+  bool _isGreenOnlyStartConfig(OpenRingSensorConfig sensorConfig) {
+    if (_isLegacyGreenOnlyPpgCommand(sensorConfig.cmd)) {
+      return true;
+    }
+    return sensorConfig.cmd == OpenRingGatt.cmdRealTimePpg &&
+        _payloadEquals(sensorConfig.payload, _ppgGreenOnlyStartPayload);
+  }
+
+  bool _payloadEquals(List<int> left, List<int> right) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (int i = 0; i < left.length; i++) {
+      if (left[i] != right[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   void _updateDesiredStateFromSensorConfig(OpenRingSensorConfig sensorConfig) {
     final bool isStart = _isRealtimeStreamingStart(sensorConfig);
@@ -174,13 +204,14 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
       return;
     }
 
-    if (sensorConfig.cmd == OpenRingGatt.cmdPPGQ2 ||
-        _isGreenOnlyPpgCommand(sensorConfig.cmd)) {
+    if (_isPpgTransportCommand(sensorConfig.cmd)) {
       if (isStart) {
         _desiredState.ppgEnabled = true;
         _desiredState.ppgCmd = sensorConfig.cmd;
+        _desiredState.ppgGreenOnly = _isGreenOnlyStartConfig(sensorConfig);
       } else {
         _desiredState.ppgEnabled = false;
+        _desiredState.ppgGreenOnly = false;
       }
     }
   }
@@ -216,7 +247,7 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
 
     final int? desiredPpgCmd = _desiredState.desiredPpgTransportCmd;
     final bool desiredStandaloneImuEnabled =
-        _desiredState.imuEnabled && desiredPpgCmd != OpenRingGatt.cmdPPGQ2;
+        _desiredState.imuEnabled && !_ppgTransportCarriesImu(desiredPpgCmd);
     if (desiredStandaloneImuEnabled == _lastAppliedImuEnabled &&
         desiredPpgCmd == _lastAppliedPpgCmd) {
       return;
@@ -303,15 +334,33 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
         _bleManager.isConnected(_discoveredDevice.id);
   }
 
+  bool _ppgTransportCarriesImu(int? cmd) {
+    return cmd == OpenRingGatt.cmdPPGQ2 || cmd == OpenRingGatt.cmdRealTimePpg;
+  }
+
   List<int> _ppgStartPayloadFor(int cmd) {
-    if (_isGreenOnlyPpgCommand(cmd)) {
+    if (cmd == OpenRingGatt.cmdPPGQ2) {
+      return _ppgQ2StartPayload;
+    }
+    if (cmd == OpenRingGatt.cmdRealTimePpg) {
+      return _desiredState.greenOnlyPpgRequested
+          ? _ppgGreenOnlyStartPayload
+          : _ppgRealtimeStartPayload;
+    }
+    if (_isLegacyGreenOnlyPpgCommand(cmd)) {
       return _ppgGreenOnlyStartPayload;
     }
     return _ppgRealtimeStartPayload;
   }
 
   List<int> _ppgStopPayloadFor(int cmd) {
-    if (_isGreenOnlyPpgCommand(cmd)) {
+    if (cmd == OpenRingGatt.cmdPPGQ2) {
+      return _ppgQ2StopPayload;
+    }
+    if (cmd == OpenRingGatt.cmdRealTimePpg) {
+      return _ppgRealtimeStopPayload;
+    }
+    if (_isLegacyGreenOnlyPpgCommand(cmd)) {
       return _ppgGreenOnlyStopPayload;
     }
     return _ppgRealtimeStopPayload;
@@ -332,14 +381,16 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
 
     final dynamic cmd = filtered['cmd'];
 
-    if (cmd is int && cmd == OpenRingGatt.cmdPPGQ2) {
-      if (_desiredState.desiredPpgTransportCmd != OpenRingGatt.cmdPPGQ2) {
+    if (cmd is int && _isPpgTransportCommand(cmd)) {
+      if (_desiredState.desiredPpgTransportCmd != cmd) {
         return;
       }
-      if (_desiredState.imuEnabled && _hasImuPayload(filtered)) {
+      if (_desiredState.imuEnabled &&
+          _ppgTransportCarriesImu(cmd) &&
+          _hasImuPayload(filtered)) {
         final imuSample = Map<String, dynamic>.from(filtered);
         imuSample['cmd'] = OpenRingGatt.cmdIMU;
-        imuSample['sourceCmd'] = OpenRingGatt.cmdPPGQ2;
+        imuSample['sourceCmd'] = cmd;
         imuSample.remove('PPG');
         imuSample.remove('Temperature');
         _emitIfSampleHasSensorPayload(streamController, imuSample);
@@ -353,18 +404,6 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
         _keepOnlyGreenPpgChannel(filtered);
       }
       _removeImuPayload(filtered);
-      _emitIfSampleHasSensorPayload(streamController, filtered);
-      return;
-    }
-
-    if (cmd is int && _isGreenOnlyPpgCommand(cmd)) {
-      if (_desiredState.desiredPpgTransportCmd != cmd ||
-          !_desiredState.ppgEnabled) {
-        return;
-      }
-      filtered.remove('Temperature');
-      _removeImuPayload(filtered);
-      _keepOnlyGreenPpgChannel(filtered);
       _emitIfSampleHasSensorPayload(streamController, filtered);
       return;
     }
@@ -447,21 +486,18 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
     final bool hasPpgPayload = sample.containsKey('PPG');
     final bool hasTemperaturePayload = sample.containsKey('Temperature');
 
-    if (cmd == OpenRingGatt.cmdPPGQ2) {
-      if (_desiredState.desiredPpgTransportCmd != OpenRingGatt.cmdPPGQ2) {
+    if (_isPpgTransportCommand(cmd)) {
+      if (_desiredState.desiredPpgTransportCmd != cmd) {
         return false;
       }
-      final bool shouldEmitImu = _desiredState.imuEnabled && hasImuPayload;
+      final bool shouldEmitImu =
+          _desiredState.imuEnabled &&
+          _ppgTransportCarriesImu(cmd) &&
+          hasImuPayload;
       final bool shouldEmitPpg = _desiredState.ppgEnabled && hasPpgPayload;
       final bool shouldEmitTemperature =
           _desiredState.temperatureEnabled && hasTemperaturePayload;
       return shouldEmitImu || shouldEmitPpg || shouldEmitTemperature;
-    }
-
-    if (_isGreenOnlyPpgCommand(cmd)) {
-      return _desiredState.desiredPpgTransportCmd == cmd &&
-          _desiredState.ppgEnabled &&
-          hasPpgPayload;
     }
 
     if (cmd == OpenRingGatt.cmdIMU) {
@@ -497,10 +533,11 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
       return;
     }
 
-    if (cmd == OpenRingGatt.cmdPPGQ2 || _isGreenOnlyPpgCommand(cmd)) {
+    if (_isPpgTransportCommand(cmd)) {
       _hasAdoptedInitialStreamingState = true;
       _desiredState.ppgEnabled = sample.containsKey('PPG');
       _desiredState.ppgCmd = cmd;
+      _desiredState.ppgGreenOnly = false;
       _desiredState.temperatureEnabled = sample.containsKey('Temperature');
       _lastAppliedPpgCmd = _desiredState.desiredPpgTransportCmd;
       _transportTimingResetCounter += 1;
@@ -529,6 +566,7 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
       delayAlpha: _delayAlpha,
       backlogCompressionPerPacket: _backlogCompressionPerPacket,
       sampleDelayMsByCommand: _sampleDelayMsByCommand,
+      preferredSampleDelayMsForCommand: _preferredSampleDelayMsForCommand,
     );
 
     // Keep command families independent.
@@ -658,7 +696,8 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
       return sensorConfig.payload[0] == 0x00;
     }
 
-    if (_isGreenOnlyPpgCommand(sensorConfig.cmd)) {
+    if (_isLegacyGreenOnlyPpgCommand(sensorConfig.cmd) ||
+        sensorConfig.cmd == OpenRingGatt.cmdRealTimePpg) {
       return sensorConfig.payload[0] == 0x00;
     }
 
@@ -696,20 +735,31 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
 
     return false;
   }
+
+  int _preferredSampleDelayMsForCommand(int cmd) {
+    if (cmd == OpenRingGatt.cmdRealTimePpg) {
+      return _desiredState.greenOnlyPpgRequested ? 40 : 20;
+    }
+    if (_isLegacyGreenOnlyPpgCommand(cmd)) {
+      return 40;
+    }
+    return _sampleDelayMsByCommand[cmd] ?? _defaultSampleDelayMs;
+  }
 }
 
 class _OpenRingDesiredState {
   bool imuEnabled = false;
   bool ppgEnabled = false;
   bool temperatureEnabled = false;
-  int ppgCmd = OpenRingGatt.cmdPPGQ2;
+  bool ppgGreenOnly = false;
+  int ppgCmd = OpenRingGatt.cmdRealTimePpg;
 
   int? get desiredPpgTransportCmd {
-    if (temperatureEnabled) {
-      return OpenRingGatt.cmdPPGQ2;
-    }
     if (ppgEnabled) {
       return ppgCmd;
+    }
+    if (temperatureEnabled) {
+      return OpenRingGatt.cmdPPGQ2;
     }
     return null;
   }
@@ -717,15 +767,16 @@ class _OpenRingDesiredState {
   bool get requiresPpgTransport => desiredPpgTransportCmd != null;
 
   bool get greenOnlyPpgRequested =>
+      ppgGreenOnly ||
       ppgCmd == OpenRingGatt.cmdHeartRota ||
-      ppgCmd == OpenRingGatt.cmdPpgShoushi ||
-      ppgCmd == OpenRingGatt.cmdRealTimePpg;
+      ppgCmd == OpenRingGatt.cmdPpgShoushi;
 
   bool get hasAnyEnabled => imuEnabled || requiresPpgTransport;
 
   String debugSummary() {
     return 'imu=$imuEnabled ppg=$ppgEnabled temp=$temperatureEnabled '
-        'ppgCmd=$ppgCmd ppgTransport=$desiredPpgTransportCmd';
+        'ppgCmd=$ppgCmd ppgGreenOnly=$ppgGreenOnly '
+        'ppgTransport=$desiredPpgTransportCmd';
   }
 }
 
@@ -738,6 +789,7 @@ class _OpenRingPacedScheduler {
     required this.maxScheduleLagMs,
     required this.delayAlpha,
     required this.backlogCompressionPerPacket,
+    required this.preferredSampleDelayMsForCommand,
     this.sampleDelayMsByCommand = const <int, int>{},
   })  : _clock = Stopwatch()..start(),
         _wallClockAnchorMs = DateTime.now().millisecondsSinceEpoch;
@@ -749,6 +801,7 @@ class _OpenRingPacedScheduler {
   final int maxScheduleLagMs;
   final double delayAlpha;
   final double backlogCompressionPerPacket;
+  final int Function(int cmd) preferredSampleDelayMsForCommand;
   final Map<int, int> sampleDelayMsByCommand;
 
   final Stopwatch _clock;
@@ -861,13 +914,12 @@ class _OpenRingPacedScheduler {
     required int arrivalMs,
   }) {
     final int defaultDelayMs =
-        sampleDelayMsByCommand[cmd] ?? defaultSampleDelayMs;
-    final bool isGreenOnlyCmd = cmd == OpenRingGatt.cmdHeartRota ||
-        cmd == OpenRingGatt.cmdPpgShoushi ||
-        cmd == OpenRingGatt.cmdRealTimePpg;
+        preferredSampleDelayMsForCommand(cmd);
+    final bool isGreenOnlyCmd = defaultDelayMs >= 30;
     final int minDelayForCmd = isGreenOnlyCmd ? 20 : minSampleDelayMs;
     final int maxDelayForCmd = isGreenOnlyCmd ? 60 : maxSampleDelayMs;
-    double delayMs = _delayEstimateByCmd[cmd] ?? defaultDelayMs.toDouble();
+    double delayMs = _delayEstimateByCmd[cmd] ??
+        (sampleDelayMsByCommand[cmd] ?? defaultDelayMs).toDouble();
 
     final int? lastArrival = _lastArrivalByCmd[cmd];
     if (lastArrival != null) {
