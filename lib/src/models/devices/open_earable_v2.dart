@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:open_earable_flutter/src/constants.dart';
 import 'package:open_earable_flutter/src/models/devices/bluetooth_wearable.dart';
 import 'package:pub_semver/pub_semver.dart';
-
+import 'package:open_earable_flutter/src/models/error/sensor_error.dart';
 import '../../../open_earable_flutter.dart' hide Version;
 import '../../managers/v2_sensor_handler.dart';
 import '../capabilities/device_firmware_version.dart';
@@ -90,6 +90,31 @@ class OpenEarableV2 extends BluetoothWearable
   @override
   bool get isConnectedViaSystem => _isConnectedViaSystem;
 
+final _errorController = StreamController<SensorError>.broadcast();
+Stream<SensorError> get onError => _errorController.stream;
+// Add this method after the _errorController declaration
+void _subscribeToErrorNotifications() {
+  bleManager
+      .subscribe(
+        deviceId: deviceId,
+        serviceId: sensorServiceUuid,
+        characteristicId: sensorErrorCharacteristicUuid,
+      )
+      .listen(
+        (data) {
+          try {
+            final error = SensorError.fromBytes(Uint8List.fromList(data));
+            logger.i('Received sensor error: $error');
+            _errorController.add(error);
+          } catch (e) {
+            logger.e('Failed to parse sensor error: $e');
+          }
+        },
+        onError: (error) {
+          logger.e('Error in error notification stream: $error');
+        },
+      );
+}
   @override
   Stream<Map<SensorConfiguration, SensorConfigurationValue>>
       get sensorConfigurationStream {
@@ -279,7 +304,10 @@ class OpenEarableV2 extends BluetoothWearable
     bool isConnectedViaSystem = false,
   })  : _sensors = sensors,
         _sensorConfigurations = sensorConfigurations,
-        _isConnectedViaSystem = isConnectedViaSystem;
+          _isConnectedViaSystem = isConnectedViaSystem {
+  // ADD THIS LINE HERE
+  _subscribeToErrorNotifications();
+}
 
   @override
   String get deviceId => discoveredDevice.id;

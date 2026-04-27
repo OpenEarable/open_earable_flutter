@@ -40,3 +40,4 @@ const String buttonStateCharacteristicUuid =
 
 const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
 const String ledSetStateCharacteristic = "81040e7a-4819-11ee-be56-0242ac120002";
+const String sensorErrorCharacteristicUuid = "1234567c-1234-5678-9abc-def123456789";
