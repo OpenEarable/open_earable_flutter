@@ -44,7 +44,7 @@ abstract class Wearable {
     }
     return null;
   }
-
+Stream<SensorError> get onError => const Stream.empty();
   /// Gets a specific capability of the wearable, throwing a StateError if not supported.
   T requireCapability<T>() {
     final capability = getCapability<T>();

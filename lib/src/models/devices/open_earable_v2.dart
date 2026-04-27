@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:open_earable_flutter/src/constants.dart';
 import 'package:open_earable_flutter/src/models/devices/bluetooth_wearable.dart';
 import 'package:pub_semver/pub_semver.dart';
-import 'package:open_earable_flutter/lib/src/models/error/sensor_error.dart';
+import 'package:open_earable_flutter/src/models/error/sensor_error.dart';
 import '../../../open_earable_flutter.dart' hide Version;
 import '../../managers/v2_sensor_handler.dart';
 import '../capabilities/device_firmware_version.dart';
