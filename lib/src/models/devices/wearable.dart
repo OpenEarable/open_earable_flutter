@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import '../../managers/wearable_disconnect_notifier.dart';
-
+import 'package:open_earable_flutter/src/models/error/sensor_error.dart';
 enum WearableIconVariant {
   single,
   left,
@@ -44,7 +44,7 @@ abstract class Wearable {
     }
     return null;
   }
-
+Stream<SensorError> get onError => const Stream.empty();
   /// Gets a specific capability of the wearable, throwing a StateError if not supported.
   T requireCapability<T>() {
     final capability = getCapability<T>();

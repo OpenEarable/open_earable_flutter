@@ -70,7 +70,7 @@ export 'src/models/wearable_factory.dart';
 export 'src/models/capabilities/system_device.dart';
 export 'src/managers/ble_gatt_manager.dart';
 export 'src/models/capabilities/time_synchronizable.dart';
-
+export 'src/models/error/sensor_error.dart';
 export 'src/fota/fota.dart';
 
 @Deprecated(
