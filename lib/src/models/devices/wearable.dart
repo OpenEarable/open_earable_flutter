@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import '../../managers/wearable_disconnect_notifier.dart';
-
+import 'package:open_earable_flutter/src/models/error/sensor_error.dart';
 enum WearableIconVariant {
   single,
   left,
