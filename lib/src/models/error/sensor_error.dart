@@ -31,12 +31,12 @@ class SensorError {
 
   String get errorDescription {
     switch (errorCode) {
-      case 0x01: return 'Sensor initialization failed';
+      case 0x01: return 'Error streaming is initialized';
       case 0x02: return 'Sensor read failed';
       case 0x03: return 'SD card error';
       case 0x04: return 'Audio playback failed';
       case 0x05: return 'BLE notification failed';
-      case 0xFF: return 'Test notification';
+      case 0xFF: return 'Steaming failed the queue is full!';
       default: return 'Unknown error (code: ${errorCode.toRadixString(16)})';
     }
   }
