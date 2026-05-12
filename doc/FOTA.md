@@ -259,6 +259,25 @@ Each `FirmwareSlotInfo` contains:
 This is useful when you want to show the current primary and secondary images
 before or after an update.
 
+## Erase An Inactive Firmware Slot
+
+Slot-aware wearables can erase an inactive firmware image slot through
+`FotaSlotInfoCapability`:
+
+```dart
+final slotInfo = wearable.getCapability<FotaSlotInfoCapability>();
+if (slotInfo != null) {
+  await slotInfo.eraseFirmwareSlot();
+  await slotInfo.eraseFirmwareSlot(channel: 1);
+}
+```
+
+When `channel` is omitted, the firmware backend erases its default secondary
+image slot. When `channel` is provided, the erase request targets that raw
+mcumgr image slot channel. Devices reject erase requests for slots that contain
+a confirmed image, an image pending test on the next reboot, or an active
+split-image slot.
+
 ## What Happens Internally
 
 You do not need to call the lower-level handler classes directly, but it helps to know what `UpdateBloc` is doing:
@@ -367,7 +386,7 @@ Recommended UX:
 - `UnifiedFirmwareRepository` caches results for 15 minutes unless you request a refresh
 - The current upload path uses `mcumgr_flutter` under the hood
 - `FotaSlotInfoCapability` is optional and only available on wearables whose firmware backend exposes slot-style state
-- `mcumgr_flutter 0.6.1` does not expose an API to erase an individual image slot, so this library does not currently offer slot erase either
+- The current local `mcumgr_flutter` integration exposes slot erase through `FotaSlotInfoCapability.eraseFirmwareSlot`
 
 ## Related Source Files
 
