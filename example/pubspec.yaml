@@ -48,7 +48,10 @@ dependencies:
   flutter_svg: ^2.0.17
   provider: ^6.1.5
   file_picker: ^10.3.7
-  mcumgr_flutter: ^0.6.1
+  mcumgr_flutter:
+    git: 
+      url: https://github.com/DennisMoschina/Flutter-nRF-Connect-Device-Manager.git
+      ref: master
   flutter_bloc: ^9.1.1
 
 dev_dependencies:
