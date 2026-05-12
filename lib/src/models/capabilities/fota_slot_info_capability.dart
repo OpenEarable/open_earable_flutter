@@ -9,6 +9,18 @@ import 'package:mcumgr_flutter/mcumgr_flutter.dart';
 abstract class FotaSlotInfoCapability {
   /// Reads the firmware images or slots currently reported by the wearable.
   Future<List<FirmwareSlotInfo>> readFirmwareSlots();
+
+  /// Erases an inactive firmware image slot on the wearable.
+  ///
+  /// When [channel] is omitted, the underlying firmware backend erases its
+  /// default secondary image slot. When [channel] is provided, the erase request
+  /// targets that raw mcumgr image slot channel.
+  ///
+  /// Devices reject erase requests for slots that contain a confirmed image, an
+  /// image pending test on the next reboot, or an active split-image slot. Use
+  /// [readFirmwareSlots] first when the UI needs to decide whether erasing is
+  /// available.
+  Future<void> eraseFirmwareSlot({int? channel});
 }
 
 /// Snapshot of one firmware image slot reported by the wearable.

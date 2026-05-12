@@ -68,15 +68,25 @@ class McuMgrFotaSlotInfoManager implements FotaSlotInfoCapability {
 
   @override
   Future<List<FirmwareSlotInfo>> readFirmwareSlots() async {
-    final updateManager = await _updateManagerFactory.getUpdateManager(_deviceId);
+    final updateManager =
+        await _updateManagerFactory.getUpdateManager(_deviceId);
     try {
       final slots = await updateManager.readImageList();
       if (slots == null) {
         return const [];
       }
-      return slots
-          .map(FirmwareSlotInfo.fromImageSlot)
-          .toList(growable: false);
+      return slots.map(FirmwareSlotInfo.fromImageSlot).toList(growable: false);
+    } finally {
+      await updateManager.kill();
+    }
+  }
+
+  @override
+  Future<void> eraseFirmwareSlot({int? channel}) async {
+    final updateManager =
+        await _updateManagerFactory.getUpdateManager(_deviceId);
+    try {
+      await updateManager.erase(channel);
     } finally {
       await updateManager.kill();
     }
