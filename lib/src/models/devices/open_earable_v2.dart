@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -589,6 +590,120 @@ class OpenEarableV2PairingRule extends PairingRule<OpenEarableV2> {
     }
 
     return left.name == right.name;
+  }
+}
+
+// MARK: PowerSavingModeManager
+
+/// OpenEarable V2 implementation of [PowerSavingModeManager].
+class OpenEarableV2PowerSavingManager implements PowerSavingModeManager {
+  /// Creates a manager that talks to the OpenEarable V2 power saving service.
+  OpenEarableV2PowerSavingManager({
+    required this.bleManager,
+    required this.deviceId,
+  });
+
+  /// GATT manager used for BLE communication.
+  final BleGattManager bleManager;
+
+  /// Connected wearable id.
+  final String deviceId;
+
+  List<PowerSavingMode>? _supportedModesCache;
+
+  @override
+  Future<List<PowerSavingMode>> readSupportedPowerSavingModes() async {
+    final cachedModes = _supportedModesCache;
+    if (cachedModes != null) {
+      return cachedModes;
+    }
+
+    final bytes = await bleManager.read(
+      deviceId: deviceId,
+      serviceId: powerSavingServiceUuid,
+      characteristicId: powerSavingSupportedModesCharacteristicUuid,
+    );
+
+    final modes = _decodeSupportedModes(bytes);
+    _supportedModesCache = modes;
+    return modes;
+  }
+
+  @override
+  Future<PowerSavingMode> readPowerSavingMode() async {
+    final modeBytes = await bleManager.read(
+      deviceId: deviceId,
+      serviceId: powerSavingServiceUuid,
+      characteristicId: powerSavingModeCharacteristicUuid,
+    );
+
+    if (modeBytes.length != 1) {
+      throw StateError(
+        'Power saving mode characteristic expected 1 value, but got ${modeBytes.length}',
+      );
+    }
+
+    final modeId = modeBytes[0];
+    final supportedModes = await readSupportedPowerSavingModes();
+    for (final mode in supportedModes) {
+      if (mode.id == modeId) {
+        return mode;
+      }
+    }
+
+    throw StateError(
+      'Current power saving mode $modeId is not advertised as supported',
+    );
+  }
+
+  @override
+  Future<void> setPowerSavingMode(PowerSavingMode mode) {
+    if (mode.id < 0 || mode.id > 0xFF) {
+      throw RangeError.range(mode.id, 0, 0xFF, 'mode.id');
+    }
+
+    return bleManager.write(
+      deviceId: deviceId,
+      serviceId: powerSavingServiceUuid,
+      characteristicId: powerSavingModeCharacteristicUuid,
+      byteData: [mode.id],
+    );
+  }
+
+  List<PowerSavingMode> _decodeSupportedModes(List<int> bytes) {
+    if (bytes.isEmpty) {
+      throw StateError(
+        'Supported power saving modes characteristic is too short: ${bytes.length}',
+      );
+    }
+
+    final modeCount = bytes[0];
+    var offset = 1;
+    final modes = <PowerSavingMode>[];
+
+    for (var i = 0; i < modeCount; i++) {
+      if (offset + 2 > bytes.length) {
+        throw StateError(
+          'Supported power saving modes ended before mode header $i',
+        );
+      }
+
+      final modeId = bytes[offset++];
+      final nameLength = bytes[offset++];
+
+      if (offset + nameLength > bytes.length) {
+        throw StateError(
+          'Supported power saving mode $modeId has an incomplete name',
+        );
+      }
+
+      final name = utf8.decode(bytes.sublist(offset, offset + nameLength));
+      offset += nameLength;
+
+      modes.add(PowerSavingMode(id: modeId, name: name));
+    }
+
+    return List.unmodifiable(modes);
   }
 }
 

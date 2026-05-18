@@ -8,11 +8,13 @@ import 'package:open_earable_flutter/src/utils/sensor_scheme_parser/v2_sensor_sc
 import 'package:universal_ble/universal_ble.dart';
 
 import '../../../open_earable_flutter.dart' show logger;
+import '../../constants.dart';
 import '../../managers/v2_sensor_handler.dart';
 import '../../utils/sensor_value_parser/v2_sensor_value_parser.dart';
 import '../capabilities/audio_mode_manager.dart';
 import '../capabilities/fota_capability.dart';
 import '../capabilities/fota_slot_info_capability.dart';
+import '../capabilities/power_saving_mode_manager.dart';
 import '../capabilities/sensor.dart';
 import '../capabilities/sensor_configuration.dart';
 import '../capabilities/sensor_configuration_specializations/recordable_sensor_configuration.dart';
@@ -128,6 +130,14 @@ class OpenEarableFactory extends WearableFactory {
           McuMgrFotaSlotInfoManager(deviceId: device.id),
         );
       }
+      if (await _hasPowerSavingService(device)) {
+        wearable.registerCapability<PowerSavingModeManager>(
+          OpenEarableV2PowerSavingManager(
+            bleManager: bleManager!,
+            deviceId: device.id,
+          ),
+        );
+      }
       return wearable;
     } else {
       throw Exception('OpenEarable version is not supported');
@@ -147,6 +157,19 @@ class OpenEarableFactory extends WearableFactory {
           softwareGenerationBytes.sublist(0, firstZeroIndex);
     }
     return String.fromCharCodes(softwareGenerationBytes);
+  }
+
+  Future<bool> _hasPowerSavingService(DiscoveredDevice device) async {
+    return await bleManager!.hasCharacteristic(
+          deviceId: device.id,
+          serviceId: powerSavingServiceUuid,
+          characteristicId: powerSavingModeCharacteristicUuid,
+        ) &&
+        await bleManager!.hasCharacteristic(
+          deviceId: device.id,
+          serviceId: powerSavingServiceUuid,
+          characteristicId: powerSavingSupportedModesCharacteristicUuid,
+        );
   }
 
   Future<(List<Sensor>, List<SensorConfiguration>)> _initSensors(
