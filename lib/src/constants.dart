@@ -40,3 +40,9 @@ const String buttonStateCharacteristicUuid =
 
 const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
 const String ledSetStateCharacteristic = "81040e7a-4819-11ee-be56-0242ac120002";
+
+const String powerSavingServiceUuid = "d63fd1f0-5f68-4ebb-a7c7-5e0fb9ae7557";
+const String powerSavingModeCharacteristicUuid =
+    "d63fd1f1-5f68-4ebb-a7c7-5e0fb9ae7557";
+const String powerSavingSupportedModesCharacteristicUuid =
+    "d63fd1f2-5f68-4ebb-a7c7-5e0fb9ae7557";

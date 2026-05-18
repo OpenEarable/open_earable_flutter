@@ -143,6 +143,22 @@ if (audioModeManager != null) {
 
 ---
 
+### PowerSavingModeManager
+
+Reads the power saving modes that the firmware currently supports, including
+their display names, and applies the selected mode.
+
+```dart
+final powerSaving = wearable.getCapability<PowerSavingModeManager>();
+if (powerSaving != null) {
+  final modes = await powerSaving.readSupportedPowerSavingModes();
+  final currentMode = await powerSaving.readPowerSavingMode();
+  await powerSaving.setPowerSavingMode(modes.first);
+}
+```
+
+---
+
 ### ℹ️ Device Information Capabilities
 
 #### DeviceFirmwareVersion
