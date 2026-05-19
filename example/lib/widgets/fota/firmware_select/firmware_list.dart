@@ -20,7 +20,7 @@ class FirmwareList extends StatelessWidget {
         floatingActionButton: FloatingActionButton(
           onPressed: () async {
             // Navigator.pop(context, 'Firmware');
-            FilePickerResult? result = await FilePicker.platform.pickFiles(
+            FilePickerResult? result = await FilePicker.pickFiles(
               type: FileType.custom,
               allowedExtensions: ['zip', 'bin'],
             );

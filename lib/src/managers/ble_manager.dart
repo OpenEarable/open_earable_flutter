@@ -77,6 +77,7 @@ class BleManager extends BleGattManager {
       String deviceId,
       String characteristicId,
       Uint8List value,
+      int? timestamp,
     ) {
       String streamIdentifier =
           _getCharacteristicKey(deviceId, characteristicId);
