@@ -1,3 +1,7 @@
+## 2.3.8
+
+* updated dependencies to latest versions
+
 ## 2.3.7
 
 * added erase firmware image slot function for FOTA slot info capability
