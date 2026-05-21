@@ -25,7 +25,7 @@ class V2SensorValueParser extends SensorValueParser {
     );
 
     _requireBytes(data, i, 8, 'timestamp');
-    final baseTimestamp = data.getUint64(i, Endian.little);
+    final baseTimestamp = _readUint64(data, i);
     i += 8;
 
     // Precompute size of one component payload for efficiency.
@@ -135,6 +135,12 @@ class _ParsedSample {
 /// The time diffenrence is stored as a 16-bit unsigned integer at the end of the [data].
 int _getTimeDiff(ByteData data) {
   return data.getUint16(data.lengthInBytes - 2, Endian.little);
+}
+
+int _readUint64(ByteData data, int index) {
+  final low = data.getUint32(index, Endian.little);
+  final high = data.getUint32(index + 4, Endian.little);
+  return high * 0x100000000 + low;
 }
 
 _ParsedSample _parseSample({

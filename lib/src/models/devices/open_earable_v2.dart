@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:open_earable_flutter/src/constants.dart';
 import 'package:open_earable_flutter/src/models/devices/bluetooth_wearable.dart';
 import 'package:pub_semver/pub_semver.dart';
@@ -688,6 +689,13 @@ class OpenEarableV2TimeSyncImp implements TimeSynchronizable {
 
   @override
   Future<void> synchronizeTime() async {
+    if (kIsWeb) {
+      logger.i(
+        'Skipping OpenEarable V2 time synchronization on web because the packet format uses Uint64 serialization, which is unsupported by dart2js.',
+      );
+      return;
+    }
+
     logger.i("Synchronizing time with OpenEarable V2 device...");
 
     // Will complete when we have enough samples and wrote the final offset.

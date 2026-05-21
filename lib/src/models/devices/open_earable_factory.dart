@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:open_earable_flutter/src/managers/sensor_handler.dart';
 import 'package:open_earable_flutter/src/models/wearable_factory.dart';
 import 'package:open_earable_flutter/src/utils/sensor_scheme_parser/sensor_scheme_reader.dart';
@@ -52,7 +53,8 @@ class OpenEarableFactory extends WearableFactory {
   }
 
   @override
-  Future<Wearable> createFromDevice(DiscoveredDevice device, { Set<ConnectionOption> options = const {} }) async {
+  Future<Wearable> createFromDevice(DiscoveredDevice device,
+      {Set<ConnectionOption> options = const {}}) async {
     if (bleManager == null) {
       throw Exception("bleManager needs to be set before using the factory");
     }
@@ -91,7 +93,8 @@ class OpenEarableFactory extends WearableFactory {
         },
         isConnectedViaSystem: options.contains(const ConnectedViaSystem()),
       );
-      if (await bleManager!.hasService(deviceId: device.id, serviceId: timeSynchronizationServiceUuid)) {
+      if (await bleManager!.hasService(
+          deviceId: device.id, serviceId: timeSynchronizationServiceUuid)) {
         wearable.registerCapability<TimeSynchronizable>(
           OpenEarableV2TimeSyncImp(
             bleManager: bleManager!,
@@ -151,15 +154,22 @@ class OpenEarableFactory extends WearableFactory {
 
     List<SensorScheme> sensorSchemes = await schemeParser.readSensorSchemes();
 
+    logger.d("Platform: ${kIsWeb ? 'WEB/Chrome' : 'NATIVE'}");
+    logger.d(
+        "Sensor schemes provided by device: ${sensorSchemes.map((s) => 'ID:${s.sensorId}(${s.sensorName})').join(', ')}");
+
     for (SensorScheme scheme in sensorSchemes) {
-      List<SensorConfigurationOpenEarableV2Value> sensorConfigurationValues = [];
+      List<SensorConfigurationOpenEarableV2Value> sensorConfigurationValues =
+          [];
 
       final features = scheme.options?.features ?? [];
       final hasStreaming = features.contains(SensorConfigFeatures.streaming);
       final hasRecording = features.contains(SensorConfigFeatures.recording);
-      final hasFrequencies = features.contains(SensorConfigFeatures.frequencyDefinition);
+      final hasFrequencies =
+          features.contains(SensorConfigFeatures.frequencyDefinition);
       final frequencies = scheme.options?.frequencies?.frequencies ?? [];
-      final maxStreamingIndex = scheme.options?.frequencies?.maxStreamingFreqIndex ?? -1;
+      final maxStreamingIndex =
+          scheme.options?.frequencies?.maxStreamingFreqIndex ?? -1;
 
       //TODO: handle case where no frequencies are defined
       if (hasFrequencies && frequencies.isNotEmpty) {
@@ -211,7 +221,9 @@ class OpenEarableFactory extends WearableFactory {
           .firstOrNull;
 
       if (sensorConfigurationValues.isEmpty) {
-        logger.w("No configuration values generated for sensor: ${scheme.sensorName}");
+        logger.w(
+          "No configuration values generated for sensor: ${scheme.sensorName}",
+        );
       }
 
       final sensorConfiguration = SensorConfigurationOpenEarableV2(
@@ -229,16 +241,21 @@ class OpenEarableFactory extends WearableFactory {
 
       sensorConfigurations.add(sensorConfiguration);
 
-      if (scheme.options?.features.contains(SensorConfigFeatures.streaming) ?? false) {
+      if (scheme.options?.features.contains(SensorConfigFeatures.streaming) ??
+          false) {
         // Group components by group name
         final sensorGroups = <String, List<Component>>{};
         for (final component in scheme.components) {
-          sensorGroups.putIfAbsent(component.groupName, () => []).add(component);
+          sensorGroups
+              .putIfAbsent(component.groupName, () => [])
+              .add(component);
         }
 
         for (final groupName in sensorGroups.keys) {
-          final axisNames = sensorGroups[groupName]!.map((c) => c.componentName).toList();
-          final axisUnits = sensorGroups[groupName]!.map((c) => c.unitName).toList();
+          final axisNames =
+              sensorGroups[groupName]!.map((c) => c.componentName).toList();
+          final axisUnits =
+              sensorGroups[groupName]!.map((c) => c.unitName).toList();
 
           final sensor = _OpenEarableSensorV2(
             sensorId: scheme.sensorId,

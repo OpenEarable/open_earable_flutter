@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:open_earable_flutter/open_earable_flutter.dart' show logger;
 import 'package:open_earable_flutter/src/constants.dart';
 
@@ -29,10 +30,20 @@ class V2SensorSchemeReader extends SensorSchemeReader {
     }
 
     int sensorIdCount = sensorIdBuffer[0];
-    List<int> sensorIds = sensorIdBuffer.sublist(1, sensorIdCount + 1);
+    if (sensorIdBuffer.length < 1 + sensorIdCount) {
+      logger.w(
+        "Sensor id buffer shorter than expected (count=$sensorIdCount, len=${sensorIdBuffer.length}).",
+      );
+    }
+
+    List<int> sensorIds = sensorIdBuffer.length >= 1 + sensorIdCount
+        ? sensorIdBuffer.sublist(1, sensorIdCount + 1)
+        : sensorIdBuffer.sublist(1);
 
     _sensorIds.clear();
     _sensorIds.addAll(sensorIds);
+
+    logger.d("Parsed sensor ids: $sensorIds (count: $sensorIdCount)");
   }
 
   @override
@@ -55,10 +66,8 @@ class V2SensorSchemeReader extends SensorSchemeReader {
       characteristicId: sensorSchemeCharacteristicUuid,
     );
 
-    final Future<List<int>> responseFuture = stream
-        .cast<List<int>>()
-        .first
-        .timeout(const Duration(seconds: 5));
+    final Future<List<int>> responseFuture =
+        stream.cast<List<int>>().first.timeout(const Duration(seconds: 5));
 
     // Request sensor value only after the listener/future is set up
     await _bleManager.write(
@@ -70,16 +79,23 @@ class V2SensorSchemeReader extends SensorSchemeReader {
 
     try {
       final value = await responseFuture;
-      logger.d("Received notification for sensor scheme of sensor $sensorId: $value");
+      logger.d(
+        "Received notification for sensor scheme of sensor $sensorId: $value",
+      );
 
       final scheme = _parseSensorScheme(value);
-      if (scheme.sensorId != sensorId) {
-        throw Exception(
-          "Sensor id mismatch. Expected: $sensorId, got: ${scheme.sensorId}",
+      if (scheme.sensorId == 0 && sensorId != 0) {
+        logger.w(
+          "Sensor scheme response for sensor $sensorId omitted the sensor id. Using the requested id.",
+        );
+        scheme.sensorId = sensorId;
+      } else if (scheme.sensorId != sensorId) {
+        logger.w(
+          "Sensor scheme response for sensor $sensorId reported sensor id ${scheme.sensorId}. Using the returned scheme.",
         );
       }
 
-      _sensorSchemes[sensorId] = scheme;
+      _sensorSchemes[scheme.sensorId] = scheme;
       return scheme;
     } on TimeoutException catch (e) {
       throw TimeoutException("Timeout while waiting for sensor scheme: $e");
@@ -94,11 +110,29 @@ class V2SensorSchemeReader extends SensorSchemeReader {
 
     for (int sensorId in _sensorIds) {
       if (!_sensorSchemes.containsKey(sensorId) || forceRead) {
-        SensorScheme scheme = await getSchemeForSensor(sensorId);
-        _sensorSchemes[sensorId] = scheme;
+        try {
+          SensorScheme scheme = await getSchemeForSensor(sensorId);
+          _sensorSchemes[scheme.sensorId] = scheme;
+        } catch (e) {
+          logger.e(
+            "Failed to read sensor scheme for sensor $sensorId: $e${kIsWeb ? ' (on web platform)' : ''}",
+          );
+          if (kIsWeb) {
+            logger.d(
+              "Skipping sensor $sensorId due to read failure on web. "
+              "This may be a BLE notification timeout or subscription issue.",
+            );
+          }
+          // Continue with next sensor instead of failing entirely
+          continue;
+        }
       }
     }
 
+    logger.d(
+      "Successfully read ${_sensorSchemes.length} sensor scheme(s): "
+      "${_sensorSchemes.keys.join(', ')}",
+    );
     return _sensorSchemes.values.toList();
   }
 
@@ -144,8 +178,12 @@ class V2SensorSchemeReader extends SensorSchemeReader {
       String unitName = utf8.decode(unitNameBytes);
       currentIndex += unitNameLength;
 
-      Component component =
-          Component(ParseType.fromInt(componentType), groupName, componentName, unitName);
+      Component component = Component(
+        ParseType.fromInt(componentType),
+        groupName,
+        componentName,
+        unitName,
+      );
       sensorScheme.components.add(component);
     }
 
@@ -175,7 +213,11 @@ class V2SensorSchemeReader extends SensorSchemeReader {
         freqs.add(byteData.getFloat32(0, Endian.little));
       }
       currentIndex += frequencyCount * 4;
-      frequencies = SensorConfigFrequencies(maxStreamingFreqIndex, defaultFreqIndex, freqs);
+      frequencies = SensorConfigFrequencies(
+        maxStreamingFreqIndex,
+        defaultFreqIndex,
+        freqs,
+      );
     }
     sensorScheme.options = SensorConfigOptions(features, frequencies);
 
