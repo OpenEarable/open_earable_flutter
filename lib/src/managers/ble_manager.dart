@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:open_earable_flutter/src/constants.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:universal_ble/universal_ble.dart';
 
@@ -10,6 +11,29 @@ import '../../open_earable_flutter.dart';
 /// A class that establishes and manages Bluetooth Low Energy (BLE)
 /// communication with OpenEarable devices.
 class BleManager extends BleGattManager {
+  // Web Bluetooth requires services to be declared at requestDevice time.
+  static const Set<String> _webOptionalServiceUuids = <String>{
+    sensorServiceUuid,
+    deviceInfoServiceUuid,
+    parseInfoServiceUuid,
+    audioPlayerServiceUuid,
+    batteryServiceUuid,
+    buttonServiceUuid,
+    ledServiceUuid,
+    // OpenEarable V2
+    "1410df95-5f68-4ebb-a7c7-5e0fb9ae7557", // audio config service
+    "2e04cbf7-939d-4be5-823e-271838b75259", // time sync service
+    "8d53dc1d-1db7-4cd3-868b-8a527460aa84", // mcumgr SMP service
+    // OpenRing
+    "bae80001-4f05-4503-8e65-3af1f7329d1f",
+    // Other supported devices
+    "0000a000-1212-efde-1523-785feabcd123", // Cosinuss PPG+ACC
+    "00001809-0000-1000-8000-00805f9b34fb", // temperature
+    "0000180d-0000-1000-8000-00805f9b34fb", // heart rate
+    "0000180a-0000-1000-8000-00805f9b34fb", // device information
+    "ff06", // eSense
+  };
+
   static const int _desiredMtu = 60;
   int _mtu = _desiredMtu; // Largest Byte package sent is 42 bytes for IMU
   int get mtu => _mtu;
@@ -164,7 +188,19 @@ class BleManager extends BleGattManager {
             _scanStreamController?.add(device);
           }
         }
-        await UniversalBle.startScan();
+        await UniversalBle.startScan(
+          scanFilter: ScanFilter(
+            withNamePrefix: ["OpenEarable", "OpenRing", "Cosinuss", "eSense"],
+          ),
+          platformConfig: kIsWeb
+              ? PlatformConfig(
+                  web: WebOptions(
+                    optionalServices:
+                        _webOptionalServiceUuids.toList(growable: false),
+                  ),
+                )
+              : null,
+        );
       }
       _firstScan = false;
     }
