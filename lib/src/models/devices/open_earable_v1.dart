@@ -50,6 +50,15 @@ class OpenEarableV1 extends Wearable
   static const String buttonServiceUuid =
       "29c10bdc-4773-11ee-be56-0242ac120002";
   static const String batteryServiceUuid = "180F";
+  static const Set<String> serviceUuids = {
+    sensorServiceUuid,
+    parseInfoServiceUuid,
+    deviceInfoServiceUuid,
+    ledServiceUuid,
+    audioPlayerServiceUuid,
+    buttonServiceUuid,
+    batteryServiceUuid,
+  };
 
   final List<Sensor> _sensors;
   final List<SensorConfiguration> _sensorConfigurations;

@@ -8,28 +8,44 @@ class CosinussOneFactory extends WearableFactory {
   static const String _name = "earconnect";
 
   @override
-  Future<bool> matches(DiscoveredDevice device, List<BleService> services) async {
+  Set<String> get usedServiceUuids => const {
+        CosinussOne.ppgAndAccServiceUuid,
+        CosinussOne.temperatureServiceUuid,
+        CosinussOne.heartRateServiceUuid,
+        CosinussOne.batteryServiceUuid,
+      };
+
+  @override
+  Future<bool> matches(
+    DiscoveredDevice device,
+    List<BleService> services,
+  ) async {
     return device.name == _name;
   }
 
   @override
-  Future<Wearable> createFromDevice(DiscoveredDevice device, { Set<ConnectionOption> options = const {} }) async {
+  Future<Wearable> createFromDevice(
+    DiscoveredDevice device, {
+    Set<ConnectionOption> options = const {},
+  }) async {
     if (bleManager == null) {
-      throw Exception("bleManager needs to be set before using the factory");
+      throw StateError("bleManager needs to be set before using the factory");
     }
     if (disconnectNotifier == null) {
-      throw Exception("disconnectNotifier needs to be set before using the factory");
+      throw StateError(
+        "disconnectNotifier needs to be set before using the factory",
+      );
     }
 
     if (device.name != _name) {
-      throw Exception("device is not a cosinuss one");
+      throw ArgumentError.value(device.name, 'device.name', 'Expected $_name');
     }
 
     return CosinussOne(
-          name: device.name,
-          disconnectNotifier: disconnectNotifier!,
-          bleManager: bleManager!,
-          discoveredDevice: device,
-        );
+      name: device.name,
+      disconnectNotifier: disconnectNotifier!,
+      bleManager: bleManager!,
+      discoveredDevice: device,
+    );
   }
 }

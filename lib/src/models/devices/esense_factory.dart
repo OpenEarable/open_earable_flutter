@@ -15,9 +15,15 @@ import 'wearable.dart';
 
 class EsenseFactory extends WearableFactory {
   @override
-  Future<Wearable> createFromDevice(DiscoveredDevice device,
-      {Set<ConnectionOption> options = const {},}) async {
+  Set<String> get usedServiceUuids => const {
+        esenseServiceUuid,
+      };
 
+  @override
+  Future<Wearable> createFromDevice(
+    DiscoveredDevice device, {
+    Set<ConnectionOption> options = const {},
+  }) async {
     EsenseSensorHandler sensorHandler = EsenseSensorHandler(
       bleGattManager: bleManager!,
       discoveredDevice: device,
@@ -29,18 +35,25 @@ class EsenseFactory extends WearableFactory {
       EsenseSensorConfigurationValue(frequencyHz: 50.0),
       EsenseSensorConfigurationValue(frequencyHz: 100.0),
       EsenseSensorConfigurationValue(frequencyHz: 200.0),
-    ].expand((v) => [v, v.copyWith(options: {StreamSensorConfigOption()})]).toList();
-    
+    ]
+        .expand(
+          (v) => [
+            v,
+            v.copyWith(options: {StreamSensorConfigOption()}),
+          ],
+        )
+        .toList();
+
     final imuConfig = EsenseSensorConfiguration(
-        name: "6-axis IMU",
-        values: imuConfigValues,
-        sensorCommand: 0x53,
-        sensorHandler: sensorHandler,
-        availableOptions: {
-          StreamSensorConfigOption(),
-        },
-        offValue: imuConfigValues.firstWhere((v) => v.options.isEmpty),
-      );
+      name: "6-axis IMU",
+      values: imuConfigValues,
+      sensorCommand: 0x53,
+      sensorHandler: sensorHandler,
+      availableOptions: {
+        StreamSensorConfigOption(),
+      },
+      offValue: imuConfigValues.firstWhere((v) => v.options.isEmpty),
+    );
 
     Esense esense = Esense(
       name: device.name,
@@ -71,12 +84,15 @@ class EsenseFactory extends WearableFactory {
         ),
       ],
     );
-    
+
     return esense;
   }
 
   @override
-  Future<bool> matches(DiscoveredDevice device, List<BleService> services) async {
+  Future<bool> matches(
+    DiscoveredDevice device,
+    List<BleService> services,
+  ) async {
     return RegExp(r'^eSense-\d{4}$').hasMatch(device.name);
   }
 }
@@ -127,7 +143,9 @@ class EsenseSensor extends Sensor<SensorDoubleValue> {
           } else if (entry.value is double) {
             values.add(entry.value as double);
           } else {
-            throw Exception("Unsupported sensor value type: ${entry.value.runtimeType}");
+            throw UnsupportedError(
+              "Unsupported sensor value type: ${entry.value.runtimeType}",
+            );
           }
         }
 

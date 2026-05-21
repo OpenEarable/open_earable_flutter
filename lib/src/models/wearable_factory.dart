@@ -16,8 +16,18 @@ abstract class WearableFactory {
   /// It is provided by the [WearableManager] and should not be set directly.
   WearableDisconnectNotifier? disconnectNotifier;
 
+  /// BLE service UUIDs that this factory may need after selecting a device.
+  ///
+  /// Web Bluetooth requires services to be requested before a wearable instance
+  /// can be created, so factories declare the service set up front.
+  Set<String> get usedServiceUuids => const {};
+
   /// Checks if the factory can create a wearable from the given device and services.
   Future<bool> matches(DiscoveredDevice device, List<BleService> services);
+
   /// Creates a wearable from the given device.
-  Future<Wearable> createFromDevice(DiscoveredDevice device, { Set<ConnectionOption> options = const {} });
+  Future<Wearable> createFromDevice(
+    DiscoveredDevice device, {
+    Set<ConnectionOption> options = const {},
+  });
 }

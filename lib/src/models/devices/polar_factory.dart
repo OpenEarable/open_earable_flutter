@@ -15,7 +15,16 @@ class PolarFactory extends WearableFactory {
   static const String _namePrefix = "Polar";
 
   @override
-  Future<Wearable> createFromDevice(DiscoveredDevice device, { Set<ConnectionOption> options = const {} }) async {
+  Set<String> get usedServiceUuids => const {
+        Polar.disServiceUuid,
+        Polar.heartRateServiceUuid,
+      };
+
+  @override
+  Future<Wearable> createFromDevice(
+    DiscoveredDevice device, {
+    Set<ConnectionOption> options = const {},
+  }) async {
     if (bleManager == null) {
       throw Exception("bleManager needs to be set before using the factory");
     }

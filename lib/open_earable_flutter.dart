@@ -200,6 +200,9 @@ class WearableManager {
   }) {
     return _bleManager.startScan(
       checkAndRequestPermissions: checkAndRequestPermissions,
+      webOptionalServiceUuids: {
+        for (final factory in _wearableFactories) ...factory.usedServiceUuids,
+      },
     );
   }
 

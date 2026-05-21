@@ -36,7 +36,8 @@ const String _audioModeCharacteristicUuid =
 const String _buttonServiceUuid = "29c10bdc-4773-11ee-be56-0242ac120002";
 const String _buttonCharacteristicUuid = "29c10f38-4773-11ee-be56-0242ac120002";
 
-const String timeSynchronizationServiceUuid = "2e04cbf7-939d-4be5-823e-271838b75259";
+const String timeSynchronizationServiceUuid =
+    "2e04cbf7-939d-4be5-823e-271838b75259";
 const String _timeSyncTimeMappingCharacteristicUuid =
     "2e04cbf8-939d-4be5-823e-271838b75259";
 const String _timeSyncRttCharacteristicUuid =
@@ -59,11 +60,11 @@ final VersionConstraint _versionConstraint =
 /// as well as health and energy status.
 class OpenEarableV2 extends BluetoothWearable
     with
-      DeviceFirmwareVersionNumberExt,
-      BatteryLevelStatusGattReader,
-      BatteryLevelStatusServiceGattReader,
-      BatteryHealthStatusGattReader,
-      BatteryEnergyStatusGattReader
+        DeviceFirmwareVersionNumberExt,
+        BatteryLevelStatusGattReader,
+        BatteryLevelStatusServiceGattReader,
+        BatteryHealthStatusGattReader,
+        BatteryEnergyStatusGattReader
     implements
         SensorManager,
         SensorConfigurationManager,
@@ -83,6 +84,15 @@ class OpenEarableV2 extends BluetoothWearable
       "45622510-6468-465a-b141-0b9b0f96b468";
   static const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
   static const String batteryServiceUuid = "180F";
+  static const Set<String> serviceUuids = {
+    sensorServiceUuid,
+    parseInfoServiceUuid,
+    deviceInfoServiceUuid,
+    ledServiceUuid,
+    batteryServiceUuid,
+    _buttonServiceUuid,
+    _audioConfigServiceUuid,
+  };
 
   final List<Sensor> _sensors;
   final List<SensorConfiguration> _sensorConfigurations;
@@ -191,7 +201,6 @@ class OpenEarableV2 extends BluetoothWearable
 
   StreamSubscription? _sensorConfigSubscription;
   StreamSubscription? _buttonSubscription;
-
 
   @override
   final Set<OpenEarableV2Mic> availableMicrophones;
@@ -708,10 +717,10 @@ class OpenEarableV2TimeSyncImp implements TimeSynchronizable {
     late final StreamSubscription<List<int>> rttSub;
     rttSub = bleManager
         .subscribe(
-          deviceId: deviceId,
-          serviceId: timeSynchronizationServiceUuid,
-          characteristicId: _timeSyncRttCharacteristicUuid,
-        )
+      deviceId: deviceId,
+      serviceId: timeSynchronizationServiceUuid,
+      characteristicId: _timeSyncRttCharacteristicUuid,
+    )
         .listen(
       (data) async {
         final t4 = DateTime.now().microsecondsSinceEpoch;
@@ -723,8 +732,9 @@ class OpenEarableV2TimeSyncImp implements TimeSynchronizable {
 
         logger.d("Received time sync response packet: $pkt");
 
-        final t1 = pkt.timePhoneSend;   // phone send timestamp (µs)
-        final t3 = pkt.timeDeviceSend;  // device send timestamp (µs, device clock)
+        final t1 = pkt.timePhoneSend; // phone send timestamp (µs)
+        final t3 =
+            pkt.timeDeviceSend; // device send timestamp (µs, device clock)
 
         // Estimate Unix time at the moment the device sent the response.
         // Use midpoint between T1 and T4 as an estimate of when the device was "in the middle".
@@ -762,7 +772,9 @@ class OpenEarableV2TimeSyncImp implements TimeSynchronizable {
         }
       },
       onError: (error, stack) async {
-        logger.e("Error during time sync subscription $error, $stack",);
+        logger.e(
+          "Error during time sync subscription $error, $stack",
+        );
         if (!completer.isCompleted) {
           completer.completeError(error, stack);
         }
