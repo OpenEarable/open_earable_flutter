@@ -53,8 +53,10 @@ class OpenEarableFactory extends WearableFactory {
   }
 
   @override
-  Future<Wearable> createFromDevice(DiscoveredDevice device,
-      {Set<ConnectionOption> options = const {}}) async {
+  Future<Wearable> createFromDevice(
+    DiscoveredDevice device, {
+    Set<ConnectionOption> options = const {},
+  }) async {
     if (bleManager == null) {
       throw Exception("bleManager needs to be set before using the factory");
     }
@@ -94,7 +96,9 @@ class OpenEarableFactory extends WearableFactory {
         isConnectedViaSystem: options.contains(const ConnectedViaSystem()),
       );
       if (await bleManager!.hasService(
-          deviceId: device.id, serviceId: timeSynchronizationServiceUuid)) {
+        deviceId: device.id,
+        serviceId: timeSynchronizationServiceUuid,
+      )) {
         wearable.registerCapability<TimeSynchronizable>(
           OpenEarableV2TimeSyncImp(
             bleManager: bleManager!,
@@ -156,7 +160,8 @@ class OpenEarableFactory extends WearableFactory {
 
     logger.d("Platform: ${kIsWeb ? 'WEB/Chrome' : 'NATIVE'}");
     logger.d(
-        "Sensor schemes provided by device: ${sensorSchemes.map((s) => 'ID:${s.sensorId}(${s.sensorName})').join(', ')}");
+      "Sensor schemes provided by device: ${sensorSchemes.map((s) => 'ID:${s.sensorId}(${s.sensorName})').join(', ')}",
+    );
 
     for (SensorScheme scheme in sensorSchemes) {
       List<SensorConfigurationOpenEarableV2Value> sensorConfigurationValues =
