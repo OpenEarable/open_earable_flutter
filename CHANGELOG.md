@@ -1,3 +1,7 @@
+## 2.3.9
+
+* fixed permissions on web, where web was not able to access the devices BLE services
+
 ## 2.3.8
 
 * updated dependencies to latest versions
