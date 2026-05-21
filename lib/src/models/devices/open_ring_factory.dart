@@ -19,6 +19,11 @@ import 'wearable.dart';
 
 class OpenRingFactory extends WearableFactory {
   @override
+  Set<String> get usedServiceUuids => const {
+        OpenRingGatt.service,
+      };
+
+  @override
   Future<Wearable> createFromDevice(
     DiscoveredDevice device, {
     Set<ConnectionOption> options = const {},

@@ -35,6 +35,14 @@ class OpenEarableFactory extends WearableFactory {
   final _v2Regex = RegExp(r'^2\.\d+\.\d+$');
 
   @override
+  Set<String> get usedServiceUuids => {
+        ...OpenEarableV1.serviceUuids,
+        ...OpenEarableV2.serviceUuids,
+        mcuMgrSmpServiceUuid,
+        timeSynchronizationServiceUuid,
+      };
+
+  @override
   Future<bool> matches(
     DiscoveredDevice device,
     List<BleService> services,
