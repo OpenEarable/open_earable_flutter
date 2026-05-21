@@ -20,10 +20,20 @@ class MyCustomWearable extends Wearable {
 
 ## 2. Implement a Custom Wearable Factory
 
-Create a factory that determines when your custom wearable should be used. This factory is responsible for recognizing a device and constructing the corresponding wearable object. If you need to perform ble gatt operations, you can use the `BleGattManager` in `bleManager` of the `WearableFactory` class. The `BleGattManager` provides methods for interacting with BLE devices, such as reading and writing characteristics. It is provided by the `WearableManager` and should not be set manually.
+Create a factory that determines when your custom wearable should be used. This factory is responsible for recognizing a device and constructing the corresponding wearable object. If you need to perform BLE GATT operations, you can use the `BleGattManager` in `bleManager` of the `WearableFactory` class. The `BleGattManager` provides methods for interacting with BLE devices, such as reading and writing characteristics. It is provided by the `WearableManager` and should not be set manually.
+
+If your wearable uses BLE services, declare them in `usedServiceUuids`. Web Bluetooth requires all services to be requested before a device is selected, so the `WearableManager` collects this list from all registered factories when scanning starts.
 
 ```dart
 class MyCustomWearableFactory extends WearableFactory {
+  static const String _customServiceUuid =
+      "00000000-0000-1000-8000-000000000000";
+
+  @override
+  Set<String> get usedServiceUuids => const {
+        _customServiceUuid,
+      };
+
   @override
   Future<bool> matches(DiscoveredDevice device, List<BleService> services) async {
     // Define logic to check if the device matches your custom wearable
@@ -44,6 +54,8 @@ class MyCustomWearableFactory extends WearableFactory {
   }
 }
 ```
+
+Include every service your factory may need while matching, creating, or using the wearable. This includes services used by capabilities that are registered during `createFromDevice`, because those capabilities are still created after Web Bluetooth has already requested access.
 
 ---
 
