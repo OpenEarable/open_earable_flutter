@@ -1,3 +1,11 @@
+## 2.3.8
+
+* updated dependencies to latest versions
+
+## 2.3.7
+
+* added erase firmware image slot function for FOTA slot info capability
+
 ## 2.3.6
 
 * added function to get all connected system devices

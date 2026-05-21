@@ -200,6 +200,7 @@ Provides firmware slot or image-table state for FOTA backends that expose it.
 final slotInfo = wearable.getCapability<FotaSlotInfoCapability>();
 if (slotInfo != null) {
   final slots = await slotInfo.readFirmwareSlots();
+  await slotInfo.eraseFirmwareSlot();
 }
 ```
 
