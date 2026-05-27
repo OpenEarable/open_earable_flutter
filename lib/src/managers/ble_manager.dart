@@ -166,9 +166,6 @@ class BleManager extends BleGattManager {
           }
         }
         await UniversalBle.startScan(
-          scanFilter: ScanFilter(
-            withNamePrefix: ["OpenEarable", "OpenRing", "Cosinuss", "eSense"],
-          ),
           platformConfig: kIsWeb
               ? PlatformConfig(
                   web: WebOptions(
