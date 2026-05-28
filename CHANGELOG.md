@@ -1,3 +1,7 @@
+## 2.3.10
+
+* added dynamic power saving mode capability for OpenEarable v2 devices
+
 ## 2.3.9
 
 * fixed permissions on web, where web was not able to access the devices BLE services
