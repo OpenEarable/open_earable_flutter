@@ -90,31 +90,39 @@ class OpenEarableV2 extends BluetoothWearable
   @override
   bool get isConnectedViaSystem => _isConnectedViaSystem;
 
-final _errorController = StreamController<SensorError>.broadcast();
-Stream<SensorError> get onError => _errorController.stream;
-// Add this method after the _errorController declaration
-void _subscribeToErrorNotifications() {
-  bleManager
-      .subscribe(
-        deviceId: deviceId,
-        serviceId: sensorServiceUuid,
-        characteristicId: sensorErrorCharacteristicUuid,
-      )
-      .listen(
-        (data) {
-          try {
-            final error = SensorError.fromBytes(Uint8List.fromList(data));
-            logger.i('Received sensor error: $error');
-            _errorController.add(error);
-          } catch (e) {
-            logger.e('Failed to parse sensor error: $e');
-          }
-        },
-        onError: (error) {
-          logger.e('Error in error notification stream: $error');
-        },
-      );
-}
+  final _errorController = StreamController<SensorError>.broadcast();
+  StreamSubscription<List<int>>? _deviceErrorSubscription;
+
+  @override
+  Stream<SensorError> get onError => _errorController.stream;
+
+  void _subscribeToDeviceErrorNotifications() {
+    final previousSubscription = _deviceErrorSubscription;
+    if (previousSubscription != null) {
+      unawaited(previousSubscription.cancel());
+    }
+    _deviceErrorSubscription = bleManager
+        .subscribe(
+          deviceId: deviceId,
+          serviceId: deviceErrorServiceUuid,
+          characteristicId: deviceErrorCharacteristicUuid,
+        )
+        .listen(
+      (data) {
+        try {
+          final error = SensorError.fromBytes(Uint8List.fromList(data));
+          logger.i('Received device error: $error');
+          _errorController.add(error);
+        } catch (e) {
+          logger.e('Failed to parse device error: $e');
+        }
+      },
+      onError: (error) {
+        logger.e('Error in device error notification stream: $error');
+      },
+    );
+  }
+
   @override
   Stream<Map<SensorConfiguration, SensorConfigurationValue>>
       get sensorConfigurationStream {
@@ -304,10 +312,9 @@ void _subscribeToErrorNotifications() {
     bool isConnectedViaSystem = false,
   })  : _sensors = sensors,
         _sensorConfigurations = sensorConfigurations,
-          _isConnectedViaSystem = isConnectedViaSystem {
-  // ADD THIS LINE HERE
-  _subscribeToErrorNotifications();
-}
+        _isConnectedViaSystem = isConnectedViaSystem {
+    _subscribeToDeviceErrorNotifications();
+  }
 
   @override
   String get deviceId => discoveredDevice.id;
@@ -432,8 +439,10 @@ void _subscribeToErrorNotifications() {
   // MARK: SensorManager / SensorConfigurationManager
 
   @override
-  Future<void> disconnect() {
-    return bleManager.disconnect(discoveredDevice.id);
+  Future<void> disconnect() async {
+    await _deviceErrorSubscription?.cancel();
+    _deviceErrorSubscription = null;
+    await bleManager.disconnect(discoveredDevice.id);
   }
 
   @override

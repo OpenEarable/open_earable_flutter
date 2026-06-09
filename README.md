@@ -114,6 +114,8 @@ To get started with the OpenEarable Flutter package, follow these steps:
 
   For most devices, the sensors have to be configured before they start sending data. You can learn more about configuring sensors in the chapter [Configuring Sensors](https://github.com/OpenEarable/open_earable_flutter/blob/main/doc/SENSOR_CONFIG.md).
 
+  OpenEarable V2 devices can also report firmware-side warnings and errors over BLE. The event stream and payload format are documented in [Device Error Notifications](doc/DEVICE_ERRORS.md).
+
   > [!WARNING]
   > Checking for capabilities using `is <Capability>` is deprecated. Please use `hasCapability<T>()` instead. You can learn more about capabilities in the [Capabilities](https://github.com/OpenEarable/open_earable_flutter/blob/main/doc/CAPABILITIES.md) documentation.
 

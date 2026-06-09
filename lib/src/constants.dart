@@ -40,4 +40,9 @@ const String buttonStateCharacteristicUuid =
 
 const String ledServiceUuid = "81040a2e-4819-11ee-be56-0242ac120002";
 const String ledSetStateCharacteristic = "81040e7a-4819-11ee-be56-0242ac120002";
-const String sensorErrorCharacteristicUuid = "1234567c-1234-5678-9abc-def123456789";
+const String deviceErrorServiceUuid = "5f9c0001-6f4a-4c6b-9f0d-4f2f3b0a0001";
+const String deviceErrorCharacteristicUuid =
+    "5f9c0002-6f4a-4c6b-9f0d-4f2f3b0a0001";
+
+@Deprecated('Use deviceErrorCharacteristicUuid instead.')
+const String sensorErrorCharacteristicUuid = deviceErrorCharacteristicUuid;

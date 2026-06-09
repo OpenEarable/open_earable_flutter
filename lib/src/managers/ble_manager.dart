@@ -10,8 +10,8 @@ import '../../open_earable_flutter.dart';
 /// A class that establishes and manages Bluetooth Low Energy (BLE)
 /// communication with OpenEarable devices.
 class BleManager extends BleGattManager {
-  static const int _desiredMtu = 60;
-  int _mtu = _desiredMtu; // Largest Byte package sent is 42 bytes for IMU
+  static const int _desiredMtu = 100;
+  int _mtu = _desiredMtu;
   int get mtu => _mtu;
 
   final Map<String, StreamController<List<int>>> _streamControllers = {};
