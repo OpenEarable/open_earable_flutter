@@ -33,6 +33,8 @@ const String _micSelectCharacteristicUuid =
     "0x1410df97-5f68-4ebb-a7c7-5e0fb9ae7557";
 const String _audioModeCharacteristicUuid =
     "0x1410df96-5f68-4ebb-a7c7-5e0fb9ae7557";
+const String _dmicGainCharacteristicUuid =
+    "1410df99-5f68-4ebb-a7c7-5e0fb9ae7557";
 
 const String _buttonServiceUuid = "29c10bdc-4773-11ee-be56-0242ac120002";
 const String _buttonCharacteristicUuid = "29c10f38-4773-11ee-be56-0242ac120002";
@@ -76,6 +78,7 @@ class OpenEarableV2 extends BluetoothWearable
         DeviceFirmwareVersion,
         DeviceHardwareVersion,
         MicrophoneManager<OpenEarableV2Mic>,
+        MicrophoneGainManager,
         AudioModeManager,
         EdgeRecorderManager,
         ButtonManager,
@@ -484,6 +487,38 @@ class OpenEarableV2 extends BluetoothWearable
 
     int microphoneId = microphoneBytes[0];
     return availableMicrophones.firstWhere((mic) => mic.id == microphoneId);
+  }
+
+  // MARK: MicrophoneGainManager
+
+  @override
+  Future<MicrophoneGain> getMicrophoneGain() async {
+    final gainBytes = await bleManager.read(
+      deviceId: deviceId,
+      serviceId: _audioConfigServiceUuid,
+      characteristicId: _dmicGainCharacteristicUuid,
+    );
+
+    if (gainBytes.length != 2) {
+      throw StateError(
+        'Microphone gain characteristic expected 2 values, but got ${gainBytes.length}',
+      );
+    }
+
+    return MicrophoneGain(
+      leftRegister: gainBytes[0],
+      rightRegister: gainBytes[1],
+    );
+  }
+
+  @override
+  Future<void> setMicrophoneGain(MicrophoneGain gain) {
+    return bleManager.write(
+      deviceId: deviceId,
+      serviceId: _audioConfigServiceUuid,
+      characteristicId: _dmicGainCharacteristicUuid,
+      byteData: [gain.leftRegister, gain.rightRegister],
+    );
   }
 
   // MARK: AudioModeManager
