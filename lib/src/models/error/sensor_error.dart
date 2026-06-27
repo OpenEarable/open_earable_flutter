@@ -50,8 +50,9 @@ class SensorError {
 
     final messageBytes = bytes.sublist(9, payloadLength);
     final nullIndex = messageBytes.indexOf(0);
-    final trimmedMessageBytes =
-        nullIndex >= 0 ? messageBytes.sublist(0, nullIndex) : messageBytes;
+    final trimmedMessageBytes = nullIndex >= 0
+        ? messageBytes.sublist(0, nullIndex)
+        : messageBytes;
 
     return SensorError(
       level: DeviceErrorLevel.fromByte(byteData.getUint8(1)),
@@ -98,10 +99,24 @@ class SensorError {
         return 'BLE notification failed';
       case 0x0301:
         return 'Firmware fatal error';
+      case 0x0302:
+        return 'Firmware log error';
+      case 0x0303:
+        return 'Firmware log warning';
+      case 0x0304:
+        return 'Firmware log info';
+      case 0x0305:
+        return 'Firmware log debug';
       default:
         return 'Unknown code 0x${errorCode.toRadixString(16).padLeft(4, '0')}';
     }
   }
+
+  bool get isFirmwareLog =>
+      errorCode == 0x0302 ||
+      errorCode == 0x0303 ||
+      errorCode == 0x0304 ||
+      errorCode == 0x0305;
 
   String get sensorName {
     switch (sensorId) {
@@ -127,8 +142,14 @@ class SensorError {
   }
 
   String get formattedMessage {
-    final detail =
-        message.isEmpty ? errorDescription : '$errorDescription: $message';
+    if (isFirmwareLog) {
+      final detail = message.isEmpty ? errorDescription : message;
+      return '${level.label}: $detail';
+    }
+
+    final detail = message.isEmpty
+        ? errorDescription
+        : '$errorDescription: $message';
     return '${level.label}: [$sensorName] $detail';
   }
 
