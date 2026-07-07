@@ -15,6 +15,7 @@ class BleManager extends BleGattManager {
   int get mtu => _mtu;
 
   final Map<String, StreamController<List<int>>> _streamControllers = {};
+  final Map<String, Future<void>> _subscriptionSetups = {};
 
   /// A stream of discovered devices during scanning.
   StreamController<DiscoveredDevice>? _scanStreamController;
@@ -23,6 +24,35 @@ class BleManager extends BleGattManager {
 
   String _getCharacteristicKey(String deviceId, String characteristicId) =>
       "$deviceId||$characteristicId";
+
+  StreamController<List<int>> _ensureStreamController(String streamIdentifier) {
+    return _streamControllers.putIfAbsent(
+      streamIdentifier,
+      StreamController<List<int>>.broadcast,
+    );
+  }
+
+  Future<void> _setupSubscription({
+    required String deviceId,
+    required String serviceId,
+    required String characteristicId,
+  }) {
+    final streamIdentifier = _getCharacteristicKey(deviceId, characteristicId);
+    _ensureStreamController(streamIdentifier);
+
+    return _subscriptionSetups.putIfAbsent(streamIdentifier, () async {
+      try {
+        await UniversalBle.subscribeNotifications(
+          deviceId,
+          serviceId,
+          characteristicId,
+        );
+      } catch (error) {
+        _subscriptionSetups.remove(streamIdentifier);
+        rethrow;
+      }
+    });
+  }
 
   final Map<String, Completer> _connectionCompleters = {};
   final Map<String, VoidCallback> _connectCallbacks = {};
@@ -48,6 +78,7 @@ class BleManager extends BleGattManager {
 
     for (final key in keys) {
       logger.d("Closing stream for $key due to device disconnection");
+      _subscriptionSetups.remove(key);
       _streamControllers.remove(key)?.close();
     }
   }
@@ -324,31 +355,45 @@ class BleManager extends BleGattManager {
       deviceId,
       characteristicId,
     );
-    StreamController<List<int>>? streamController =
-        _streamControllers[streamIdentifier];
-    streamController ??= StreamController<List<int>>.broadcast();
-    if (!_streamControllers.containsKey(streamIdentifier)) {
-      UniversalBle.subscribeNotifications(
-        deviceId,
-        serviceId,
-        characteristicId,
+    final streamController = _ensureStreamController(streamIdentifier);
+    if (!_subscriptionSetups.containsKey(streamIdentifier)) {
+      unawaited(
+        _setupSubscription(
+          deviceId: deviceId,
+          serviceId: serviceId,
+          characteristicId: characteristicId,
+        ).catchError((Object error, StackTrace stackTrace) {
+          logger.e(
+            "Failed to subscribe to $streamIdentifier: $error\n$stackTrace",
+          );
+        }),
       );
-      _streamControllers[streamIdentifier] = streamController;
     }
 
     streamController.onCancel = () {
       if (_streamControllers.containsKey(streamIdentifier)) {
+        _subscriptionSetups.remove(streamIdentifier);
         _streamControllers.remove(streamIdentifier)?.close();
-        UniversalBle.unsubscribe(
-          deviceId,
-          serviceId,
-          characteristicId,
+        unawaited(
+          UniversalBle.unsubscribe(deviceId, serviceId, characteristicId),
         );
-        _streamControllers.remove(streamIdentifier);
       }
     };
 
     return streamController.stream;
+  }
+
+  @override
+  Future<void> prepareSubscription({
+    required String deviceId,
+    required String serviceId,
+    required String characteristicId,
+  }) {
+    return _setupSubscription(
+      deviceId: deviceId,
+      serviceId: serviceId,
+      characteristicId: characteristicId,
+    );
   }
 
   /// Reads data from a specific characteristic of the connected Earable device.

@@ -30,6 +30,19 @@ abstract class BleGattManager {
     required String characteristicId,
   });
 
+  /// Ensures notifications are enabled before request/response flows depend on them.
+  Future<void> prepareSubscription({
+    required String deviceId,
+    required String serviceId,
+    required String characteristicId,
+  }) async {
+    subscribe(
+      deviceId: deviceId,
+      serviceId: serviceId,
+      characteristicId: characteristicId,
+    );
+  }
+
   /// Reads data from a specific characteristic of the connected device.
   Future<List<int>> read({
     required String deviceId,

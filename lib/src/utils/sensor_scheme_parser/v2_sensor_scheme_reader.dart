@@ -59,7 +59,14 @@ class V2SensorSchemeReader extends SensorSchemeReader {
       return _sensorSchemes[sensorId]!;
     }
 
-    // Listen to the notification of the characteristic
+    await _bleManager.prepareSubscription(
+      deviceId: _deviceId,
+      serviceId: parseInfoServiceUuid,
+      characteristicId: sensorSchemeCharacteristicUuid,
+    );
+
+    // Listen only after notifications are enabled, otherwise some Android
+    // stacks can drop the first response packet.
     final Stream<List<int>> stream = _bleManager.subscribe(
       deviceId: _deviceId,
       serviceId: parseInfoServiceUuid,
@@ -83,22 +90,26 @@ class V2SensorSchemeReader extends SensorSchemeReader {
         "Received notification for sensor scheme of sensor $sensorId: $value",
       );
 
-      final scheme = _parseSensorScheme(value);
-      if (scheme.sensorId == 0 && sensorId != 0) {
-        logger.w(
-          "Sensor scheme response for sensor $sensorId omitted the sensor id. Using the requested id.",
-        );
-        scheme.sensorId = sensorId;
-      } else if (scheme.sensorId != sensorId) {
-        logger.w(
-          "Sensor scheme response for sensor $sensorId reported sensor id ${scheme.sensorId}. Using the returned scheme.",
-        );
-      }
-
-      _sensorSchemes[scheme.sensorId] = scheme;
-      return scheme;
+      return _storeParsedScheme(
+        requestedSensorId: sensorId,
+        rawScheme: value,
+        source: 'notification',
+      );
     } on TimeoutException catch (e) {
-      throw TimeoutException("Timeout while waiting for sensor scheme: $e");
+      logger.w(
+        "Notification timeout while waiting for sensor scheme $sensorId: $e. "
+        "Falling back to direct characteristic read.",
+      );
+      final polledValue = await _bleManager.read(
+        deviceId: _deviceId,
+        serviceId: parseInfoServiceUuid,
+        characteristicId: sensorSchemeCharacteristicUuid,
+      );
+      return _storeParsedScheme(
+        requestedSensorId: sensorId,
+        rawScheme: polledValue,
+        source: 'direct read',
+      );
     }
   }
 
@@ -107,11 +118,23 @@ class V2SensorSchemeReader extends SensorSchemeReader {
     if (_sensorIds.isEmpty || forceRead) {
       await _readSensorIds();
     }
+    if (forceRead) {
+      _sensorSchemes.clear();
+    }
 
-    for (int sensorId in _sensorIds) {
-      if (!_sensorSchemes.containsKey(sensorId) || forceRead) {
+    final int maxPasses = _sensorIds.length;
+    for (int pass = 0; pass < maxPasses; pass++) {
+      final missingSensorIds = _sensorIds
+          .where((sensorId) => !_sensorSchemes.containsKey(sensorId))
+          .toList();
+      if (missingSensorIds.isEmpty) {
+        break;
+      }
+
+      final int schemesBeforePass = _sensorSchemes.length;
+      for (final sensorId in missingSensorIds) {
         try {
-          SensorScheme scheme = await getSchemeForSensor(sensorId);
+          final scheme = await getSchemeForSensor(sensorId);
           _sensorSchemes[scheme.sensorId] = scheme;
         } catch (e) {
           logger.e(
@@ -123,9 +146,15 @@ class V2SensorSchemeReader extends SensorSchemeReader {
               "This may be a BLE notification timeout or subscription issue.",
             );
           }
-          // Continue with next sensor instead of failing entirely
-          continue;
         }
+      }
+
+      if (_sensorSchemes.length == schemesBeforePass) {
+        logger.w(
+          "Sensor scheme read made no progress on pass ${pass + 1}. "
+          "Stopping with ${_sensorSchemes.length}/${_sensorIds.length} scheme(s).",
+        );
+        break;
       }
     }
 
@@ -142,23 +171,31 @@ class V2SensorSchemeReader extends SensorSchemeReader {
 
     int nameLength = byteStream[currentIndex++];
 
-    List<int> nameBytes =
-        byteStream.sublist(currentIndex, currentIndex + nameLength);
+    List<int> nameBytes = byteStream.sublist(
+      currentIndex,
+      currentIndex + nameLength,
+    );
     String sensorName = utf8.decode(nameBytes);
     currentIndex += nameLength;
 
     int componentCount = byteStream[currentIndex++];
 
-    SensorScheme sensorScheme =
-        SensorScheme(sensorId, sensorName, componentCount, null);
+    SensorScheme sensorScheme = SensorScheme(
+      sensorId,
+      sensorName,
+      componentCount,
+      null,
+    );
 
     for (int j = 0; j < componentCount; j++) {
       int componentType = byteStream[currentIndex++];
 
       int groupNameLength = byteStream[currentIndex++];
 
-      List<int> groupNameBytes =
-          byteStream.sublist(currentIndex, currentIndex + groupNameLength);
+      List<int> groupNameBytes = byteStream.sublist(
+        currentIndex,
+        currentIndex + groupNameLength,
+      );
       String groupName = utf8.decode(groupNameBytes);
       currentIndex += groupNameLength;
 
@@ -173,8 +210,10 @@ class V2SensorSchemeReader extends SensorSchemeReader {
 
       int unitNameLength = byteStream[currentIndex++];
 
-      List<int> unitNameBytes =
-          byteStream.sublist(currentIndex, currentIndex + unitNameLength);
+      List<int> unitNameBytes = byteStream.sublist(
+        currentIndex,
+        currentIndex + unitNameLength,
+      );
       String unitName = utf8.decode(unitNameBytes);
       currentIndex += unitNameLength;
 
@@ -222,5 +261,31 @@ class V2SensorSchemeReader extends SensorSchemeReader {
     sensorScheme.options = SensorConfigOptions(features, frequencies);
 
     return sensorScheme;
+  }
+
+  SensorScheme _storeParsedScheme({
+    required int requestedSensorId,
+    required List<int> rawScheme,
+    required String source,
+  }) {
+    logger.d(
+      "Received $source for sensor scheme of sensor $requestedSensorId: $rawScheme",
+    );
+
+    final scheme = _parseSensorScheme(rawScheme);
+    final bool canAssumeMissingId = source == 'notification';
+    if (canAssumeMissingId && scheme.sensorId == 0 && requestedSensorId != 0) {
+      logger.w(
+        "Sensor scheme response for sensor $requestedSensorId omitted the sensor id. Using the requested id.",
+      );
+      scheme.sensorId = requestedSensorId;
+    } else if (scheme.sensorId != requestedSensorId) {
+      logger.w(
+        "Sensor scheme response for sensor $requestedSensorId reported sensor id ${scheme.sensorId}. Using the returned scheme.",
+      );
+    }
+
+    _sensorSchemes[scheme.sensorId] = scheme;
+    return scheme;
   }
 }
