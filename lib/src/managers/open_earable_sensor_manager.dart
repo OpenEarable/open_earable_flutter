@@ -31,7 +31,8 @@ class OpenEarableSensorHandler extends SensorHandler<OpenEarableSensorConfig> {
     SensorSchemeReader? sensorSchemeParser,
     SensorValueParser? sensorValueParser,
   })  : _bleManager = bleManager,
-        _sensorSchemeParser = sensorSchemeParser ?? EdgeMlSensorSchemeReader(bleManager, deviceId),
+        _sensorSchemeParser = sensorSchemeParser ??
+            EdgeMlSensorSchemeReader(bleManager, deviceId),
         _sensorValueParser = sensorValueParser ?? EdgeMlSensorValueParser() {
     _readSensorScheme();
   }
@@ -63,20 +64,22 @@ class OpenEarableSensorHandler extends SensorHandler<OpenEarableSensorConfig> {
   /// - 1: Barometer data
   /// Returns a [Stream] of sensor data as a [Map] of sensor values.
   @override
-  Stream<Map<String, dynamic>> subscribeToSensorData(int sensorId) {
+  Future<Stream<Map<String, dynamic>>> subscribeToSensorData(
+    int sensorId,
+  ) async {
     if (!_bleManager.isConnected(deviceId)) {
       Exception("Can't subscribe to sensor data. Earable not connected");
     }
     StreamController<Map<String, dynamic>> streamController =
         StreamController();
     int lastTimestamp = 0;
-    final subscription = _bleManager
-        .subscribe(
+    final dataStream = await _bleManager.subscribe(
       deviceId: deviceId,
       serviceId: sensorServiceUuid,
       characteristicId: sensorDataCharacteristicUuid,
-    )
-        .listen(
+    );
+
+    final subscription = dataStream.listen(
       (data) async {
         if (data.isNotEmpty && data[0] == sensorId) {
           List<Map<String, dynamic>> parsedDataList = await _parseData(data);
@@ -144,7 +147,7 @@ class OpenEarableSensorHandler extends SensorHandler<OpenEarableSensorConfig> {
   /// Parses raw sensor data bytes into a [Map] of sensor values.
   Future<List<Map<String, dynamic>>> _parseData(List<int> data) async {
     ByteData byteData = ByteData.sublistView(Uint8List.fromList(data));
-    
+
     return _sensorValueParser.parse(byteData, _sensorSchemes!);
   }
 

@@ -128,35 +128,54 @@ class EsenseSensor extends Sensor<SensorDoubleValue> {
   Stream<SensorDoubleValue> get sensorStream {
     StreamController<SensorDoubleValue> streamController =
         StreamController<SensorDoubleValue>();
-    _sensorHandler.subscribeToSensorData(_sensorId).listen(
-      (data) {
-        int timestamp = data["timestamp"];
+    StreamSubscription<Map<String, dynamic>>? subscription;
 
-        List<double> values = [];
-        for (var entry in (data[sensorName] as Map).entries) {
-          if (entry.key == 'units') {
-            continue;
-          }
-
-          if (entry.value is int) {
-            values.add((entry.value as int).toDouble());
-          } else if (entry.value is double) {
-            values.add(entry.value as double);
-          } else {
-            throw UnsupportedError(
-              "Unsupported sensor value type: ${entry.value.runtimeType}",
-            );
-          }
+    streamController.onListen = () async {
+      try {
+        final sensorDataStream =
+            await _sensorHandler.subscribeToSensorData(_sensorId);
+        if (streamController.isClosed) {
+          return;
         }
+        subscription = sensorDataStream.listen(
+          (data) {
+            int timestamp = data["timestamp"];
 
-        SensorDoubleValue sensorValue = SensorDoubleValue(
-          values: values,
-          timestamp: timestamp,
+            List<double> values = [];
+            for (var entry in (data[sensorName] as Map).entries) {
+              if (entry.key == 'units') {
+                continue;
+              }
+
+              if (entry.value is int) {
+                values.add((entry.value as int).toDouble());
+              } else if (entry.value is double) {
+                values.add(entry.value as double);
+              } else {
+                throw UnsupportedError(
+                  "Unsupported sensor value type: ${entry.value.runtimeType}",
+                );
+              }
+            }
+
+            SensorDoubleValue sensorValue = SensorDoubleValue(
+              values: values,
+              timestamp: timestamp,
+            );
+
+            streamController.add(sensorValue);
+          },
         );
+      } catch (error, stack) {
+        if (!streamController.isClosed) {
+          streamController.addError(error, stack);
+        }
+      }
+    };
 
-        streamController.add(sensorValue);
-      },
-    );
+    streamController.onCancel = () {
+      subscription?.cancel();
+    };
 
     return streamController.stream;
   }

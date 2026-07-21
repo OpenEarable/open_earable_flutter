@@ -350,33 +350,47 @@ class _OpenEarableSensorV2 extends Sensor<SensorDoubleValue> {
   ) {
     StreamController<SensorDoubleValue> streamController = StreamController();
 
-    StreamSubscription subscription =
-        _sensorManager.subscribeToSensorData(_sensorId).listen((data) {
-      int timestamp = data["timestamp"];
-      logger.t("SensorData: $data");
+    StreamSubscription<Map<String, dynamic>>? subscription;
 
-      logger.t("componentData of $componentName: ${data[componentName]}");
-
-      //TODO: use int for integer based values
-      List<double> values = [];
-      for (var entry in (data[componentName] as Map).entries) {
-        if (entry.key == 'units') {
-          continue;
+    streamController.onListen = () async {
+      try {
+        final sensorDataStream =
+            await _sensorManager.subscribeToSensorData(_sensorId);
+        if (streamController.isClosed) {
+          return;
         }
+        subscription = sensorDataStream.listen((data) {
+          int timestamp = data["timestamp"];
+          logger.t("SensorData: $data");
 
-        values.add(entry.value.toDouble());
+          logger.t("componentData of $componentName: ${data[componentName]}");
+
+          //TODO: use int for integer based values
+          List<double> values = [];
+          for (var entry in (data[componentName] as Map).entries) {
+            if (entry.key == 'units') {
+              continue;
+            }
+
+            values.add(entry.value.toDouble());
+          }
+
+          SensorDoubleValue sensorValue = SensorDoubleValue(
+            values: values,
+            timestamp: timestamp,
+          );
+
+          streamController.add(sensorValue);
+        });
+      } catch (error, stack) {
+        if (!streamController.isClosed) {
+          streamController.addError(error, stack);
+        }
       }
-
-      SensorDoubleValue sensorValue = SensorDoubleValue(
-        values: values,
-        timestamp: timestamp,
-      );
-
-      streamController.add(sensorValue);
-    });
+    };
 
     streamController.onCancel = () {
-      subscription.cancel();
+      subscription?.cancel();
     };
 
     return streamController.stream;

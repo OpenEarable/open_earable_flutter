@@ -118,28 +118,36 @@ class CosinussOne extends Wearable
   @override
   Stream<int> get batteryPercentageStream {
     StreamController<int> streamController = StreamController();
+    StreamSubscription<List<int>>? subscription;
 
-    StreamSubscription subscription = _bleManager
-        .subscribe(
-      deviceId: _discoveredDevice.id,
-      serviceId: batteryServiceUuid,
-      characteristicId: _batteryLevelCharacteristicUuid,
-    )
-        .listen((data) {
-      streamController.add(data[0]);
-    });
+    streamController.onListen = () async {
+      try {
+        final batteryStream = await _bleManager.subscribe(
+          deviceId: _discoveredDevice.id,
+          serviceId: batteryServiceUuid,
+          characteristicId: _batteryLevelCharacteristicUuid,
+        );
+        if (streamController.isClosed) {
+          return;
+        }
+        subscription = batteryStream.listen((data) {
+          streamController.add(data[0]);
+        });
 
-    readBatteryPercentage().then((percentage) {
-      streamController.add(percentage);
-      streamController.close();
-    }).catchError((error) {
-      streamController.addError(error);
-      streamController.close();
-    });
+        final percentage = await readBatteryPercentage();
+        streamController.add(percentage);
+        await streamController.close();
+      } catch (error, stack) {
+        if (!streamController.isClosed) {
+          streamController.addError(error, stack);
+          await streamController.close();
+        }
+      }
+    };
 
     // Cancel BLE subscription when canceling stream
     streamController.onCancel = () {
-      subscription.cancel();
+      subscription?.cancel();
     };
 
     return streamController.stream;
@@ -201,41 +209,52 @@ class _CosinussOneSensor extends Sensor<SensorDoubleValue> {
 
   Stream<SensorDoubleValue> _createAccStream() {
     StreamController<SensorDoubleValue> streamController = StreamController();
+    StreamSubscription<List<int>>? subscription;
 
     int startTime = DateTime.now().millisecondsSinceEpoch;
 
-    _bleManager.write(
-      deviceId: _discoveredDevice.id,
-      serviceId: CosinussOne.ppgAndAccServiceUuid,
-      characteristicId: "0000a001-1212-efde-1523-785feabcd123",
-      byteData: _sensorBluetoothCharacteristics,
-    );
+    streamController.onListen = () async {
+      try {
+        final sensorStream = await _bleManager.subscribe(
+          deviceId: _discoveredDevice.id,
+          serviceId: CosinussOne.ppgAndAccServiceUuid,
+          characteristicId: "0000a001-1212-efde-1523-785feabcd123",
+        );
+        if (streamController.isClosed) {
+          return;
+        }
+        subscription = sensorStream.listen((data) {
+          Int8List bytes = Int8List.fromList(data);
 
-    StreamSubscription subscription = _bleManager
-        .subscribe(
-      deviceId: _discoveredDevice.id,
-      serviceId: CosinussOne.ppgAndAccServiceUuid,
-      characteristicId: "0000a001-1212-efde-1523-785feabcd123",
-    )
-        .listen((data) {
-      Int8List bytes = Int8List.fromList(data);
+          // description based on placing the earable into your right ear canal
+          int accX = bytes[14];
+          int accY = bytes[16];
+          int accZ = bytes[18];
 
-      // description based on placing the earable into your right ear canal
-      int accX = bytes[14];
-      int accY = bytes[16];
-      int accZ = bytes[18];
+          streamController.add(
+            SensorDoubleValue(
+              values: [accX.toDouble(), accY.toDouble(), accZ.toDouble()],
+              timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
+            ),
+          );
+        });
 
-      streamController.add(
-        SensorDoubleValue(
-          values: [accX.toDouble(), accY.toDouble(), accZ.toDouble()],
-          timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
-        ),
-      );
-    });
+        await _bleManager.write(
+          deviceId: _discoveredDevice.id,
+          serviceId: CosinussOne.ppgAndAccServiceUuid,
+          characteristicId: "0000a001-1212-efde-1523-785feabcd123",
+          byteData: _sensorBluetoothCharacteristics,
+        );
+      } catch (error, stack) {
+        if (!streamController.isClosed) {
+          streamController.addError(error, stack);
+        }
+      }
+    };
 
     // Cancel BLE subscription when canceling stream
     streamController.onCancel = () {
-      subscription.cancel();
+      subscription?.cancel();
     };
 
     return streamController.stream;
@@ -243,60 +262,71 @@ class _CosinussOneSensor extends Sensor<SensorDoubleValue> {
 
   Stream<SensorDoubleValue> _createPpgStream() {
     StreamController<SensorDoubleValue> streamController = StreamController();
+    StreamSubscription<List<int>>? subscription;
 
     int startTime = DateTime.now().millisecondsSinceEpoch;
 
-    _bleManager.write(
-      deviceId: _discoveredDevice.id,
-      serviceId: CosinussOne.ppgAndAccServiceUuid,
-      characteristicId: "0000a001-1212-efde-1523-785feabcd123",
-      byteData: _sensorBluetoothCharacteristics,
-    );
+    streamController.onListen = () async {
+      try {
+        final sensorStream = await _bleManager.subscribe(
+          deviceId: _discoveredDevice.id,
+          serviceId: CosinussOne.ppgAndAccServiceUuid,
+          characteristicId: "0000a001-1212-efde-1523-785feabcd123",
+        );
+        if (streamController.isClosed) {
+          return;
+        }
+        subscription = sensorStream.listen((data) {
+          Uint8List bytes = Uint8List.fromList(data);
 
-    StreamSubscription subscription = _bleManager
-        .subscribe(
-      deviceId: _discoveredDevice.id,
-      serviceId: CosinussOne.ppgAndAccServiceUuid,
-      characteristicId: "0000a001-1212-efde-1523-785feabcd123",
-    )
-        .listen((data) {
-      Uint8List bytes = Uint8List.fromList(data);
+          // corresponds to the raw reading of the PPG sensor from which the heart rate is computed
+          //
+          // example plot https://e2e.ti.com/cfs-file/__key/communityserver-discussions-components-files/73/Screen-Shot-2019_2D00_01_2D00_24-at-19.30.24.png
+          // (image just for illustration purpose, obtained from a different sensor! Sensor value range differs.)
 
-      // corresponds to the raw reading of the PPG sensor from which the heart rate is computed
-      //
-      // example plot https://e2e.ti.com/cfs-file/__key/communityserver-discussions-components-files/73/Screen-Shot-2019_2D00_01_2D00_24-at-19.30.24.png
-      // (image just for illustration purpose, obtained from a different sensor! Sensor value range differs.)
+          var ppgRed = bytes[0] |
+              bytes[1] << 8 |
+              bytes[2] << 16 |
+              bytes[3] << 32; // raw green color value of PPG sensor
+          var ppgGreen = bytes[4] |
+              bytes[5] << 8 |
+              bytes[6] << 16 |
+              bytes[7] << 32; // raw red color value of PPG sensor
 
-      var ppgRed = bytes[0] |
-          bytes[1] << 8 |
-          bytes[2] << 16 |
-          bytes[3] << 32; // raw green color value of PPG sensor
-      var ppgGreen = bytes[4] |
-          bytes[5] << 8 |
-          bytes[6] << 16 |
-          bytes[7] << 32; // raw red color value of PPG sensor
+          var ppgGreenAmbient = bytes[8] |
+              bytes[9] << 8 |
+              bytes[10] << 16 |
+              bytes[11] <<
+                  32; // ambient light sensor (e.g., if sensor is not placed correctly)
 
-      var ppgGreenAmbient = bytes[8] |
-          bytes[9] << 8 |
-          bytes[10] << 16 |
-          bytes[11] <<
-              32; // ambient light sensor (e.g., if sensor is not placed correctly)
+          streamController.add(
+            SensorDoubleValue(
+              values: [
+                ppgRed.toDouble(),
+                ppgGreen.toDouble(),
+                ppgGreenAmbient.toDouble(),
+              ],
+              timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
+            ),
+          );
+        });
 
-      streamController.add(
-        SensorDoubleValue(
-          values: [
-            ppgRed.toDouble(),
-            ppgGreen.toDouble(),
-            ppgGreenAmbient.toDouble(),
-          ],
-          timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
-        ),
-      );
-    });
+        await _bleManager.write(
+          deviceId: _discoveredDevice.id,
+          serviceId: CosinussOne.ppgAndAccServiceUuid,
+          characteristicId: "0000a001-1212-efde-1523-785feabcd123",
+          byteData: _sensorBluetoothCharacteristics,
+        );
+      } catch (error, stack) {
+        if (!streamController.isClosed) {
+          streamController.addError(error, stack);
+        }
+      }
+    };
 
     // Cancel BLE subscription when canceling stream
     streamController.onCancel = () {
-      subscription.cancel();
+      subscription?.cancel();
     };
 
     return streamController.stream;
@@ -304,39 +334,50 @@ class _CosinussOneSensor extends Sensor<SensorDoubleValue> {
 
   Stream<SensorDoubleValue> _createTempStream() {
     StreamController<SensorDoubleValue> streamController = StreamController();
+    StreamSubscription<List<int>>? subscription;
 
     int startTime = DateTime.now().millisecondsSinceEpoch;
 
-    StreamSubscription subscription = _bleManager
-        .subscribe(
-      deviceId: _discoveredDevice.id,
-      serviceId: CosinussOne.temperatureServiceUuid,
-      characteristicId: "00002a1c-0000-1000-8000-00805f9b34fb",
-    )
-        .listen((data) {
-      var flag = data[0];
+    streamController.onListen = () async {
+      try {
+        final temperatureStream = await _bleManager.subscribe(
+          deviceId: _discoveredDevice.id,
+          serviceId: CosinussOne.temperatureServiceUuid,
+          characteristicId: "00002a1c-0000-1000-8000-00805f9b34fb",
+        );
+        if (streamController.isClosed) {
+          return;
+        }
+        subscription = temperatureStream.listen((data) {
+          var flag = data[0];
 
-      // based on GATT standard
-      double temperature = _twosComplimentOfNegativeMantissa(
-            ((data[3] << 16) | (data[2] << 8) | data[1]) & 16777215,
-          ) /
-          100.0;
-      if ((flag & 1) != 0) {
-        temperature = ((98.6 * temperature) - 32.0) *
-            (5.0 / 9.0); // convert Fahrenheit to Celsius
+          // based on GATT standard
+          double temperature = _twosComplimentOfNegativeMantissa(
+                ((data[3] << 16) | (data[2] << 8) | data[1]) & 16777215,
+              ) /
+              100.0;
+          if ((flag & 1) != 0) {
+            temperature = ((98.6 * temperature) - 32.0) *
+                (5.0 / 9.0); // convert Fahrenheit to Celsius
+          }
+
+          streamController.add(
+            SensorDoubleValue(
+              values: [temperature],
+              timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
+            ),
+          );
+        });
+      } catch (error, stack) {
+        if (!streamController.isClosed) {
+          streamController.addError(error, stack);
+        }
       }
-
-      streamController.add(
-        SensorDoubleValue(
-          values: [temperature],
-          timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
-        ),
-      );
-    });
+    };
 
     // Cancel BLE subscription when canceling stream
     streamController.onCancel = () {
-      subscription.cancel();
+      subscription?.cancel();
     };
 
     return streamController.stream;
@@ -373,35 +414,46 @@ class _CosinussOneHeartRateSensor extends HeartRateSensor {
   Stream<HeartRateSensorValue> get sensorStream {
     StreamController<HeartRateSensorValue> streamController =
         StreamController();
+    StreamSubscription<List<int>>? subscription;
 
     int startTime = DateTime.now().millisecondsSinceEpoch;
 
-    StreamSubscription subscription = _bleManager
-        .subscribe(
-      deviceId: _discoveredDevice.id,
-      serviceId: CosinussOne.heartRateServiceUuid,
-      characteristicId: "00002a37-0000-1000-8000-00805f9b34fb",
-    )
-        .listen((data) {
-      Uint8List bytes = Uint8List.fromList(data);
+    streamController.onListen = () async {
+      try {
+        final heartRateStream = await _bleManager.subscribe(
+          deviceId: _discoveredDevice.id,
+          serviceId: CosinussOne.heartRateServiceUuid,
+          characteristicId: "00002a37-0000-1000-8000-00805f9b34fb",
+        );
+        if (streamController.isClosed) {
+          return;
+        }
+        subscription = heartRateStream.listen((data) {
+          Uint8List bytes = Uint8List.fromList(data);
 
-      // based on GATT standard
-      int bpm = bytes[1];
-      if (!((bytes[0] & 0x01) == 0)) {
-        bpm = (((bpm >> 8) & 0xFF) | ((bpm << 8) & 0xFF00));
+          // based on GATT standard
+          int bpm = bytes[1];
+          if (!((bytes[0] & 0x01) == 0)) {
+            bpm = (((bpm >> 8) & 0xFF) | ((bpm << 8) & 0xFF00));
+          }
+
+          streamController.add(
+            HeartRateSensorValue(
+              heartRateBpm: bpm,
+              timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
+            ),
+          );
+        });
+      } catch (error, stack) {
+        if (!streamController.isClosed) {
+          streamController.addError(error, stack);
+        }
       }
-
-      streamController.add(
-        HeartRateSensorValue(
-          heartRateBpm: bpm,
-          timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
-        ),
-      );
-    });
+    };
 
     // Cancel BLE subscription when canceling stream
     streamController.onCancel = () {
-      subscription.cancel();
+      subscription?.cancel();
     };
 
     return streamController.stream;

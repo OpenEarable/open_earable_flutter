@@ -15,6 +15,7 @@ class BleManager extends BleGattManager {
   int get mtu => _mtu;
 
   final Map<String, StreamController<List<int>>> _streamControllers = {};
+  final Map<String, Future<void>> _subscriptionSetups = {};
 
   /// A stream of discovered devices during scanning.
   StreamController<DiscoveredDevice>? _scanStreamController;
@@ -49,6 +50,7 @@ class BleManager extends BleGattManager {
     for (final key in keys) {
       logger.d("Closing stream for $key due to device disconnection");
       _streamControllers.remove(key)?.close();
+      _subscriptionSetups.remove(key);
     }
   }
 
@@ -312,11 +314,11 @@ class BleManager extends BleGattManager {
 
   /// Subscribes to a specific characteristic of the connected Earable device.
   @override
-  Stream<List<int>> subscribe({
+  Future<Stream<List<int>>> subscribe({
     required String deviceId,
     required String serviceId,
     required String characteristicId,
-  }) {
+  }) async {
     logger.d(
       "Subscribing to $deviceId, service $serviceId, characteristic $characteristicId",
     );
@@ -327,24 +329,33 @@ class BleManager extends BleGattManager {
     StreamController<List<int>>? streamController =
         _streamControllers[streamIdentifier];
     streamController ??= StreamController<List<int>>.broadcast();
-    if (!_streamControllers.containsKey(streamIdentifier)) {
-      UniversalBle.subscribeNotifications(
-        deviceId,
-        serviceId,
-        characteristicId,
-      );
-      _streamControllers[streamIdentifier] = streamController;
+    _streamControllers[streamIdentifier] = streamController;
+
+    _subscriptionSetups[streamIdentifier] ??=
+        UniversalBle.subscribeNotifications(
+      deviceId,
+      serviceId,
+      characteristicId,
+    );
+
+    try {
+      await _subscriptionSetups[streamIdentifier];
+    } catch (_) {
+      _subscriptionSetups.remove(streamIdentifier);
+      _streamControllers.remove(streamIdentifier);
+      await streamController.close();
+      rethrow;
     }
 
     streamController.onCancel = () {
       if (_streamControllers.containsKey(streamIdentifier)) {
         _streamControllers.remove(streamIdentifier)?.close();
+        _subscriptionSetups.remove(streamIdentifier);
         UniversalBle.unsubscribe(
           deviceId,
           serviceId,
           characteristicId,
         );
-        _streamControllers.remove(streamIdentifier);
       }
     };
 

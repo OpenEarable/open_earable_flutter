@@ -96,35 +96,46 @@ class _PolarHeartRateSensor extends HeartRateSensor {
   Stream<HeartRateSensorValue> get sensorStream {
     StreamController<HeartRateSensorValue> streamController =
         StreamController();
+    StreamSubscription<List<int>>? subscription;
 
     int startTime = DateTime.now().millisecondsSinceEpoch;
 
-    StreamSubscription subscription = _bleManager
-        .subscribe(
-      deviceId: _discoveredDevice.id,
-      serviceId: Polar.heartRateServiceUuid,
-      characteristicId: "00002a37-0000-1000-8000-00805f9b34fb",
-    )
-        .listen((data) {
-      Uint8List bytes = Uint8List.fromList(data);
+    streamController.onListen = () async {
+      try {
+        final heartRateStream = await _bleManager.subscribe(
+          deviceId: _discoveredDevice.id,
+          serviceId: Polar.heartRateServiceUuid,
+          characteristicId: "00002a37-0000-1000-8000-00805f9b34fb",
+        );
+        if (streamController.isClosed) {
+          return;
+        }
+        subscription = heartRateStream.listen((data) {
+          Uint8List bytes = Uint8List.fromList(data);
 
-      int hrFormat = bytes[0] & 0x01;
+          int hrFormat = bytes[0] & 0x01;
 
-      int heartRate = hrFormat == 1
-          ? (bytes[1] & 0xFF) | ((bytes[2] & 0xFF) << 8)
-          : bytes[1] & 0xFF;
+          int heartRate = hrFormat == 1
+              ? (bytes[1] & 0xFF) | ((bytes[2] & 0xFF) << 8)
+              : bytes[1] & 0xFF;
 
-      streamController.add(
-        HeartRateSensorValue(
-          heartRateBpm: heartRate,
-          timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
-        ),
-      );
-    });
+          streamController.add(
+            HeartRateSensorValue(
+              heartRateBpm: heartRate,
+              timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
+            ),
+          );
+        });
+      } catch (error, stack) {
+        if (!streamController.isClosed) {
+          streamController.addError(error, stack);
+        }
+      }
+    };
 
     // Cancel BLE subscription when canceling stream
     streamController.onCancel = () {
-      subscription.cancel();
+      subscription?.cancel();
     };
 
     return streamController.stream;
@@ -145,41 +156,52 @@ class _PolarHeartRateVariabilitySensor extends HeartRateVariabilitySensor {
     DiscoveredDevice discoveredDevice,
   ) {
     StreamController<List<int>> streamController = StreamController();
+    StreamSubscription<List<int>>? subscription;
 
-    StreamSubscription subscription = bleManager
-        .subscribe(
-      deviceId: discoveredDevice.id,
-      serviceId: Polar.heartRateServiceUuid,
-      characteristicId: "00002a37-0000-1000-8000-00805f9b34fb",
-    )
-        .listen((data) {
-      Uint8List bytes = Uint8List.fromList(data);
-
-      int hrFormat = bytes[0] & 0x01;
-      bool rrPresent = (bytes[0] & 0x10) >> 4 == 1;
-      int energyExpendedFlag = (bytes[0] & 0x08) >> 3;
-
-      int offset = hrFormat + 2;
-      if (energyExpendedFlag == 1) {
-        offset += 2;
-      }
-
-      List<int> rrIntervalsMs = [];
-      if (rrPresent) {
-        while (offset + 1 < bytes.length) {
-          int rrValue =
-              (bytes[offset] & 0xFF) | ((bytes[offset + 1] & 0xFF) << 8);
-          offset += 2;
-          rrIntervalsMs.add(_mapRr1024ToRrMs(rrValue));
+    streamController.onListen = () async {
+      try {
+        final heartRateStream = await bleManager.subscribe(
+          deviceId: discoveredDevice.id,
+          serviceId: Polar.heartRateServiceUuid,
+          characteristicId: "00002a37-0000-1000-8000-00805f9b34fb",
+        );
+        if (streamController.isClosed) {
+          return;
         }
+        subscription = heartRateStream.listen((data) {
+          Uint8List bytes = Uint8List.fromList(data);
 
-        streamController.add(rrIntervalsMs);
+          int hrFormat = bytes[0] & 0x01;
+          bool rrPresent = (bytes[0] & 0x10) >> 4 == 1;
+          int energyExpendedFlag = (bytes[0] & 0x08) >> 3;
+
+          int offset = hrFormat + 2;
+          if (energyExpendedFlag == 1) {
+            offset += 2;
+          }
+
+          List<int> rrIntervalsMs = [];
+          if (rrPresent) {
+            while (offset + 1 < bytes.length) {
+              int rrValue =
+                  (bytes[offset] & 0xFF) | ((bytes[offset + 1] & 0xFF) << 8);
+              offset += 2;
+              rrIntervalsMs.add(_mapRr1024ToRrMs(rrValue));
+            }
+
+            streamController.add(rrIntervalsMs);
+          }
+        });
+      } catch (error, stack) {
+        if (!streamController.isClosed) {
+          streamController.addError(error, stack);
+        }
       }
-    });
+    };
 
     // Cancel BLE subscription when canceling stream
     streamController.onCancel = () {
-      subscription.cancel();
+      subscription?.cancel();
     };
 
     return streamController.stream;

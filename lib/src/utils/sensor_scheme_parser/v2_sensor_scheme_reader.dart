@@ -60,7 +60,7 @@ class V2SensorSchemeReader extends SensorSchemeReader {
     }
 
     // Listen to the notification of the characteristic
-    final Stream<List<int>> stream = _bleManager.subscribe(
+    final Stream<List<int>> stream = await _bleManager.subscribe(
       deviceId: _deviceId,
       serviceId: parseInfoServiceUuid,
       characteristicId: sensorSchemeCharacteristicUuid,
