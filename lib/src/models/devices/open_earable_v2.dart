@@ -109,30 +109,39 @@ class OpenEarableV2 extends BluetoothWearable
         controller =
         StreamController<Map<SensorConfiguration, SensorConfigurationValue>>();
 
-    _sensorConfigSubscription?.cancel();
-
-    _sensorConfigSubscription = bleManager
-        .subscribe(
-      deviceId: deviceId,
-      serviceId: sensorServiceUuid,
-      characteristicId: sensorConfigStateCharacteristicUuid,
-    )
-        .listen(
-      (data) {
-        controller.add(_parseConfigMap(data));
-      },
-      onError: (error) {
-        logger.e('Error in sensor configuration stream: $error');
-        controller.addError(error);
-      },
-    );
-
     controller.onCancel = () {
       _sensorConfigSubscription?.cancel();
       _sensorConfigSubscription = null;
     };
 
-    controller.onListen = () {
+    controller.onListen = () async {
+      _sensorConfigSubscription?.cancel();
+
+      try {
+        final configStream = await bleManager.subscribe(
+          deviceId: deviceId,
+          serviceId: sensorServiceUuid,
+          characteristicId: sensorConfigStateCharacteristicUuid,
+        );
+        if (controller.isClosed) {
+          return;
+        }
+        _sensorConfigSubscription = configStream.listen(
+          (data) {
+            controller.add(_parseConfigMap(data));
+          },
+          onError: (error) {
+            logger.e('Error in sensor configuration stream: $error');
+            controller.addError(error);
+          },
+        );
+      } catch (error, stack) {
+        logger.e('Error setting up sensor configuration stream: $error');
+        if (!controller.isClosed) {
+          controller.addError(error, stack);
+        }
+      }
+
       // Immediately read the current sensor configuration
       bleManager
           .read(
@@ -222,37 +231,46 @@ class OpenEarableV2 extends BluetoothWearable
   Stream<ButtonEvent> get buttonEvents {
     StreamController<ButtonEvent> controller = StreamController<ButtonEvent>();
 
-    _buttonSubscription?.cancel();
-
-    _buttonSubscription = bleManager
-        .subscribe(
-      deviceId: deviceId,
-      serviceId: _buttonServiceUuid,
-      characteristicId: _buttonCharacteristicUuid,
-    )
-        .listen(
-      (data) {
-        if (data.isNotEmpty) {
-          int buttonState = data[0];
-          if (buttonState == 0) {
-            controller.add(ButtonEvent.released);
-          } else if (buttonState == 1) {
-            controller.add(ButtonEvent.pressed);
-          }
-        }
-      },
-      onError: (error) {
-        logger.e('Error in button events stream: $error');
-        controller.addError(error);
-      },
-    );
-
     controller.onCancel = () {
       _buttonSubscription?.cancel();
       _buttonSubscription = null;
     };
 
-    controller.onListen = () {
+    controller.onListen = () async {
+      _buttonSubscription?.cancel();
+
+      try {
+        final buttonStream = await bleManager.subscribe(
+          deviceId: deviceId,
+          serviceId: _buttonServiceUuid,
+          characteristicId: _buttonCharacteristicUuid,
+        );
+        if (controller.isClosed) {
+          return;
+        }
+        _buttonSubscription = buttonStream.listen(
+          (data) {
+            if (data.isNotEmpty) {
+              int buttonState = data[0];
+              if (buttonState == 0) {
+                controller.add(ButtonEvent.released);
+              } else if (buttonState == 1) {
+                controller.add(ButtonEvent.pressed);
+              }
+            }
+          },
+          onError: (error) {
+            logger.e('Error in button events stream: $error');
+            controller.addError(error);
+          },
+        );
+      } catch (error, stack) {
+        logger.e('Error setting up button events stream: $error');
+        if (!controller.isClosed) {
+          controller.addError(error, stack);
+        }
+      }
+
       // Immediately read current button state
       bleManager
           .read(
@@ -830,13 +848,12 @@ class OpenEarableV2TimeSyncImp implements TimeSynchronizable {
 
     // Subscribe to RTT responses
     late final StreamSubscription<List<int>> rttSub;
-    rttSub = bleManager
-        .subscribe(
+    final rttStream = await bleManager.subscribe(
       deviceId: deviceId,
       serviceId: timeSynchronizationServiceUuid,
       characteristicId: _timeSyncRttCharacteristicUuid,
-    )
-        .listen(
+    );
+    rttSub = rttStream.listen(
       (data) async {
         final t4 = DateTime.now().microsecondsSinceEpoch;
         final pkt = _SyncTimePacket.fromBytes(Uint8List.fromList(data));

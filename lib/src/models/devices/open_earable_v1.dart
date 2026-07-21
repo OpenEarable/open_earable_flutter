@@ -484,25 +484,38 @@ class _OpenEarableSensor extends Sensor<SensorDoubleValue> {
       q: 0.9,
     );
 
-    StreamSubscription subscription =
-        _sensorManager.subscribeToSensorData(0).listen((data) {
-      int timestamp = data["timestamp"];
+    StreamSubscription<Map<String, dynamic>>? subscription;
 
-      SensorDoubleValue sensorValue = SensorDoubleValue(
-        values: [
-          kalmanX.filtered(data[sensorName]["X"]),
-          kalmanY.filtered(data[sensorName]["Y"]),
-          kalmanZ.filtered(data[sensorName]["Z"]),
-        ],
-        timestamp: timestamp,
-      );
+    streamController.onListen = () async {
+      try {
+        final sensorDataStream = await _sensorManager.subscribeToSensorData(0);
+        if (streamController.isClosed) {
+          return;
+        }
+        subscription = sensorDataStream.listen((data) {
+          int timestamp = data["timestamp"];
 
-      streamController.add(sensorValue);
-    });
+          SensorDoubleValue sensorValue = SensorDoubleValue(
+            values: [
+              kalmanX.filtered(data[sensorName]["X"]),
+              kalmanY.filtered(data[sensorName]["Y"]),
+              kalmanZ.filtered(data[sensorName]["Z"]),
+            ],
+            timestamp: timestamp,
+          );
+
+          streamController.add(sensorValue);
+        });
+      } catch (error, stack) {
+        if (!streamController.isClosed) {
+          streamController.addError(error, stack);
+        }
+      }
+    };
 
     // Cancel BLE subscription when canceling stream
     streamController.onCancel = () {
-      subscription.cancel();
+      subscription?.cancel();
     };
 
     return streamController.stream;
@@ -513,21 +526,34 @@ class _OpenEarableSensor extends Sensor<SensorDoubleValue> {
   ) {
     StreamController<SensorDoubleValue> streamController = StreamController();
 
-    StreamSubscription subscription =
-        _sensorManager.subscribeToSensorData(1).listen((data) {
-      int timestamp = data["timestamp"];
+    StreamSubscription<Map<String, dynamic>>? subscription;
 
-      SensorDoubleValue sensorValue = SensorDoubleValue(
-        values: [data[sensorName][componentName]],
-        timestamp: timestamp,
-      );
+    streamController.onListen = () async {
+      try {
+        final sensorDataStream = await _sensorManager.subscribeToSensorData(1);
+        if (streamController.isClosed) {
+          return;
+        }
+        subscription = sensorDataStream.listen((data) {
+          int timestamp = data["timestamp"];
 
-      streamController.add(sensorValue);
-    });
+          SensorDoubleValue sensorValue = SensorDoubleValue(
+            values: [data[sensorName][componentName]],
+            timestamp: timestamp,
+          );
+
+          streamController.add(sensorValue);
+        });
+      } catch (error, stack) {
+        if (!streamController.isClosed) {
+          streamController.addError(error, stack);
+        }
+      }
+    };
 
     // Cancel BLE subscription when canceling stream
     streamController.onCancel = () {
-      subscription.cancel();
+      subscription?.cancel();
     };
 
     return streamController.stream;

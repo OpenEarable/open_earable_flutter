@@ -44,20 +44,40 @@ class OpenRingSensor extends Sensor<SensorDoubleValue> {
   Stream<SensorDoubleValue> get sensorStream => _sensorStreamController.stream;
 
   void _handleListen() {
-    _sensorSubscription ??=
-        sensorHandler.subscribeToSensorData(sensorId).listen(
-      (data) {
-        final SensorDoubleValue? sensorValue = _toSensorValue(data);
-        if (sensorValue != null && !_sensorStreamController.isClosed) {
-          _sensorStreamController.add(sensorValue);
-        }
-      },
-      onError: (error, stack) {
-        if (!_sensorStreamController.isClosed) {
-          _sensorStreamController.addError(error, stack);
-        }
-      },
-    );
+    if (_sensorSubscription != null) {
+      return;
+    }
+
+    unawaited(_subscribeToSensorData());
+  }
+
+  Future<void> _subscribeToSensorData() async {
+    try {
+      final sensorDataStream =
+          await sensorHandler.subscribeToSensorData(sensorId);
+      if (_sensorStreamController.isClosed ||
+          _sensorSubscription != null ||
+          !_sensorStreamController.hasListener) {
+        return;
+      }
+      _sensorSubscription = sensorDataStream.listen(
+        (data) {
+          final SensorDoubleValue? sensorValue = _toSensorValue(data);
+          if (sensorValue != null && !_sensorStreamController.isClosed) {
+            _sensorStreamController.add(sensorValue);
+          }
+        },
+        onError: (error, stack) {
+          if (!_sensorStreamController.isClosed) {
+            _sensorStreamController.addError(error, stack);
+          }
+        },
+      );
+    } catch (error, stack) {
+      if (!_sensorStreamController.isClosed) {
+        _sensorStreamController.addError(error, stack);
+      }
+    }
   }
 
   Future<void> _handleCancel() async {

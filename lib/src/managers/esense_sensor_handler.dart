@@ -56,7 +56,9 @@ class EsenseSensorHandler extends SensorHandler<EsenseSensorConfig> {
   }
 
   @override
-  Stream<Map<String, dynamic>> subscribeToSensorData(int sensorId) {
+  Future<Stream<Map<String, dynamic>>> subscribeToSensorData(
+    int sensorId,
+  ) async {
     if (!_bleGattManager.isConnected(_discoveredDevice.id)) {
       throw Exception("Can't subscribe to sensor data. Earable not connected");
     }
@@ -68,13 +70,13 @@ class EsenseSensorHandler extends SensorHandler<EsenseSensorConfig> {
 
     final streamController = StreamController<Map<String, dynamic>>();
 
-    final subscription = _bleGattManager
-        .subscribe(
-          deviceId: _discoveredDevice.id,
-          serviceId: esenseServiceUuid,
-          characteristicId: esenseSensorDataCharacteristicUuid,
-        )
-        .listen(
+    final dataStream = await _bleGattManager.subscribe(
+      deviceId: _discoveredDevice.id,
+      serviceId: esenseServiceUuid,
+      characteristicId: esenseSensorDataCharacteristicUuid,
+    );
+
+    final subscription = dataStream.listen(
       (data) async {
         if (data.isEmpty) return;
 
@@ -310,7 +312,9 @@ class EsenseSensorHandler extends SensorHandler<EsenseSensorConfig> {
         );
     }
 
-    logger.t("Loaded IMU ranges: Accel=$_cachedAccelRange, Gyro=$_cachedGyroRange");
+    logger.t(
+      "Loaded IMU ranges: Accel=$_cachedAccelRange, Gyro=$_cachedGyroRange",
+    );
 
     return (_cachedAccelRange!, _cachedGyroRange!);
   }
@@ -347,7 +351,7 @@ class EsenseSensorHandler extends SensorHandler<EsenseSensorConfig> {
 
     // Make *new* mutable, dynamic-typed inner maps
     final accel = Map<String, dynamic>.from(result['Accelerometer'] as Map);
-    final gyro  = Map<String, dynamic>.from(result['Gyroscope'] as Map);
+    final gyro = Map<String, dynamic>.from(result['Gyroscope'] as Map);
 
     // Accelerometer to g
     for (final key in const ['x', 'y', 'z']) {

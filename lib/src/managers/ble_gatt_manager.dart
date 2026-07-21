@@ -24,7 +24,10 @@ abstract class BleGattManager {
   });
 
   /// Subscribes to a specific characteristic of the connected device.
-  Stream<List<int>> subscribe({
+  ///
+  /// The returned future completes only after the underlying GATT
+  /// notification subscription has been enabled.
+  Future<Stream<List<int>>> subscribe({
     required String deviceId,
     required String serviceId,
     required String characteristicId,

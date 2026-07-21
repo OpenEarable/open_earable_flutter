@@ -3,7 +3,10 @@ abstract class SensorHandler<SC extends SensorConfig> {
   ///
   /// The [sensorId] parameter specifies the ID of the sensor to subscribe to.
   /// Returns a [Stream] of sensor data as a [Map] of sensor values.
-  Stream<Map<String, dynamic>> subscribeToSensorData(int sensorId);
+  ///
+  /// The returned future completes only after the underlying notification
+  /// subscription has been enabled.
+  Future<Stream<Map<String, dynamic>>> subscribeToSensorData(int sensorId);
 
   /// Writes the sensor configuration to the OpenEarable device.
   ///

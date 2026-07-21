@@ -192,13 +192,12 @@ class OpenRing extends Wearable
 
     final completer = Completer<int>();
     late final StreamSubscription<List<int>> sub;
-    sub = _bleManager
-        .subscribe(
+    final batteryStream = await _bleManager.subscribe(
       deviceId: deviceId,
       serviceId: OpenRingGatt.service,
       characteristicId: OpenRingGatt.rxChar,
-    )
-        .listen(
+    );
+    sub = batteryStream.listen(
       (data) {
         final response = _parseBatteryResponse(data);
         if (response == null || !response.isRead) {
@@ -330,30 +329,39 @@ class OpenRing extends Wearable
       unawaited(batteryPushSubscription?.cancel());
     };
 
-    controller.onListen = () {
+    controller.onListen = () async {
       final initialBatteryPercentage = _lastKnownBatteryPercentage;
       if (initialBatteryPercentage != null) {
         emitIfChanged(initialBatteryPercentage);
       }
 
-      batteryPushSubscription = _bleManager
-          .subscribe(
-        deviceId: deviceId,
-        serviceId: OpenRingGatt.service,
-        characteristicId: OpenRingGatt.rxChar,
-      )
-          .listen(
-        (data) {
-          final response = _parseBatteryResponse(data);
-          if (response == null || !response.isPush) {
-            return;
-          }
-          emitIfChanged(response.batteryPercentage);
-        },
-        onError: (error) {
-          logger.w('OpenRing battery push subscription error: $error');
-        },
-      );
+      try {
+        final batteryStream = await _bleManager.subscribe(
+          deviceId: deviceId,
+          serviceId: OpenRingGatt.service,
+          characteristicId: OpenRingGatt.rxChar,
+        );
+        if (controller.isClosed) {
+          return;
+        }
+        batteryPushSubscription = batteryStream.listen(
+          (data) {
+            final response = _parseBatteryResponse(data);
+            if (response == null || !response.isPush) {
+              return;
+            }
+            emitIfChanged(response.batteryPercentage);
+          },
+          onError: (error) {
+            logger.w('OpenRing battery push subscription error: $error');
+          },
+        );
+      } catch (error, stack) {
+        logger.w('OpenRing battery push subscription setup error: $error');
+        if (!controller.isClosed) {
+          controller.addError(error, stack);
+        }
+      }
 
       batteryPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
         unawaited(pollBattery());
@@ -485,13 +493,12 @@ class OpenRingTimeSyncImp implements TimeSynchronizable {
 
     final completer = Completer<bool>();
     late final StreamSubscription<List<int>> sub;
-    sub = bleManager
-        .subscribe(
+    final timeSyncStream = await bleManager.subscribe(
       deviceId: deviceId,
       serviceId: OpenRingGatt.service,
       characteristicId: OpenRingGatt.rxChar,
-    )
-        .listen(
+    );
+    sub = timeSyncStream.listen(
       (data) {
         if (data.length < 4) {
           return;

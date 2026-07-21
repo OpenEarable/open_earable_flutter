@@ -32,7 +32,7 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
     OpenRingGatt.cmdPPGQ2,
   };
 
-  Stream<Map<String, dynamic>>? _sensorDataStream;
+  Future<Stream<Map<String, dynamic>>>? _sensorDataStream;
   Future<void> _commandQueue = Future<void>.value();
   final _OpenRingDesiredState _desiredState = _OpenRingDesiredState();
   int _applyVersion = 0;
@@ -53,14 +53,17 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
         _sensorValueParser = sensorValueParser;
 
   @override
-  Stream<Map<String, dynamic>> subscribeToSensorData(int sensorId) {
+  Future<Stream<Map<String, dynamic>>> subscribeToSensorData(
+    int sensorId,
+  ) async {
     if (!_bleManager.isConnected(_discoveredDevice.id)) {
       throw Exception("Can't subscribe to sensor data. Earable not connected");
     }
 
     _sensorDataStream ??= _createSensorDataStream();
 
-    return _sensorDataStream!.where((data) {
+    final sensorDataStream = await _sensorDataStream!;
+    return sensorDataStream.where((data) {
       final dynamic cmd = data['cmd'];
       return cmd is int && cmd == sensorId;
     });
@@ -395,9 +398,8 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
     _onInitialStreamingDetected?.call();
   }
 
-  Stream<Map<String, dynamic>> _createSensorDataStream() {
+  Future<Stream<Map<String, dynamic>>> _createSensorDataStream() async {
     late final StreamController<Map<String, dynamic>> streamController;
-    // ignore: cancel_subscriptions
     StreamSubscription<List<int>>? bleSubscription;
 
     final scheduler = _OpenRingPacedScheduler(
@@ -461,56 +463,52 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
     }
 
     streamController = StreamController<Map<String, dynamic>>.broadcast(
-      onListen: () {
-        bleSubscription ??= _bleManager
-            .subscribe(
-          deviceId: _discoveredDevice.id,
-          serviceId: OpenRingGatt.service,
-          characteristicId: OpenRingGatt.rxChar,
-        )
-            .listen(
-          (data) {
-            scheduler.resetIfRequested(
-              _transportTimingResetCounter,
-              const <int>[OpenRingGatt.cmdPPGQ2],
-            );
-
-            final int? rawCmd = data.length > 2 ? data[2] : null;
-            if (rawCmd != null) {
-              scheduler.notePacketQueued(rawCmd);
-            }
-
-            final int arrivalMs = scheduler.nowMonotonicMs;
-            final int queueKey = rawCmd ?? -1;
-            final Future<void> previousQueue =
-                processingQueueByCmd[queueKey] ?? Future<void>.value();
-
-            processingQueueByCmd[queueKey] = previousQueue
-                .then((_) => processPacket(data, arrivalMs, rawCmd))
-                .catchError((error) {
-              logger.e(
-                'Error while parsing OpenRing sensor packet: $error',
-              );
-            });
-          },
-          onError: (error) {
-            logger.e('Error while subscribing to sensor data: $error');
-            if (!streamController.isClosed) {
-              streamController.addError(error);
-            }
-          },
-        );
-      },
       onCancel: () {
         if (!streamController.hasListener) {
-          final subscription = bleSubscription;
-          bleSubscription = null;
+          _sensorDataStream = null;
           processingQueueByCmd.clear();
           scheduler.clear();
+          unawaited(bleSubscription?.cancel());
+          bleSubscription = null;
+        }
+      },
+    );
 
-          if (subscription != null) {
-            unawaited(subscription.cancel());
-          }
+    final dataStream = await _bleManager.subscribe(
+      deviceId: _discoveredDevice.id,
+      serviceId: OpenRingGatt.service,
+      characteristicId: OpenRingGatt.rxChar,
+    );
+
+    bleSubscription = dataStream.listen(
+      (data) {
+        scheduler.resetIfRequested(
+          _transportTimingResetCounter,
+          const <int>[OpenRingGatt.cmdPPGQ2],
+        );
+
+        final int? rawCmd = data.length > 2 ? data[2] : null;
+        if (rawCmd != null) {
+          scheduler.notePacketQueued(rawCmd);
+        }
+
+        final int arrivalMs = scheduler.nowMonotonicMs;
+        final int queueKey = rawCmd ?? -1;
+        final Future<void> previousQueue =
+            processingQueueByCmd[queueKey] ?? Future<void>.value();
+
+        processingQueueByCmd[queueKey] = previousQueue
+            .then((_) => processPacket(data, arrivalMs, rawCmd))
+            .catchError((error) {
+          logger.e(
+            'Error while parsing OpenRing sensor packet: $error',
+          );
+        });
+      },
+      onError: (error) {
+        logger.e('Error while subscribing to sensor data: $error');
+        if (!streamController.isClosed) {
+          streamController.addError(error);
         }
       },
     );
