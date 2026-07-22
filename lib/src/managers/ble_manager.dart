@@ -16,6 +16,7 @@ class BleManager extends BleGattManager {
 
   final Map<String, StreamController<List<int>>> _streamControllers = {};
   final Map<String, Future<void>> _subscriptionSetups = {};
+  final Map<String, Future<void>> _subscriptionTeardowns = {};
 
   /// A stream of discovered devices during scanning.
   StreamController<DiscoveredDevice>? _scanStreamController;
@@ -51,6 +52,7 @@ class BleManager extends BleGattManager {
       logger.d("Closing stream for $key due to device disconnection");
       _streamControllers.remove(key)?.close();
       _subscriptionSetups.remove(key);
+      _subscriptionTeardowns.remove(key);
     }
   }
 
@@ -326,6 +328,24 @@ class BleManager extends BleGattManager {
       deviceId,
       characteristicId,
     );
+    final pendingTeardown = _subscriptionTeardowns[streamIdentifier];
+    if (pendingTeardown != null) {
+      try {
+        await pendingTeardown;
+      } catch (error) {
+        logger.w(
+          "Previous unsubscribe for $streamIdentifier failed before resubscribe: $error",
+        );
+      } finally {
+        if (identical(
+          _subscriptionTeardowns[streamIdentifier],
+          pendingTeardown,
+        )) {
+          _subscriptionTeardowns.remove(streamIdentifier);
+        }
+      }
+    }
+
     StreamController<List<int>>? streamController =
         _streamControllers[streamIdentifier];
     streamController ??= StreamController<List<int>>.broadcast();
@@ -347,15 +367,30 @@ class BleManager extends BleGattManager {
       rethrow;
     }
 
-    streamController.onCancel = () {
+    streamController.onCancel = () async {
       if (_streamControllers.containsKey(streamIdentifier)) {
-        _streamControllers.remove(streamIdentifier)?.close();
+        final canceledController = _streamControllers.remove(streamIdentifier);
         _subscriptionSetups.remove(streamIdentifier);
-        UniversalBle.unsubscribe(
+        if (canceledController != null && !canceledController.isClosed) {
+          unawaited(canceledController.close());
+        }
+
+        final teardown = UniversalBle.unsubscribe(
           deviceId,
           serviceId,
           characteristicId,
         );
+        _subscriptionTeardowns[streamIdentifier] = teardown;
+
+        try {
+          await teardown;
+        } catch (error) {
+          logger.w("Unsubscribe failed for $streamIdentifier: $error");
+        } finally {
+          if (identical(_subscriptionTeardowns[streamIdentifier], teardown)) {
+            _subscriptionTeardowns.remove(streamIdentifier);
+          }
+        }
       }
     };
 
