@@ -3,6 +3,9 @@
 * BREAKING CHANGE: `BleGattManager.subscribe` now returns `Future<Stream<List<int>>>`, so callers must `await` subscription setup before listening to BLE notifications.
 * BREAKING CHANGE: `SensorHandler.subscribeToSensorData` now returns `Future<Stream<Map<String, dynamic>>>`, so callers must `await` sensor notification readiness before listening to sensor data.
 * fixed BLE notification setup races by ensuring subscription futures complete only after the underlying GATT notification subscription is enabled.
+* fixed OpenEarable V2 sensor scheme loading on devices that update the scheme characteristic without sending a notification.
+* improved OpenEarable V2 sensor scheme loading reliability by keeping one notification subscription active while reading schemes and falling back to synchronous reads.
+* fixed race conditions in BLE unsubscribe, duplicate device connection, and stream cancellation handling.
 
 ## 2.3.10
 
