@@ -8,7 +8,8 @@ const String _batteryLevelCharacteristicUuid = "2A19";
 const String _batteryServiceUuid = "180F";
 
 /// Mixin that implements [BatteryLevelStatus] according to the GATT specification.
-mixin BatteryLevelStatusGattReader on BluetoothWearable implements BatteryLevelStatus {
+mixin BatteryLevelStatusGattReader on BluetoothWearable
+    implements BatteryLevelStatus {
   @override
   Future<int> readBatteryPercentage() async {
     List<int> batteryLevelList = await bleManager.read(
@@ -33,24 +34,27 @@ mixin BatteryLevelStatusGattReader on BluetoothWearable implements BatteryLevelS
     StreamController<int> controller = StreamController<int>();
     Timer? batteryPollingTimer;
 
+    Future<void> pollBatteryPercentage() async {
+      try {
+        final batteryPercentage = await readBatteryPercentage();
+        if (!controller.isClosed) {
+          controller.add(batteryPercentage);
+        }
+      } catch (e) {
+        logger.e('Error reading battery percentage: $e');
+      }
+    }
+
     controller.onCancel = () {
       batteryPollingTimer?.cancel();
     };
 
     controller.onListen = () {
       batteryPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-        readBatteryPercentage().then((batteryPercentage) {
-          controller.add(batteryPercentage);
-        }).catchError((e) {
-          logger.e('Error reading battery percentage: $e');
-        });
+        unawaited(pollBatteryPercentage());
       });
 
-      readBatteryPercentage().then((batteryPercentage) {
-        controller.add(batteryPercentage);
-      }).catchError((e) {
-        logger.e('Error reading battery percentage: $e');
-      });
+      unawaited(pollBatteryPercentage());
     };
 
     return controller.stream;

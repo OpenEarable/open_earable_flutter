@@ -294,7 +294,9 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
         final imuAlias = _createImuAliasFromPpg(filtered);
         _removeImuPayload(filtered);
         _emitIfSampleHasSensorPayload(streamController, filtered);
-        streamController.add(imuAlias);
+        if (!streamController.isClosed) {
+          streamController.add(imuAlias);
+        }
         return;
       }
 
@@ -321,7 +323,9 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
     if (!_hasAnySensorPayload(sample)) {
       return;
     }
-    streamController.add(sample);
+    if (!streamController.isClosed) {
+      streamController.add(sample);
+    }
   }
 
   bool _hasImuPayload(Map<String, dynamic> sample) {

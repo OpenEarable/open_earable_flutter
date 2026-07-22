@@ -119,12 +119,14 @@ class _PolarHeartRateSensor extends HeartRateSensor {
               ? (bytes[1] & 0xFF) | ((bytes[2] & 0xFF) << 8)
               : bytes[1] & 0xFF;
 
-          streamController.add(
-            HeartRateSensorValue(
-              heartRateBpm: heartRate,
-              timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
-            ),
-          );
+          if (!streamController.isClosed) {
+            streamController.add(
+              HeartRateSensorValue(
+                heartRateBpm: heartRate,
+                timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
+              ),
+            );
+          }
         });
       } catch (error, stack) {
         if (!streamController.isClosed) {
@@ -189,7 +191,9 @@ class _PolarHeartRateVariabilitySensor extends HeartRateVariabilitySensor {
               rrIntervalsMs.add(_mapRr1024ToRrMs(rrValue));
             }
 
-            streamController.add(rrIntervalsMs);
+            if (!streamController.isClosed) {
+              streamController.add(rrIntervalsMs);
+            }
           }
         });
       } catch (error, stack) {

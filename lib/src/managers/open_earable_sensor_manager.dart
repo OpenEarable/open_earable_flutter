@@ -130,12 +130,16 @@ class OpenEarableSensorHandler extends SensorHandler<OpenEarableSensorConfig> {
               parsedData["EULER"]
                   ["units"] = {"YAW": "rad", "PITCH": "rad", "ROLL": "rad"};
             }
-            streamController.add(parsedData);
+            if (!streamController.isClosed) {
+              streamController.add(parsedData);
+            }
           }
         }
       },
       onError: (error) {
-        streamController.addError(error);
+        if (!streamController.isClosed) {
+          streamController.addError(error);
+        }
       },
     );
 

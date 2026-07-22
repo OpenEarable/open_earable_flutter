@@ -406,16 +406,27 @@ class OpenEarableV1 extends Wearable
       pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
         try {
           int batteryPercentage = await readBatteryPercentage();
-          controller.add(batteryPercentage);
+          if (!controller.isClosed) {
+            controller.add(batteryPercentage);
+          }
         } catch (e) {
+          if (!controller.isClosed) {
+            controller.addError(e);
+          }
+        }
+      });
+
+      readBatteryPercentage().then((batteryPercentage) {
+        if (!controller.isClosed) {
+          controller.add(batteryPercentage);
+        }
+      }).catchError((e) {
+        logger.e('Error reading battery percentage: $e');
+        if (!controller.isClosed) {
           controller.addError(e);
         }
       });
     };
-
-    readBatteryPercentage().then(controller.add).catchError((e) {
-      logger.e('Error reading battery percentage: $e');
-    });
 
     return controller.stream;
   }
@@ -504,7 +515,9 @@ class _OpenEarableSensor extends Sensor<SensorDoubleValue> {
             timestamp: timestamp,
           );
 
-          streamController.add(sensorValue);
+          if (!streamController.isClosed) {
+            streamController.add(sensorValue);
+          }
         });
       } catch (error, stack) {
         if (!streamController.isClosed) {
@@ -542,7 +555,9 @@ class _OpenEarableSensor extends Sensor<SensorDoubleValue> {
             timestamp: timestamp,
           );
 
-          streamController.add(sensorValue);
+          if (!streamController.isClosed) {
+            streamController.add(sensorValue);
+          }
         });
       } catch (error, stack) {
         if (!streamController.isClosed) {

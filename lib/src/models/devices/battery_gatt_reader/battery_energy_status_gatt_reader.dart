@@ -8,7 +8,8 @@ import '../bluetooth_wearable.dart';
 const String _batteryEnergyStatusCharacteristicUuid = "2BF0";
 const String _batteryServiceUuid = "180F";
 
-mixin BatteryEnergyStatusGattReader on BluetoothWearable implements BatteryEnergyStatusService {
+mixin BatteryEnergyStatusGattReader on BluetoothWearable
+    implements BatteryEnergyStatusService {
   @override
   Future<BatteryEnergyStatus> readEnergyStatus() async {
     List<int> energyStatusList = await bleManager.read(
@@ -63,24 +64,27 @@ mixin BatteryEnergyStatusGattReader on BluetoothWearable implements BatteryEnerg
         StreamController<BatteryEnergyStatus>();
     Timer? energyPollingTimer;
 
+    Future<void> pollEnergyStatus() async {
+      try {
+        final energyStatus = await readEnergyStatus();
+        if (!controller.isClosed) {
+          controller.add(energyStatus);
+        }
+      } catch (e) {
+        logger.e('Error reading energy status: $e');
+      }
+    }
+
     controller.onCancel = () {
       energyPollingTimer?.cancel();
     };
 
     controller.onListen = () {
       energyPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-        readEnergyStatus().then((energyStatus) {
-          controller.add(energyStatus);
-        }).catchError((e) {
-          logger.e('Error reading energy status: $e');
-        });
+        unawaited(pollEnergyStatus());
       });
 
-      readEnergyStatus().then((energyStatus) {
-        controller.add(energyStatus);
-      }).catchError((e) {
-        logger.e('Error reading energy status: $e');
-      });
+      unawaited(pollEnergyStatus());
     };
 
     return controller.stream;

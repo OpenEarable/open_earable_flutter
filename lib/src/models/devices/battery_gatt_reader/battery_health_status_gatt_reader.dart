@@ -7,7 +7,8 @@ import '../bluetooth_wearable.dart';
 const String _batteryHealthStatusCharacteristicUuid = "2BEA";
 const String _batteryServiceUuid = "180F";
 
-mixin BatteryHealthStatusGattReader on BluetoothWearable implements BatteryHealthStatusService {
+mixin BatteryHealthStatusGattReader on BluetoothWearable
+    implements BatteryHealthStatusService {
   @override
   Future<BatteryHealthStatus> readHealthStatus() async {
     List<int> healthStatusList = await bleManager.read(
@@ -45,24 +46,27 @@ mixin BatteryHealthStatusGattReader on BluetoothWearable implements BatteryHealt
         StreamController<BatteryHealthStatus>();
     Timer? healthPollingTimer;
 
+    Future<void> pollHealthStatus() async {
+      try {
+        final healthStatus = await readHealthStatus();
+        if (!controller.isClosed) {
+          controller.add(healthStatus);
+        }
+      } catch (e) {
+        logger.e('Error reading health status: $e');
+      }
+    }
+
     controller.onCancel = () {
       healthPollingTimer?.cancel();
     };
 
     controller.onListen = () {
       healthPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-        readHealthStatus().then((healthStatus) {
-          controller.add(healthStatus);
-        }).catchError((e) {
-          logger.e('Error reading health status: $e');
-        });
+        unawaited(pollHealthStatus());
       });
 
-      readHealthStatus().then((healthStatus) {
-        controller.add(healthStatus);
-      }).catchError((e) {
-        logger.e('Error reading health status: $e');
-      });
+      unawaited(pollHealthStatus());
     };
 
     return controller.stream;

@@ -131,12 +131,16 @@ class CosinussOne extends Wearable
           return;
         }
         subscription = batteryStream.listen((data) {
-          streamController.add(data[0]);
+          if (!streamController.isClosed) {
+            streamController.add(data[0]);
+          }
         });
 
         final percentage = await readBatteryPercentage();
-        streamController.add(percentage);
-        await streamController.close();
+        if (!streamController.isClosed) {
+          streamController.add(percentage);
+          await streamController.close();
+        }
       } catch (error, stack) {
         if (!streamController.isClosed) {
           streamController.addError(error, stack);
@@ -231,12 +235,14 @@ class _CosinussOneSensor extends Sensor<SensorDoubleValue> {
           int accY = bytes[16];
           int accZ = bytes[18];
 
-          streamController.add(
-            SensorDoubleValue(
-              values: [accX.toDouble(), accY.toDouble(), accZ.toDouble()],
-              timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
-            ),
-          );
+          if (!streamController.isClosed) {
+            streamController.add(
+              SensorDoubleValue(
+                values: [accX.toDouble(), accY.toDouble(), accZ.toDouble()],
+                timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
+              ),
+            );
+          }
         });
 
         await _bleManager.write(
@@ -299,16 +305,18 @@ class _CosinussOneSensor extends Sensor<SensorDoubleValue> {
               bytes[11] <<
                   32; // ambient light sensor (e.g., if sensor is not placed correctly)
 
-          streamController.add(
-            SensorDoubleValue(
-              values: [
-                ppgRed.toDouble(),
-                ppgGreen.toDouble(),
-                ppgGreenAmbient.toDouble(),
-              ],
-              timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
-            ),
-          );
+          if (!streamController.isClosed) {
+            streamController.add(
+              SensorDoubleValue(
+                values: [
+                  ppgRed.toDouble(),
+                  ppgGreen.toDouble(),
+                  ppgGreenAmbient.toDouble(),
+                ],
+                timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
+              ),
+            );
+          }
         });
 
         await _bleManager.write(
@@ -361,12 +369,14 @@ class _CosinussOneSensor extends Sensor<SensorDoubleValue> {
                 (5.0 / 9.0); // convert Fahrenheit to Celsius
           }
 
-          streamController.add(
-            SensorDoubleValue(
-              values: [temperature],
-              timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
-            ),
-          );
+          if (!streamController.isClosed) {
+            streamController.add(
+              SensorDoubleValue(
+                values: [temperature],
+                timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
+              ),
+            );
+          }
         });
       } catch (error, stack) {
         if (!streamController.isClosed) {
@@ -437,12 +447,14 @@ class _CosinussOneHeartRateSensor extends HeartRateSensor {
             bpm = (((bpm >> 8) & 0xFF) | ((bpm << 8) & 0xFF00));
           }
 
-          streamController.add(
-            HeartRateSensorValue(
-              heartRateBpm: bpm,
-              timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
-            ),
-          );
+          if (!streamController.isClosed) {
+            streamController.add(
+              HeartRateSensorValue(
+                heartRateBpm: bpm,
+                timestamp: DateTime.now().millisecondsSinceEpoch - startTime,
+              ),
+            );
+          }
         });
       } catch (error, stack) {
         if (!streamController.isClosed) {
