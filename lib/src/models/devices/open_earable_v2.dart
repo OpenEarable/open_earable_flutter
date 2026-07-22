@@ -128,11 +128,15 @@ class OpenEarableV2 extends BluetoothWearable
         }
         _sensorConfigSubscription = configStream.listen(
           (data) {
-            controller.add(_parseConfigMap(data));
+            if (!controller.isClosed) {
+              controller.add(_parseConfigMap(data));
+            }
           },
           onError: (error) {
             logger.e('Error in sensor configuration stream: $error');
-            controller.addError(error);
+            if (!controller.isClosed) {
+              controller.addError(error);
+            }
           },
         );
       } catch (error, stack) {
@@ -142,19 +146,21 @@ class OpenEarableV2 extends BluetoothWearable
         }
       }
 
-      // Immediately read the current sensor configuration
-      bleManager
-          .read(
-        deviceId: deviceId,
-        serviceId: sensorServiceUuid,
-        characteristicId: sensorConfigStateCharacteristicUuid,
-      )
-          .then((data) {
-        controller.add(_parseConfigMap(data));
-      }).catchError((error) {
+      try {
+        final data = await bleManager.read(
+          deviceId: deviceId,
+          serviceId: sensorServiceUuid,
+          characteristicId: sensorConfigStateCharacteristicUuid,
+        );
+        if (!controller.isClosed) {
+          controller.add(_parseConfigMap(data));
+        }
+      } catch (error, stack) {
         logger.e('Error reading initial sensor configuration: $error');
-        controller.addError(error);
-      });
+        if (!controller.isClosed) {
+          controller.addError(error, stack);
+        }
+      }
     };
     return controller.stream;
   }
@@ -250,7 +256,7 @@ class OpenEarableV2 extends BluetoothWearable
         }
         _buttonSubscription = buttonStream.listen(
           (data) {
-            if (data.isNotEmpty) {
+            if (!controller.isClosed && data.isNotEmpty) {
               int buttonState = data[0];
               if (buttonState == 0) {
                 controller.add(ButtonEvent.released);
@@ -261,7 +267,9 @@ class OpenEarableV2 extends BluetoothWearable
           },
           onError: (error) {
             logger.e('Error in button events stream: $error');
-            controller.addError(error);
+            if (!controller.isClosed) {
+              controller.addError(error);
+            }
           },
         );
       } catch (error, stack) {
@@ -271,15 +279,13 @@ class OpenEarableV2 extends BluetoothWearable
         }
       }
 
-      // Immediately read current button state
-      bleManager
-          .read(
-        deviceId: deviceId,
-        serviceId: _buttonServiceUuid,
-        characteristicId: _buttonCharacteristicUuid,
-      )
-          .then((data) {
-        if (data.isNotEmpty) {
+      try {
+        final data = await bleManager.read(
+          deviceId: deviceId,
+          serviceId: _buttonServiceUuid,
+          characteristicId: _buttonCharacteristicUuid,
+        );
+        if (!controller.isClosed && data.isNotEmpty) {
           int buttonState = data[0];
           if (buttonState == 0) {
             controller.add(ButtonEvent.released);
@@ -287,10 +293,12 @@ class OpenEarableV2 extends BluetoothWearable
             controller.add(ButtonEvent.pressed);
           }
         }
-      }).catchError((error) {
+      } catch (error, stack) {
         logger.e('Error reading initial button state: $error');
-        controller.addError(error);
-      });
+        if (!controller.isClosed) {
+          controller.addError(error, stack);
+        }
+      }
     };
 
     return controller.stream;

@@ -50,13 +50,17 @@ class V2SensorHandler extends SensorHandler<V2SensorConfig> {
         if (data.isNotEmpty && data[0] == sensorId) {
           List<Map<String, dynamic>> parsedData = await _parseData(data);
           for (var d in parsedData) {
-            streamController.add(d);
+            if (!streamController.isClosed) {
+              streamController.add(d);
+            }
           }
         }
       },
       onError: (error) {
         logger.e("Error while subscribing to sensor data: $error");
-        streamController.addError(error);
+        if (!streamController.isClosed) {
+          streamController.addError(error);
+        }
       },
     );
 

@@ -7,7 +7,8 @@ import '../bluetooth_wearable.dart';
 const String _batteryLevelStatusCharacteristicUuid = "2BED";
 const String _batteryServiceUuid = "180F";
 
-mixin BatteryLevelStatusServiceGattReader on BluetoothWearable implements BatteryLevelStatusService {
+mixin BatteryLevelStatusServiceGattReader on BluetoothWearable
+    implements BatteryLevelStatusService {
   @override
   Future<BatteryPowerStatus> readPowerStatus() async {
     List<int> powerStateList = await bleManager.read(
@@ -75,24 +76,27 @@ mixin BatteryLevelStatusServiceGattReader on BluetoothWearable implements Batter
         StreamController<BatteryPowerStatus>();
     Timer? powerPollingTimer;
 
+    Future<void> pollPowerStatus() async {
+      try {
+        final powerStatus = await readPowerStatus();
+        if (!controller.isClosed) {
+          controller.add(powerStatus);
+        }
+      } catch (e) {
+        logger.e('Error reading power status: $e');
+      }
+    }
+
     controller.onCancel = () {
       powerPollingTimer?.cancel();
     };
 
     controller.onListen = () {
       powerPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-        readPowerStatus().then((powerStatus) {
-          controller.add(powerStatus);
-        }).catchError((e) {
-          logger.e('Error reading power status: $e');
-        });
+        unawaited(pollPowerStatus());
       });
 
-      readPowerStatus().then((powerStatus) {
-        controller.add(powerStatus);
-      }).catchError((e) {
-        logger.e('Error reading power status: $e');
-      });
+      unawaited(pollPowerStatus());
     };
 
     return controller.stream;

@@ -380,7 +380,9 @@ class _OpenEarableSensorV2 extends Sensor<SensorDoubleValue> {
             timestamp: timestamp,
           );
 
-          streamController.add(sensorValue);
+          if (!streamController.isClosed) {
+            streamController.add(sensorValue);
+          }
         });
       } catch (error, stack) {
         if (!streamController.isClosed) {

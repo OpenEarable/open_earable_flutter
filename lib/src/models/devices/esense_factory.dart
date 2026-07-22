@@ -163,7 +163,9 @@ class EsenseSensor extends Sensor<SensorDoubleValue> {
               timestamp: timestamp,
             );
 
-            streamController.add(sensorValue);
+            if (!streamController.isClosed) {
+              streamController.add(sensorValue);
+            }
           },
         );
       } catch (error, stack) {
