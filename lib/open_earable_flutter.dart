@@ -105,6 +105,7 @@ class WearableManager {
   late final StreamController<DiscoveredDevice> _connectingStreamController;
 
   final List<String> _connectedIds = [];
+  final Map<String, Future<Wearable>> _connectionFuturesByDeviceId = {};
 
   List<String> _autoConnectDeviceIds = [];
   StreamSubscription<DiscoveredDevice>? _autoconnectScanSubscription;
@@ -234,6 +235,32 @@ class WearableManager {
       logger.w('Device ${device.id} is already connected');
       throw AlreadyConnectedException();
     }
+
+    final pendingConnection = _connectionFuturesByDeviceId[device.id];
+    if (pendingConnection != null) {
+      logger.d('Reusing pending wearable connection for ${device.id}');
+      return pendingConnection;
+    }
+
+    final connectionFuture = _connectToDevice(device, options: options);
+    _connectionFuturesByDeviceId[device.id] = connectionFuture;
+
+    try {
+      return await connectionFuture;
+    } finally {
+      if (identical(
+        _connectionFuturesByDeviceId[device.id],
+        connectionFuture,
+      )) {
+        _connectionFuturesByDeviceId.remove(device.id);
+      }
+    }
+  }
+
+  Future<Wearable> _connectToDevice(
+    DiscoveredDevice device, {
+    required Set<ConnectionOption> options,
+  }) async {
     _connectingStreamController.add(device);
 
     WearableDisconnectNotifier disconnectNotifier =

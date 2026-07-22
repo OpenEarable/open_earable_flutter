@@ -26,7 +26,9 @@ class BleManager extends BleGattManager {
   String _getCharacteristicKey(String deviceId, String characteristicId) =>
       "$deviceId||$characteristicId";
 
-  final Map<String, Completer> _connectionCompleters = {};
+  final Map<String, Completer<(bool, List<BleService>)>> _connectionCompleters =
+      {};
+  final Map<String, Future<(bool, List<BleService>)>> _connectionFutures = {};
   final Map<String, VoidCallback> _connectCallbacks = {};
   final Map<String, VoidCallback> _disconnectCallbacks = {};
 
@@ -218,38 +220,58 @@ class BleManager extends BleGattManager {
     DiscoveredDevice device,
     VoidCallback onDisconnect,
   ) {
+    final pendingConnection = _connectionFutures[device.id];
+    if (pendingConnection != null) {
+      logger.d("Reusing pending connection for ${device.id}");
+      return pendingConnection;
+    }
+
     // Multi-device setup: only reset stale streams for the device that is
     // being connected, not globally for all devices.
     _closeAndRemoveStreamsForDevice(device.id);
 
-    Completer<(bool, List<BleService>)> completer =
-        Completer<(bool, List<BleService>)>();
+    final completer = Completer<(bool, List<BleService>)>();
     _connectionCompleters[device.id] = completer;
+    final connectionFuture = completer.future.whenComplete(() {
+      _connectionFutures.remove(device.id);
+    });
+    _connectionFutures[device.id] = connectionFuture;
 
     _connectCallbacks[device.id] = () async {
-      if (!kIsWeb && !Platform.isLinux) {
-        _mtu = await UniversalBle.requestMtu(device.id, _desiredMtu);
+      try {
+        if (!kIsWeb && !Platform.isLinux) {
+          _mtu = await UniversalBle.requestMtu(device.id, _desiredMtu);
+        }
+
+        final services = await UniversalBle.discoverServices(device.id);
+
+        _connectionCompleters[device.id]?.complete((true, services));
+      } catch (error, stack) {
+        _connectionCompleters[device.id]?.completeError(error, stack);
+      } finally {
+        _connectionCompleters.remove(device.id);
+        _connectCallbacks.remove(device.id);
       }
-      bool connectionResult = false;
-      List<BleService> services = [];
-
-      services = await UniversalBle.discoverServices(device.id);
-      connectionResult = true;
-
-      _connectionCompleters[device.id]?.complete((connectionResult, services));
-      _connectionCompleters.remove(device.id);
     };
 
     _disconnectCallbacks[device.id] = () {
       _connectionCompleters[device.id]?.complete((false, <BleService>[]));
       _connectionCompleters.remove(device.id);
+      _connectCallbacks.remove(device.id);
+      _connectionFutures.remove(device.id);
 
       onDisconnect();
     };
 
-    UniversalBle.connect(device.id);
+    try {
+      UniversalBle.connect(device.id);
+    } catch (error, stack) {
+      if (!completer.isCompleted) {
+        completer.completeError(error, stack);
+      }
+    }
 
-    return completer.future;
+    return connectionFuture;
   }
 
   /// Checks if the connected device has a specific service.
