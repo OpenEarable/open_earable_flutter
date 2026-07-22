@@ -60,13 +60,34 @@ class OpenRingSensorHandler extends SensorHandler<OpenRingSensorConfig> {
       throw Exception("Can't subscribe to sensor data. Earable not connected");
     }
 
-    _sensorDataStream ??= _createSensorDataStream();
-
-    final sensorDataStream = await _sensorDataStream!;
+    final sensorDataStream = await _getSensorDataStream();
     return sensorDataStream.where((data) {
       final dynamic cmd = data['cmd'];
       return cmd is int && cmd == sensorId;
     });
+  }
+
+  /// Returns the shared OpenRing sensor data stream.
+  ///
+  /// If the underlying BLE subscription setup fails, the cached future is
+  /// cleared so a later call can retry instead of reusing a failed future.
+  Future<Stream<Map<String, dynamic>>> _getSensorDataStream() async {
+    final existingStream = _sensorDataStream;
+    if (existingStream != null) {
+      return existingStream;
+    }
+
+    final streamFuture = _createSensorDataStream();
+    _sensorDataStream = streamFuture;
+
+    try {
+      return await streamFuture;
+    } catch (_) {
+      if (identical(_sensorDataStream, streamFuture)) {
+        _sensorDataStream = null;
+      }
+      rethrow;
+    }
   }
 
   @override
