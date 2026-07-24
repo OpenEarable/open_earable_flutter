@@ -1,5 +1,7 @@
 ## Unreleased
 
+* added audio response capability support for OpenEarable V2 devices.
+* added audio response upload progress reporting.
 * BREAKING CHANGE: `BleGattManager.subscribe` now returns `Future<Stream<List<int>>>`, so callers must `await` subscription setup before listening to BLE notifications.
 * BREAKING CHANGE: `SensorHandler.subscribeToSensorData` now returns `Future<Stream<Map<String, dynamic>>>`, so callers must `await` sensor notification readiness before listening to sensor data.
 * fixed BLE notification setup races by ensuring subscription futures complete only after the underlying GATT notification subscription is enabled.
