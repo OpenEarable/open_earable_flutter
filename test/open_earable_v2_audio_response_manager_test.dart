@@ -18,6 +18,7 @@ void main() {
       );
       const samples = [0, 1000, -1000, 32767, -32768];
       var uploadedSamples = 0;
+      final progress = <AudioResponseUploadProgress>[];
 
       bleManager.onWrite = (write) {
         if (write.characteristicId ==
@@ -68,7 +69,26 @@ void main() {
         samples: samples,
         samplingRate: 16000,
         maximumSamplesPerChunk: 2,
+        onProgress: progress.add,
       );
+
+      expect(
+        progress.map((update) => update.phase),
+        [
+          AudioResponseUploadPhase.starting,
+          AudioResponseUploadPhase.uploading,
+          AudioResponseUploadPhase.uploading,
+          AudioResponseUploadPhase.uploading,
+          AudioResponseUploadPhase.uploading,
+          AudioResponseUploadPhase.committing,
+          AudioResponseUploadPhase.completed,
+        ],
+      );
+      expect(
+        progress.map((update) => update.acknowledgedSamples),
+        [0, 0, 2, 4, 5, 5, 5],
+      );
+      expect(progress.last.fraction, 1);
 
       final controls = bleManager.writes
           .where(

@@ -32,6 +32,7 @@ class OpenEarableV2AudioResponseManager implements AudioResponseManager {
     required List<int> samples,
     required int samplingRate,
     int maximumSamplesPerChunk = 118,
+    AudioResponseUploadProgressCallback? onProgress,
   }) {
     return _runExclusive(() async {
       _validateTransferParameters(
@@ -50,8 +51,34 @@ class OpenEarableV2AudioResponseManager implements AudioResponseManager {
         ),
       );
       var committed = false;
+      var lastAcknowledgedSamples = 0;
+
+      void reportProgress(
+        AudioResponseUploadPhase phase,
+        int acknowledgedSamples,
+      ) {
+        onProgress?.call(
+          AudioResponseUploadProgress(
+            phase: phase,
+            acknowledgedSamples: acknowledgedSamples,
+            totalSamples: samples.length,
+          ),
+        );
+      }
+
+      void reportAcknowledgedProgress(AudioResponseTransferStatus status) {
+        if (status.next_sample_offset <= lastAcknowledgedSamples) {
+          return;
+        }
+        lastAcknowledgedSamples = status.next_sample_offset;
+        reportProgress(
+          AudioResponseUploadPhase.uploading,
+          lastAcknowledgedSamples,
+        );
+      }
 
       try {
+        reportProgress(AudioResponseUploadPhase.starting, 0);
         var statusFuture = _nextTransferStatus(statusIterator, transferId);
         await _write(
           AudioResponseBleUuids.transferControlCharacteristicUuid,
@@ -73,12 +100,20 @@ class OpenEarableV2AudioResponseManager implements AudioResponseManager {
             '${status.next_sample_offset}',
           );
         }
+        reportProgress(AudioResponseUploadPhase.uploading, 0);
 
         var sentOffset = status.next_sample_offset;
         while (sentOffset < samples.length) {
           if (status.credits == 0) {
             status = await _nextTransferStatus(statusIterator, transferId);
             _requireStatus(status, expectedStatus: 0);
+            if (status.next_sample_offset > sentOffset) {
+              throw StateError(
+                'Device acknowledged unsent sample offset '
+                '${status.next_sample_offset}',
+              );
+            }
+            reportAcknowledgedProgress(status);
             continue;
           }
 
@@ -105,19 +140,26 @@ class OpenEarableV2AudioResponseManager implements AudioResponseManager {
           }
 
           status = await statusFuture;
-          _requireStatus(status, expectedStatus: 0);
-          while (status.next_sample_offset < sentOffset) {
-            status = await _nextTransferStatus(statusIterator, transferId);
+          while (true) {
             _requireStatus(status, expectedStatus: 0);
-          }
-          if (status.next_sample_offset > sentOffset) {
-            throw StateError(
-              'Device acknowledged unsent sample offset '
-              '${status.next_sample_offset}',
-            );
+            if (status.next_sample_offset > sentOffset) {
+              throw StateError(
+                'Device acknowledged unsent sample offset '
+                '${status.next_sample_offset}',
+              );
+            }
+            reportAcknowledgedProgress(status);
+            if (status.next_sample_offset == sentOffset) {
+              break;
+            }
+            status = await _nextTransferStatus(statusIterator, transferId);
           }
         }
 
+        reportProgress(
+          AudioResponseUploadPhase.committing,
+          lastAcknowledgedSamples,
+        );
         statusFuture = _nextTransferStatus(statusIterator, transferId);
         await _write(
           AudioResponseBleUuids.transferControlCharacteristicUuid,
@@ -127,6 +169,10 @@ class OpenEarableV2AudioResponseManager implements AudioResponseManager {
         );
         _requireStatus(await statusFuture, expectedStatus: 1);
         committed = true;
+        reportProgress(
+          AudioResponseUploadPhase.completed,
+          lastAcknowledgedSamples,
+        );
       } finally {
         if (!committed) {
           await _abortTransfer(transferId);
