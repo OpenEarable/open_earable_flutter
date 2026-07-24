@@ -279,10 +279,10 @@ class V2SensorSchemeReader extends SensorSchemeReader {
 
   /// Normalizes known firmware quirks in returned sensor schemes.
   ///
-  /// Some responses omit the requested id and report `0`. In that case the
-  /// requested id is applied so callers can cache and match the scheme
-  /// correctly. Mismatched non-zero ids are logged, or rejected when
-  /// [throwOnMismatch] is enabled for stale-read-sensitive paths.
+  /// Current firmware is expected to always return the requested sensor id.
+  /// The `sensorId == 0` handling is kept as a defensive compatibility fallback
+  /// for older firmware variants. Mismatched non-zero ids are logged, or
+  /// rejected when [throwOnMismatch] is enabled for stale-read-sensitive paths.
   SensorScheme _normalizeRequestedSensorScheme({
     required int requestedSensorId,
     required SensorScheme scheme,
