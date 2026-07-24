@@ -68,7 +68,7 @@ class OpenEarableSensorHandler extends SensorHandler<OpenEarableSensorConfig> {
     int sensorId,
   ) async {
     if (!_bleManager.isConnected(deviceId)) {
-      Exception("Can't subscribe to sensor data. Earable not connected");
+      throw Exception("Can't subscribe to sensor data. Earable not connected");
     }
     StreamController<Map<String, dynamic>> streamController =
         StreamController();
