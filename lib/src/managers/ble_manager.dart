@@ -266,6 +266,10 @@ class BleManager extends BleGattManager {
     try {
       UniversalBle.connect(device.id);
     } catch (error, stack) {
+      _connectCallbacks.remove(device.id);
+      _disconnectCallbacks.remove(device.id);
+      _connectionCompleters.remove(device.id);
+      _connectionFutures.remove(device.id);
       if (!completer.isCompleted) {
         completer.completeError(error, stack);
       }
