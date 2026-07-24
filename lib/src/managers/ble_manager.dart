@@ -328,6 +328,7 @@ class BleManager extends BleGattManager {
     required String serviceId,
     required String characteristicId,
     required List<int> byteData,
+    bool withoutResponse = false,
   }) async {
     if (!isConnected(deviceId)) {
       throw Exception("Write failed because no Earable is connected");
@@ -337,6 +338,7 @@ class BleManager extends BleGattManager {
       serviceId,
       characteristicId,
       Uint8List.fromList(byteData),
+      withoutResponse: withoutResponse,
     );
   }
 

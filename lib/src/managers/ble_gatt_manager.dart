@@ -16,11 +16,15 @@ abstract class BleGattManager {
   });
 
   /// Writes byte data to a specific characteristic of a device.
+  ///
+  /// Set [withoutResponse] when the characteristic only supports writes without
+  /// response or when an acknowledged write is not required.
   Future<void> write({
     required String deviceId,
     required String serviceId,
     required String characteristicId,
     required List<int> byteData,
+    bool withoutResponse = false,
   });
 
   /// Subscribes to a specific characteristic of the connected device.
