@@ -458,12 +458,12 @@ class OpenEarableV2 extends BluetoothWearable
   // MARK: MicrophoneManager
 
   @override
-  void setMicrophone(OpenEarableV2Mic microphone) {
+  Future<void> setMicrophone(OpenEarableV2Mic microphone) {
     if (!availableMicrophones.contains(microphone)) {
       throw ArgumentError('Microphone not available: ${microphone.key}');
     }
 
-    bleManager.write(
+    return bleManager.write(
       deviceId: deviceId,
       serviceId: _audioConfigServiceUuid,
       characteristicId: _micSelectCharacteristicUuid,
@@ -506,8 +506,8 @@ class OpenEarableV2 extends BluetoothWearable
     }
 
     return MicrophoneGain(
-      leftRegister: gainBytes[0],
-      rightRegister: gainBytes[1],
+      externalRegister: gainBytes[0],
+      internalRegister: gainBytes[1],
     );
   }
 
@@ -517,7 +517,7 @@ class OpenEarableV2 extends BluetoothWearable
       deviceId: deviceId,
       serviceId: _audioConfigServiceUuid,
       characteristicId: _dmicGainCharacteristicUuid,
-      byteData: [gain.leftRegister, gain.rightRegister],
+      byteData: [gain.externalRegister, gain.internalRegister],
     );
   }
 

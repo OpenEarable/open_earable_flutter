@@ -5,7 +5,8 @@ abstract class MicrophoneManager<MC extends Microphone> {
     required this.availableMicrophones,
   });
 
-  void setMicrophone(MC microphone);
+  Future<void> setMicrophone(MC microphone);
+
   Future<MC> getMicrophone();
 }
 
