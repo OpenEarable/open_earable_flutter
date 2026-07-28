@@ -396,7 +396,14 @@ class BleManager extends BleGattManager {
     }
 
     streamController.onCancel = () async {
-      if (_streamControllers.containsKey(streamIdentifier)) {
+      // A canceled controller may finish closing after a replacement
+      // subscription has already installed a new controller for the same
+      // characteristic. Only the controller that still owns the map entry may
+      // tear down the native notification subscription.
+      if (identical(
+        _streamControllers[streamIdentifier],
+        streamController,
+      )) {
         final canceledController = _streamControllers.remove(streamIdentifier);
         _subscriptionSetups.remove(streamIdentifier);
         if (canceledController != null && !canceledController.isClosed) {
