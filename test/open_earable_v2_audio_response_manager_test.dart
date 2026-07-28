@@ -176,6 +176,72 @@ void main() {
       expect(result.response, [10, 20]);
     });
 
+    test('queues an operation requested while another is finishing', () async {
+      final bleManager = _FakeBleGattManager();
+      final manager = OpenEarableV2AudioResponseManager(
+        bleManager: bleManager,
+        deviceId: 'device',
+      );
+      final firstWrite = Completer<void>();
+      final configWrites = <int>[];
+
+      bleManager.onWrite = (write) {
+        if (write.characteristicId !=
+            AudioResponseBleUuids.configCharacteristicUuid) {
+          return;
+        }
+        final config = AudioResponseConfig.fromBytes(write.bytes);
+        configWrites.add(config.id);
+        if (config.id == 1) {
+          firstWrite.complete();
+          return;
+        }
+        bleManager.emitResult(
+          AudioResponseResult(
+            id: config.id,
+            points: 1,
+            frequencies: [100],
+            response: [config.id],
+          ),
+        );
+      };
+
+      final firstResult = manager.measureAudioResponse(
+        AudioResponseConfig(
+          id: 1,
+          transfer_id: 42,
+          volume: 0.5,
+          points: 1,
+          frequencies: [100],
+        ),
+      );
+      await firstWrite.future;
+      final secondResult = manager.measureAudioResponse(
+        AudioResponseConfig(
+          id: 2,
+          transfer_id: 42,
+          volume: 0.5,
+          points: 1,
+          frequencies: [100],
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(configWrites, [1]);
+      bleManager.emitResult(
+        AudioResponseResult(
+          id: 1,
+          points: 1,
+          frequencies: [100],
+          response: [1],
+        ),
+      );
+
+      expect((await firstResult).id, 1);
+      expect((await secondResult).id, 2);
+      expect(configWrites, [1, 2]);
+    });
+
     test('allows device default measurement points', () async {
       final bleManager = _FakeBleGattManager();
       final manager = OpenEarableV2AudioResponseManager(
@@ -382,6 +448,53 @@ void main() {
           ),
         ),
       );
+
+      final controls = bleManager.writes
+          .where(
+            (write) =>
+                write.characteristicId ==
+                AudioResponseBleUuids.transferControlCharacteristicUuid,
+          )
+          .map((write) => AudioResponseTransferControl.fromBytes(write.bytes));
+      expect(controls.map(_controlType), [0, 2]);
+    });
+
+    test('does not leak a pending status error when a write fails', () async {
+      final bleManager = _FakeBleGattManager();
+      final manager = OpenEarableV2AudioResponseManager(
+        bleManager: bleManager,
+        deviceId: 'device',
+      );
+      var failStartWrite = true;
+
+      bleManager.onWrite = (write) {
+        if (!failStartWrite ||
+            write.characteristicId !=
+                AudioResponseBleUuids.transferControlCharacteristicUuid) {
+          return;
+        }
+        final control = AudioResponseTransferControl.fromBytes(write.bytes);
+        if (_controlType(control) == 0) {
+          failStartWrite = false;
+          throw StateError('start write failed');
+        }
+      };
+
+      await expectLater(
+        manager.uploadAudioBuffer(
+          transferId: 42,
+          samples: const [0],
+          samplingRate: 16000,
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            'start write failed',
+          ),
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
 
       final controls = bleManager.writes
           .where(
