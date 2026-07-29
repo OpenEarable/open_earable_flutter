@@ -506,8 +506,8 @@ class OpenEarableV2 extends BluetoothWearable
     }
 
     return MicrophoneGain(
-      externalRegister: gainBytes[0],
-      internalRegister: gainBytes[1],
+      outerRegister: gainBytes[0],
+      innerRegister: gainBytes[1],
     );
   }
 
@@ -517,7 +517,7 @@ class OpenEarableV2 extends BluetoothWearable
       deviceId: deviceId,
       serviceId: _audioConfigServiceUuid,
       characteristicId: _dmicGainCharacteristicUuid,
-      byteData: [gain.externalRegister, gain.internalRegister],
+      byteData: [gain.outerRegister, gain.innerRegister],
     );
   }
 

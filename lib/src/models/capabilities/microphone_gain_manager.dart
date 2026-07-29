@@ -14,35 +14,35 @@ class MicrophoneGain {
   static const double maxGainDb = 24.0;
   static const double minGainDb = -71.25;
 
-  final int externalRegister;
-  final int internalRegister;
+  final int outerRegister;
+  final int innerRegister;
 
   const MicrophoneGain({
-    required this.externalRegister,
-    required this.internalRegister,
-  })  : assert(externalRegister >= 0 && externalRegister <= muteRegister),
-        assert(internalRegister >= 0 && internalRegister <= muteRegister);
+    required this.outerRegister,
+    required this.innerRegister,
+  })  : assert(outerRegister >= 0 && outerRegister <= muteRegister),
+        assert(innerRegister >= 0 && innerRegister <= muteRegister);
 
   const MicrophoneGain.stereo(int register)
-      : this(externalRegister: register, internalRegister: register);
+      : this(outerRegister: register, innerRegister: register);
 
   const MicrophoneGain.muted()
       : this.stereo(muteRegister);
 
   bool get isMuted =>
-      externalRegister == muteRegister && internalRegister == muteRegister;
+      outerRegister == muteRegister && innerRegister == muteRegister;
 
-  double? get externalDb => registerToDb(externalRegister);
+  double? get outerDb => registerToDb(outerRegister);
 
-  double? get internalDb => registerToDb(internalRegister);
+  double? get innerDb => registerToDb(innerRegister);
 
   MicrophoneGain copyWith({
-    int? externalRegister,
-    int? internalRegister,
+    int? outerRegister,
+    int? innerRegister,
   }) {
     return MicrophoneGain(
-      externalRegister: externalRegister ?? this.externalRegister,
-      internalRegister: internalRegister ?? this.internalRegister,
+      outerRegister: outerRegister ?? this.outerRegister,
+      innerRegister: innerRegister ?? this.innerRegister,
     );
   }
 
