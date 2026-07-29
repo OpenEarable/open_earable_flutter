@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter_archive/flutter_archive.dart';
 import 'package:mcumgr_flutter/models/firmware_upgrade_mode.dart';
-import 'package:mcumgr_flutter/models/image_upload_alignment.dart';
 import '../model/firmware_update_request.dart';
 import '../model/manifest.dart';
 
