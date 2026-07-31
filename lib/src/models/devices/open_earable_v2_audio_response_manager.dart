@@ -24,7 +24,7 @@ class OpenEarableV2AudioResponseManager implements AudioResponseManager {
   /// Maximum time to wait for each protocol notification.
   final Duration notificationTimeout;
 
-  bool _operationInProgress = false;
+  Future<void> _operationQueue = Future<void>.value();
 
   @override
   Future<void> uploadAudioBuffer({
@@ -79,7 +79,9 @@ class OpenEarableV2AudioResponseManager implements AudioResponseManager {
 
       try {
         reportProgress(AudioResponseUploadPhase.starting, 0);
-        var statusFuture = _nextTransferStatus(statusIterator, transferId);
+        var statusFuture = _guardPendingFuture(
+          _nextTransferStatus(statusIterator, transferId),
+        );
         await _write(
           AudioResponseBleUuids.transferControlCharacteristicUuid,
           AudioResponseTransferControl.start(
@@ -117,7 +119,9 @@ class OpenEarableV2AudioResponseManager implements AudioResponseManager {
             continue;
           }
 
-          statusFuture = _nextTransferStatus(statusIterator, transferId);
+          statusFuture = _guardPendingFuture(
+            _nextTransferStatus(statusIterator, transferId),
+          );
           for (var credit = 0;
               credit < status.credits && sentOffset < samples.length;
               credit++) {
@@ -160,7 +164,9 @@ class OpenEarableV2AudioResponseManager implements AudioResponseManager {
           AudioResponseUploadPhase.committing,
           lastAcknowledgedSamples,
         );
-        statusFuture = _nextTransferStatus(statusIterator, transferId);
+        statusFuture = _guardPendingFuture(
+          _nextTransferStatus(statusIterator, transferId),
+        );
         await _write(
           AudioResponseBleUuids.transferControlCharacteristicUuid,
           AudioResponseTransferControl.commit(
@@ -196,7 +202,9 @@ class OpenEarableV2AudioResponseManager implements AudioResponseManager {
       );
 
       try {
-        final resultFuture = _nextResult(resultIterator, config.id);
+        final resultFuture = _guardPendingFuture(
+          _nextResult(resultIterator, config.id),
+        );
         await _write(
           AudioResponseBleUuids.configCharacteristicUuid,
           config.toBytes(),
@@ -210,17 +218,24 @@ class OpenEarableV2AudioResponseManager implements AudioResponseManager {
     });
   }
 
-  Future<T> _runExclusive<T>(Future<T> Function() operation) async {
-    if (_operationInProgress) {
-      throw StateError('An audio response operation is already in progress');
-    }
+  Future<T> _runExclusive<T>(Future<T> Function() operation) {
+    final result = Completer<T>();
+    _operationQueue = _operationQueue.then((_) async {
+      try {
+        result.complete(await operation());
+      } on Object catch (error, stackTrace) {
+        result.completeError(error, stackTrace);
+      }
+    });
+    return result.future;
+  }
 
-    _operationInProgress = true;
-    try {
-      return await operation();
-    } finally {
-      _operationInProgress = false;
-    }
+  Future<T> _guardPendingFuture<T>(Future<T> future) {
+    // Notifications must be awaited before the corresponding write so a fast
+    // response cannot be missed. If that write fails, keep the pending wait
+    // from surfacing a second, detached asynchronous error during cleanup.
+    future.ignore();
+    return future;
   }
 
   Future<void> _write(
