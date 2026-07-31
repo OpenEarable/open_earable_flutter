@@ -147,6 +147,17 @@ class FirmwareUnpacker extends FirmwareUpdateHandler {
 class FirmwareUpdater extends FirmwareUpdateHandler {
   final UpdateManagerFactory _updateManagerFactory =
       FirmwareUpdateManagerFactory();
+  static const FirmwareUpgradeConfiguration _defaultUpgradeConfiguration =
+      FirmwareUpgradeConfiguration(
+    // Ask MCUboot to test the image and reboot into it. The firmware
+    // confirms itself very early during boot, so confirming again from the
+    // phone is unnecessary and can race with the swap flow.
+    estimatedSwapTime: Duration(seconds: 90),
+    // Preserve persisted device state such as Bluetooth bond information
+    // during ordinary firmware upgrades.
+    eraseAppSettings: false,
+    firmwareUpgradeMode: FirmwareUpgradeMode.testOnly,
+  );
 
   @override
   Future<FirmwareUpdateManager> handleFirmwareUpdate(
@@ -168,18 +179,14 @@ class FirmwareUpdater extends FirmwareUpdateHandler {
       final fwImage = request.firmwareImage;
       await updateManager.updateWithImageData(
         imageData: fwImage!,
-        configuration: const FirmwareUpgradeConfiguration(
-          firmwareUpgradeMode: FirmwareUpgradeMode.testOnly,
-        ),
+        configuration: _defaultUpgradeConfiguration,
       );
       return updateManager;
     } else {
       final multiImageRequest = request as MultiImageFirmwareUpdateRequest;
       updateManager.update(
         multiImageRequest.firmwareImages!,
-        configuration: const FirmwareUpgradeConfiguration(
-          firmwareUpgradeMode: FirmwareUpgradeMode.testOnly,
-        ),
+        configuration: _defaultUpgradeConfiguration,
       );
     }
 

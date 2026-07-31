@@ -60,6 +60,7 @@ export 'src/models/capabilities/jingle_player.dart';
 export 'src/models/capabilities/audio_player_controls.dart';
 export 'src/models/capabilities/storage_path_audio_player.dart';
 export 'src/models/capabilities/audio_mode_manager.dart';
+export 'src/models/capabilities/microphone_gain_manager.dart';
 export 'src/models/capabilities/microphone_manager.dart';
 export 'src/models/capabilities/power_saving_mode_manager.dart';
 export 'src/models/capabilities/stereo_device.dart';
