@@ -328,6 +328,7 @@ class BleManager extends BleGattManager {
     required String serviceId,
     required String characteristicId,
     required List<int> byteData,
+    bool withoutResponse = false,
   }) async {
     if (!isConnected(deviceId)) {
       throw Exception("Write failed because no Earable is connected");
@@ -337,6 +338,7 @@ class BleManager extends BleGattManager {
       serviceId,
       characteristicId,
       Uint8List.fromList(byteData),
+      withoutResponse: withoutResponse,
     );
   }
 
@@ -394,7 +396,14 @@ class BleManager extends BleGattManager {
     }
 
     streamController.onCancel = () async {
-      if (_streamControllers.containsKey(streamIdentifier)) {
+      // A canceled controller may finish closing after a replacement
+      // subscription has already installed a new controller for the same
+      // characteristic. Only the controller that still owns the map entry may
+      // tear down the native notification subscription.
+      if (identical(
+        _streamControllers[streamIdentifier],
+        streamController,
+      )) {
         final canceledController = _streamControllers.remove(streamIdentifier);
         _subscriptionSetups.remove(streamIdentifier);
         if (canceledController != null && !canceledController.isClosed) {

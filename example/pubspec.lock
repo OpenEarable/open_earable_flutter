@@ -414,7 +414,15 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "2.3.9"
+    version: "2.3.10"
+  open_earable_protocols:
+    dependency: transitive
+    description:
+      name: open_earable_protocols
+      sha256: c11cae4914827c1d7617d44647a5c49304f0c2a2c02c907c595682cfade6ddb2
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.0.2"
   package_config:
     dependency: transitive
     description:

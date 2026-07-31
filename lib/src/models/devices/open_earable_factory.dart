@@ -5,6 +5,7 @@ import 'package:open_earable_flutter/src/managers/sensor_handler.dart';
 import 'package:open_earable_flutter/src/models/wearable_factory.dart';
 import 'package:open_earable_flutter/src/utils/sensor_scheme_parser/sensor_scheme_reader.dart';
 import 'package:open_earable_flutter/src/utils/sensor_scheme_parser/v2_sensor_scheme_reader.dart';
+import 'package:open_earable_protocols/open_earable_protocols.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 import '../../../open_earable_flutter.dart' show logger;
@@ -12,6 +13,7 @@ import '../../constants.dart';
 import '../../managers/v2_sensor_handler.dart';
 import '../../utils/sensor_value_parser/v2_sensor_value_parser.dart';
 import '../capabilities/audio_mode_manager.dart';
+import '../capabilities/audio_response_manager.dart';
 import '../capabilities/fota_capability.dart';
 import '../capabilities/fota_slot_info_capability.dart';
 import '../capabilities/power_saving_mode_manager.dart';
@@ -25,6 +27,7 @@ import '../capabilities/time_synchronizable.dart';
 import 'discovered_device.dart';
 import 'open_earable_v1.dart';
 import 'open_earable_v2.dart';
+import 'open_earable_v2_audio_response_manager.dart';
 import 'wearable.dart';
 import '../../fota/firmware_slot_manager_impl.dart';
 
@@ -111,6 +114,17 @@ class OpenEarableFactory extends WearableFactory {
       )) {
         wearable.registerCapability<TimeSynchronizable>(
           OpenEarableV2TimeSyncImp(
+            bleManager: bleManager!,
+            deviceId: device.id,
+          ),
+        );
+      }
+      if (await bleManager!.hasService(
+        deviceId: device.id,
+        serviceId: AudioResponseBleUuids.serviceUuid,
+      )) {
+        wearable.registerCapability<AudioResponseManager>(
+          OpenEarableV2AudioResponseManager(
             bleManager: bleManager!,
             deviceId: device.id,
           ),

@@ -39,6 +39,7 @@ dependencies:
   bloc: ^9.1.0
   meta: ^1.16.0
   pub_semver: ^2.2.0
+  open_earable_protocols: ^0.0.2
 
 dev_dependencies:
   flutter_test:

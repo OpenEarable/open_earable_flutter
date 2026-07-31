@@ -24,6 +24,9 @@ import 'src/models/devices/discovered_device.dart';
 import 'src/models/devices/open_ring_factory.dart';
 import 'src/models/devices/wearable.dart';
 
+export 'package:open_earable_protocols/open_earable_protocols.dart'
+    show AudioResponseConfig, AudioResponseResult;
+
 export 'src/models/devices/discovered_device.dart';
 export 'src/models/devices/wearable.dart';
 export 'src/models/devices/cosinuss_one.dart';
@@ -72,6 +75,7 @@ export 'src/models/wearable_factory.dart';
 export 'src/models/capabilities/system_device.dart';
 export 'src/managers/ble_gatt_manager.dart';
 export 'src/models/capabilities/time_synchronizable.dart';
+export 'src/models/capabilities/audio_response_manager.dart';
 
 export 'src/fota/fota.dart';
 
