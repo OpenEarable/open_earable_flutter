@@ -1,3 +1,7 @@
+## 2.4.1
+
+* fixed microphone gain capability detection so it is only registered when the device exposes the required characteristic.
+
 ## 2.4.0
 
 * added audio response capability support for OpenEarable V2 devices.
