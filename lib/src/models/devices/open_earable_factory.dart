@@ -16,6 +16,7 @@ import '../capabilities/audio_mode_manager.dart';
 import '../capabilities/audio_response_manager.dart';
 import '../capabilities/fota_capability.dart';
 import '../capabilities/fota_slot_info_capability.dart';
+import '../capabilities/microphone_gain_manager.dart';
 import '../capabilities/power_saving_mode_manager.dart';
 import '../capabilities/sensor.dart';
 import '../capabilities/sensor_configuration.dart';
@@ -28,6 +29,7 @@ import 'discovered_device.dart';
 import 'open_earable_v1.dart';
 import 'open_earable_v2.dart';
 import 'open_earable_v2_audio_response_manager.dart';
+import 'open_earable_v2_microphone_gain_manager.dart';
 import 'wearable.dart';
 import '../../fota/firmware_slot_manager_impl.dart';
 
@@ -125,6 +127,18 @@ class OpenEarableFactory extends WearableFactory {
       )) {
         wearable.registerCapability<AudioResponseManager>(
           OpenEarableV2AudioResponseManager(
+            bleManager: bleManager!,
+            deviceId: device.id,
+          ),
+        );
+      }
+      if (await bleManager!.hasCharacteristic(
+        deviceId: device.id,
+        serviceId: OpenEarableV2MicrophoneGainManager.serviceUuid,
+        characteristicId: OpenEarableV2MicrophoneGainManager.characteristicUuid,
+      )) {
+        wearable.registerCapability<MicrophoneGainManager>(
+          OpenEarableV2MicrophoneGainManager(
             bleManager: bleManager!,
             deviceId: device.id,
           ),
