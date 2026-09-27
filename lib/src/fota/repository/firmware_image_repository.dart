@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:pub_semver/pub_semver.dart';
 
 import '../model/firmware_update_request.dart';
 
@@ -87,17 +88,29 @@ class FirmwareImageRepository {
     return (latestRelease['tag_name'] as String).replaceFirst('v', '');
   }
 
-  /// Compares semantic version strings and returns `true` when [latest] is
-  /// newer than [current].
+  /// Returns whether [latest] is newer, ignoring build metadata.
+  /// Unrecognized version labels do not trigger an update recommendation.
   bool isNewerVersion(String latest, String current) {
-    List<int> parse(String v) => v.split('.').map(int.parse).toList();
-    final latestParts = parse(latest);
-    final currentParts = parse(current);
-
-    for (int i = 0; i < latestParts.length; i++) {
-      if (latestParts[i] > currentParts[i]) return true;
-      if (latestParts[i] < currentParts[i]) return false;
+    Version parse(String label) {
+      // Older firmware included the C string terminator in its GATT value.
+      final normalized = label
+          .trim()
+          .replaceFirst(RegExp(r'\x00+$'), '')
+          .trim()
+          .replaceFirst(RegExp(r'^[vV]'), '');
+      final version = Version.parse(normalized);
+      return Version(
+        version.major,
+        version.minor,
+        version.patch,
+        pre: version.preRelease.join('.'),
+      );
     }
-    return false;
+
+    try {
+      return parse(latest) > parse(current);
+    } on FormatException {
+      return false;
+    }
   }
 }
