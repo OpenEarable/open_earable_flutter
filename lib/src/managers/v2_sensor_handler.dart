@@ -28,6 +28,15 @@ class V2SensorHandler extends SensorHandler<V2SensorConfig> {
         characteristicId: sensorCompactDataCharacteristicUuid,
       );
       if (capabilities.length == 1 && (capabilities[0] & 1) != 0) {
+        // Bonded peers may restore the legacy CCC even when no old app is
+        // listening. Acquire/release it through the manager to clear that
+        // stale subscription before enabling the compact channel.
+        final legacy = await _bleManager.subscribe(
+          deviceId: _discoveredDevice.id,
+          serviceId: sensorServiceUuid,
+          characteristicId: sensorDataCharacteristicUuid,
+        );
+        await legacy.listen((_) {}).cancel();
         return sensorCompactDataCharacteristicUuid;
       }
     }

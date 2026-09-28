@@ -10,7 +10,8 @@ import 'package:open_earable_flutter/src/utils/sensor_value_parser/v2_sensor_val
 
 class _Ble implements BleGattManager {
   final bool compact;
-  _Ble(this.compact);
+  _Ble(this.compact) { data.onCancel = () { cancellations++; }; }
+  int cancellations = 0;
   final data = StreamController<List<int>>.broadcast();
   String? subscribed;
   @override
@@ -48,6 +49,7 @@ void main() {
         sensorValueParser: V2SensorValueParser(),
       );
       final stream = await handler.subscribeToSensorData(0);
+      expect(ble.cancellations, compact ? 1 : 0);
       final result = stream.first.timeout(const Duration(seconds: 1));
       expect(ble.subscribed, compact ? sensorCompactDataCharacteristicUuid : sensorDataCharacteristicUuid);
       final bytes = ByteData(compact ? 34 : 46);
