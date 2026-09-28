@@ -7,12 +7,15 @@ const int _boneAccelSensorId = 0x07;
 
 class V2SensorValueParser extends SensorValueParser {
   @override
-  List<Map<String, dynamic>> parse(ByteData data, List<SensorScheme> sensorSchemes) {
+  List<Map<String, dynamic>> parse(
+      ByteData data, List<SensorScheme> sensorSchemes,) {
     int i = 0;
 
     // Header
     _requireBytes(data, i, 1, 'sensorId');
-    final sensorId = data.getUint8(i);
+    final wireId = data.getUint8(i);
+    final compactImu = wireId == 0x80;
+    final sensorId = compactImu ? 0 : wireId;
     i += 1;
 
     // treat one extra byte as reserved/flags for V2 (safe no-op if unused).
@@ -30,17 +33,28 @@ class V2SensorValueParser extends SensorValueParser {
 
     // Precompute size of one component payload for efficiency.
     final compSizes = scheme.components.map((c) => c.type.size()).toList();
-    final payloadSizePerSample = compSizes.fold<int>(0, (a, b) => a + b);
+    if (compactImu &&
+        (scheme.components.length != 9 ||
+            scheme.components.any((c) => c.type != ParseType.float))) {
+      throw const FormatException(
+          'Compact IMU requires the nine-axis float scheme',);
+    }
+    final payloadSizePerSample =
+        compactImu ? 24 : compSizes.fold<int>(0, (a, b) => a + b);
     const timestampSize = 8; // size of absolute timestamp
     const offsetSize = 2; // size of relative timestamp offset
     const headerSize = 2;
 
     if (data.lengthInBytes - headerSize - payloadSizePerSample < 0) {
-      throw FormatException('Truncated frame: need at least ${timestampSize + offsetSize} bytes '
+      throw FormatException(
+          'Truncated frame: need at least ${timestampSize + offsetSize} bytes '
           'for first sample, have ${data.lengthInBytes - headerSize}.');
     }
-    if ((data.lengthInBytes - headerSize - timestampSize) != payloadSizePerSample &&
-        (data.lengthInBytes - headerSize - timestampSize - offsetSize) % payloadSizePerSample != 0) {
+    if ((data.lengthInBytes - headerSize - timestampSize) !=
+            payloadSizePerSample &&
+        (data.lengthInBytes - headerSize - timestampSize - offsetSize) %
+                payloadSizePerSample !=
+            0) {
       if (sensorId == _boneAccelSensorId) {
         final fixedBytes = Uint8List(data.lengthInBytes + 2);
         // Bulk-copy existing bytes
@@ -55,18 +69,25 @@ class V2SensorValueParser extends SensorValueParser {
 
         data = fixedData;
       }
-      if ((data.lengthInBytes - headerSize - timestampSize) != payloadSizePerSample &&
-        (data.lengthInBytes - headerSize - timestampSize - offsetSize) % payloadSizePerSample != 0) {
-        throw FormatException('Truncated frame: have ${data.lengthInBytes - headerSize} bytes, '
+      if ((data.lengthInBytes - headerSize - timestampSize) !=
+              payloadSizePerSample &&
+          (data.lengthInBytes - headerSize - timestampSize - offsetSize) %
+                  payloadSizePerSample !=
+              0) {
+        throw FormatException(
+            'Truncated frame: have ${data.lengthInBytes - headerSize} bytes, '
             'which is not consistent with sample size $payloadSizePerSample, timestamp and offset sizes.');
       }
     }
 
     int dataCount;
-    if (data.lengthInBytes - headerSize - timestampSize == payloadSizePerSample) {
+    if (data.lengthInBytes - headerSize - timestampSize ==
+        payloadSizePerSample) {
       dataCount = 1;
     } else {
-      dataCount = (data.lengthInBytes - headerSize - timestampSize - offsetSize) ~/ payloadSizePerSample;
+      dataCount =
+          (data.lengthInBytes - headerSize - timestampSize - offsetSize) ~/
+              payloadSizePerSample;
     }
 
     if (dataCount < 1) {
@@ -86,6 +107,7 @@ class V2SensorValueParser extends SensorValueParser {
         scheme: scheme,
         timestamp: baseTimestamp + timeOffset,
         compSizes: compSizes,
+        compactImu: compactImu,
       );
       results.add(sample.map);
       i = sample.nextIndex;
@@ -149,6 +171,7 @@ _ParsedSample _parseSample({
   required SensorScheme scheme,
   required int timestamp,
   required List<int> compSizes,
+  bool compactImu = false,
 }) {
   int i = startIndex;
 
@@ -160,24 +183,32 @@ _ParsedSample _parseSample({
   };
 
   // Ensure group maps + units exist
-  Map<String, Map<String, dynamic>> groupMapCache = {};
   Map<String, String> ensureUnitsMap(String group) {
-    final grp = groupMapCache[group] ??= <String, dynamic>{};
+    final grp = out.putIfAbsent(group, () => <String, dynamic>{})
+        as Map<String, dynamic>;
     if (grp['units'] == null) grp['units'] = <String, String>{};
     out[group] ??= grp;
     return (grp['units'] as Map<String, String>);
   }
 
   // Read components in scheme order
-  for (final comp in scheme.components) {
+  for (var componentIndex = 0;
+      componentIndex < scheme.components.length;
+      componentIndex++) {
+    final comp = scheme.components[componentIndex];
     final parseType = comp.type;
-    final sz = parseType.size();
+    final packedAxis = compactImu && componentIndex < 6;
+    final sz = packedAxis ? 2 : parseType.size();
     _requireBytes(data, i, sz, 'component ${comp.componentName}');
-    final val = _readValue(data, i, parseType);
+    final val = packedAxis
+        ? data.getInt16(i, Endian.little) *
+            (componentIndex < 3 ? 2 * 9.80665 / 32768 : 2000 / 32768)
+        : _readValue(data, i, parseType);
     i += sz;
 
     // install group and component
-    out.putIfAbsent(comp.groupName, () => <String, dynamic>{'units': <String, String>{}});
+    out.putIfAbsent(
+        comp.groupName, () => <String, dynamic>{'units': <String, String>{}},);
     (out[comp.groupName] as Map<String, dynamic>)[comp.componentName] = val;
 
     // units

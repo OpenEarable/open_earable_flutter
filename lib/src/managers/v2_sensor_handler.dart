@@ -14,6 +14,25 @@ class V2SensorHandler extends SensorHandler<V2SensorConfig> {
   final SensorSchemeReader _sensorSchemeParser;
   final SensorValueParser _sensorValueParser;
   List<SensorScheme>? _sensorSchemes;
+  Future<String>? _dataCharacteristic;
+
+  Future<String> _selectDataCharacteristic() async {
+    if (await _bleManager.hasCharacteristic(
+      deviceId: _discoveredDevice.id,
+      serviceId: sensorServiceUuid,
+      characteristicId: sensorCompactDataCharacteristicUuid,
+    )) {
+      final capabilities = await _bleManager.read(
+        deviceId: _discoveredDevice.id,
+        serviceId: sensorServiceUuid,
+        characteristicId: sensorCompactDataCharacteristicUuid,
+      );
+      if (capabilities.length == 1 && (capabilities[0] & 1) != 0) {
+        return sensorCompactDataCharacteristicUuid;
+      }
+    }
+    return sensorDataCharacteristicUuid;
+  }
 
   V2SensorHandler({
     required DiscoveredDevice discoveredDevice,
@@ -34,7 +53,7 @@ class V2SensorHandler extends SensorHandler<V2SensorConfig> {
     }
 
     if (_sensorSchemes == null) {
-      _readSensorScheme();
+      await _readSensorScheme();
     }
 
     StreamController<Map<String, dynamic>> streamController =
@@ -42,12 +61,13 @@ class V2SensorHandler extends SensorHandler<V2SensorConfig> {
     final dataStream = await _bleManager.subscribe(
       deviceId: _discoveredDevice.id,
       serviceId: sensorServiceUuid,
-      characteristicId: sensorDataCharacteristicUuid,
+      characteristicId: await (_dataCharacteristic ??= _selectDataCharacteristic()),
     );
 
     final subscription = dataStream.listen(
       (data) async {
-        if (data.isNotEmpty && data[0] == sensorId) {
+        if (data.isNotEmpty &&
+            (data[0] == sensorId || (sensorId == 0 && data[0] == 0x80))) {
           List<Map<String, dynamic>> parsedData = await _parseData(data);
           for (var d in parsedData) {
             if (!streamController.isClosed) {

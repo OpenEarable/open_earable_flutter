@@ -46,3 +46,7 @@ const String powerSavingModeCharacteristicUuid =
     "d63fd1f1-5f68-4ebb-a7c7-5e0fb9ae7557";
 const String powerSavingSupportedModesCharacteristicUuid =
     "d63fd1f2-5f68-4ebb-a7c7-5e0fb9ae7557";
+
+/// Optional notification channel supporting compact IMU data (read bit 0).
+const String sensorCompactDataCharacteristicUuid =
+    "34c2e3c1-34aa-11eb-adc1-0242ac120002";
