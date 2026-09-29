@@ -143,6 +143,38 @@ if (audioModeManager != null) {
 
 ---
 
+### WirelessAudioConfigurationManager
+
+Configures device-owned Bluetooth audio policies on firmware that exposes the
+wireless audio configuration protocol. The capability also provides the
+effective LE Audio runtime state negotiated by the standard Bluetooth services.
+
+```dart
+final audioConfiguration =
+    wearable.getCapability<WirelessAudioConfigurationManager>();
+if (audioConfiguration != null) {
+  final capabilities = await audioConfiguration.getCapabilities();
+  final runtimeState = await audioConfiguration.getRuntimeState();
+
+  await audioConfiguration.setAclConnectionPolicy(
+    WirelessAudioConfigurationAclConnectionPolicy.fixedAclPolicy(
+      WirelessAudioConfigurationFixedAclPolicy(
+        interval_us: 15000,
+        peripheral_latency: 0,
+        supervision_timeout_ms: 4000,
+      ),
+    ),
+  );
+}
+```
+
+Check the device-reported capabilities before applying a policy. Policy
+requests remain subject to negotiation by the Bluetooth controller and peer;
+use `getRuntimeState()` or `subscribeToRuntimeState()` to observe the effective
+values.
+
+---
+
 ### PowerSavingModeManager
 
 Reads the power saving modes that the firmware currently supports, including

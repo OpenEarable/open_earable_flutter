@@ -563,6 +563,7 @@ class _FakeBleGattManager implements BleGattManager {
     required String deviceId,
     required String serviceId,
     required String characteristicId,
+    bool indications = false,
   }) async {
     return _controller(characteristicId).stream;
   }

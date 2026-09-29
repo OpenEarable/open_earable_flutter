@@ -348,6 +348,7 @@ class BleManager extends BleGattManager {
     required String deviceId,
     required String serviceId,
     required String characteristicId,
+    bool indications = false,
   }) async {
     logger.d(
       "Subscribing to $deviceId, service $serviceId, characteristic $characteristicId",
@@ -379,12 +380,17 @@ class BleManager extends BleGattManager {
     streamController ??= StreamController<List<int>>.broadcast();
     _streamControllers[streamIdentifier] = streamController;
 
-    _subscriptionSetups[streamIdentifier] ??=
-        UniversalBle.subscribeNotifications(
-      deviceId,
-      serviceId,
-      characteristicId,
-    );
+    _subscriptionSetups[streamIdentifier] ??= indications
+        ? UniversalBle.subscribeIndications(
+            deviceId,
+            serviceId,
+            characteristicId,
+          )
+        : UniversalBle.subscribeNotifications(
+            deviceId,
+            serviceId,
+            characteristicId,
+          );
 
     try {
       await _subscriptionSetups[streamIdentifier];

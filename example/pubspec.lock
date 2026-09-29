@@ -418,10 +418,11 @@ packages:
   open_earable_protocols:
     dependency: transitive
     description:
-      name: open_earable_protocols
-      sha256: c11cae4914827c1d7617d44647a5c49304f0c2a2c02c907c595682cfade6ddb2
-      url: "https://pub.dev"
-    source: hosted
+      path: "generated/dart"
+      ref: main
+      resolved-ref: a4b6c08f5a2b7b59f53b7f02a209299c1f2c1864
+      url: "https://github.com/OpenEarable/protocol.git"
+    source: git
     version: "0.0.2"
   package_config:
     dependency: transitive
