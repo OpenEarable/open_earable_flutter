@@ -1,3 +1,8 @@
+## 2.4.2
+
+* fixed firmware update version comparisons for development firmware labels, prereleases, build metadata, and release tag prefixes.
+* fixed malformed firmware version labels causing errors or suggesting incorrect updates.
+
 ## 2.4.1
 
 * fixed microphone gain capability detection so it is only registered when the device exposes the required characteristic.
