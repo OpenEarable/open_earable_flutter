@@ -76,6 +76,7 @@ export 'src/models/capabilities/system_device.dart';
 export 'src/managers/ble_gatt_manager.dart';
 export 'src/models/capabilities/time_synchronizable.dart';
 export 'src/models/capabilities/audio_response_manager.dart';
+export 'src/models/capabilities/wireless_audio_configuration_manager.dart';
 
 export 'src/fota/fota.dart';
 

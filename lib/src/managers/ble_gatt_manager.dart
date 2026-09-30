@@ -30,11 +30,13 @@ abstract class BleGattManager {
   /// Subscribes to a specific characteristic of the connected device.
   ///
   /// The returned future completes only after the underlying GATT
-  /// notification subscription has been enabled.
+  /// subscription has been enabled. Set [indications] for an indication-only
+  /// characteristic; notification mode is used by default.
   Future<Stream<List<int>>> subscribe({
     required String deviceId,
     required String serviceId,
     required String characteristicId,
+    bool indications = false,
   });
 
   /// Reads data from a specific characteristic of the connected device.

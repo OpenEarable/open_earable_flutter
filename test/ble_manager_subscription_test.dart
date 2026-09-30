@@ -62,6 +62,27 @@ void main() {
     );
     await replacementSubscription.cancel();
   });
+
+  test('uses indications when requested by a characteristic', () async {
+    const deviceId = 'device';
+    const serviceId = '7467b395-9043-4453-bc5c-2d8e8b10680a';
+    const characteristicId = '1ae8ed46-b23c-48ba-8e67-5713a4a4dc69';
+    final platform = _FakeUniversalBlePlatform();
+    UniversalBle.setInstance(platform);
+    final manager = BleManager();
+
+    platform.updateConnection(deviceId, true);
+    final stream = await manager.subscribe(
+      deviceId: deviceId,
+      serviceId: serviceId,
+      characteristicId: characteristicId,
+      indications: true,
+    );
+    final subscription = stream.listen((_) {});
+
+    expect(platform.notificationChanges, [BleInputProperty.indication]);
+    await subscription.cancel();
+  });
 }
 
 class _FakeUniversalBlePlatform extends UniversalBlePlatform {
