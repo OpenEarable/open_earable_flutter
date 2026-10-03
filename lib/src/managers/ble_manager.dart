@@ -34,6 +34,7 @@ class BleManager extends BleGattManager {
 
   final List<String> _connectedDevicesIds = [];
   StreamSubscription<AvailabilityState>? _availabilitySubscription;
+  final Map<String, Future<void>> _adapterShutdowns = {};
 
   bool _firstScan = true;
 
@@ -70,6 +71,11 @@ class BleManager extends BleGattManager {
           ..._disconnectCallbacks.keys,
         }) {
           _handleDisconnect(deviceId);
+          // Android may retain a GATT handle tied to the stopped BT service.
+          _adapterShutdowns[deviceId] ??=
+              UniversalBle.disconnect(deviceId).catchError((Object error) {
+            logger.w('Bluetooth shutdown cleanup failed for $deviceId: $error');
+          }).whenComplete(() => _adapterShutdowns.remove(deviceId));
         }
       }
     });
@@ -235,7 +241,8 @@ class BleManager extends BleGattManager {
   Future<(bool, List<BleService>)> connectToDevice(
     DiscoveredDevice device,
     VoidCallback onDisconnect,
-  ) {
+  ) async {
+    await _adapterShutdowns[device.id];
     final pendingConnection = _connectionFutures[device.id];
     if (pendingConnection != null) {
       logger.d("Reusing pending connection for ${device.id}");
