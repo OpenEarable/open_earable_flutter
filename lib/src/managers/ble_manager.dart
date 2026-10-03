@@ -75,7 +75,9 @@ class BleManager extends BleGattManager {
           _adapterShutdowns[deviceId] ??=
               UniversalBle.disconnect(deviceId).catchError((Object error) {
             logger.w('Bluetooth shutdown cleanup failed for $deviceId: $error');
-          }).whenComplete(() => _adapterShutdowns.remove(deviceId));
+          }).whenComplete(() {
+            _adapterShutdowns.remove(deviceId);
+          });
         }
       }
     });
