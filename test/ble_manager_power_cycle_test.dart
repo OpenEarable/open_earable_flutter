@@ -43,6 +43,7 @@ void main() {
     expect(manager.isConnected('left'), isFalse);
     expect(manager.isConnected('right'), isFalse);
     expect(disconnected, ['left', 'right']);
+    expect(platform.disconnects, ['left', 'right']);
     await closed.future.timeout(const Duration(seconds: 1));
 
     // Some platforms also deliver per-device events, possibly after power-off.
@@ -54,10 +55,31 @@ void main() {
 
     platform.updateAvailability(AvailabilityState.poweredOn);
     await manager.connectToDevice(
-        device('left'), () => disconnected.add('left'),);
+      device('left'),
+      () => disconnected.add('left'),
+    );
     expect(manager.isConnected('left'), isTrue);
     platform.updateConnection('left', false);
     expect(disconnected, ['left', 'right', 'left']);
+  });
+
+  test('reconnect waits until the old native handle is released', () async {
+    final platform = _Platform();
+    UniversalBle.setInstance(platform);
+    final manager = BleManager();
+    addTearDown(manager.dispose);
+    await manager.connectToDevice(device('left'), () {});
+    final cleanup = Completer<void>();
+    platform.disconnectGate = cleanup.future;
+    platform.updateAvailability(AvailabilityState.poweredOff);
+    await flushEvents();
+    platform.updateAvailability(AvailabilityState.poweredOn);
+    final reconnected = manager.connectToDevice(device('left'), () {});
+    await flushEvents();
+    expect(platform.connectCalls, 1);
+    cleanup.complete();
+    expect((await reconnected).$1, isTrue);
+    expect(platform.connectCalls, 2);
   });
 
   test(
@@ -123,24 +145,42 @@ void main() {
 class _Platform extends UniversalBlePlatform {
   List<Completer<List<BleService>>>? discoveryReplies;
   int discoveryCalls = 0;
+  int connectCalls = 0;
+  final disconnects = <String>[];
+  Future<void>? disconnectGate;
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
   @override
   Future<AvailabilityState> getBluetoothAvailabilityState() async =>
       AvailabilityState.poweredOn;
   @override
-  Future<void> connect(String deviceId,
-      {Duration? connectionTimeout,
-      bool autoConnect = false,
-      Object? platformConfig,}) async {
+  Future<void> connect(
+    String deviceId, {
+    Duration? connectionTimeout,
+    bool autoConnect = false,
+    Object? platformConfig,
+  }) async {
+    connectCalls++;
     updateConnection(deviceId, true);
+  }
+
+  @override
+  Future<BleConnectionState> getConnectionState(String deviceId) async =>
+      BleConnectionState.disconnected;
+  @override
+  Future<void> disconnect(String deviceId) async {
+    disconnects.add(deviceId);
+    await disconnectGate;
+    updateConnection(deviceId, false);
   }
 
   @override
   Future<int> requestMtu(String deviceId, int expectedMtu) async => expectedMtu;
   @override
   Future<List<BleService>> discoverServices(
-      String deviceId, bool withDescriptors,) async {
+    String deviceId,
+    bool withDescriptors,
+  ) async {
     final index = discoveryCalls++;
     return discoveryReplies == null
         ? []
@@ -148,8 +188,12 @@ class _Platform extends UniversalBlePlatform {
   }
 
   @override
-  Future<void> setNotifiable(String deviceId, String service,
-      String characteristic, BleInputProperty property,) async {}
+  Future<void> setNotifiable(
+    String deviceId,
+    String service,
+    String characteristic,
+    BleInputProperty property,
+  ) async {}
   @override
   Future<void> stopScan() async {}
 }
@@ -157,11 +201,15 @@ class _Platform extends UniversalBlePlatform {
 class _Factory extends WearableFactory {
   @override
   Future<bool> matches(
-          DiscoveredDevice device, List<BleService> services,) async =>
+    DiscoveredDevice device,
+    List<BleService> services,
+  ) async =>
       true;
   @override
-  Future<Wearable> createFromDevice(DiscoveredDevice device,
-          {Set<ConnectionOption> options = const {},}) async =>
+  Future<Wearable> createFromDevice(
+    DiscoveredDevice device, {
+    Set<ConnectionOption> options = const {},
+  }) async =>
       _Wearable(device.id, disconnectNotifier!);
 }
 
