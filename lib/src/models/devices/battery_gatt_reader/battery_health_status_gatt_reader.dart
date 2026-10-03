@@ -26,7 +26,7 @@ mixin BatteryHealthStatusGattReader on BluetoothWearable
     }
 
     int healthSummary = healthStatusList[1];
-    int cycleCount = (healthStatusList[2] << 8) | healthStatusList[3];
+    int cycleCount = healthStatusList[2] | (healthStatusList[3] << 8);
     int currentTemperature = healthStatusList[4];
 
     BatteryHealthStatus batteryHealthStatus = BatteryHealthStatus(

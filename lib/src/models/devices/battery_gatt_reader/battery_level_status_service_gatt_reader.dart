@@ -17,41 +17,53 @@ mixin BatteryLevelStatusServiceGattReader on BluetoothWearable
       characteristicId: _batteryLevelStatusCharacteristicUuid,
     );
 
-    int powerState = (powerStateList[1] << 8) | powerStateList[2];
+    if (powerStateList.length < 3) {
+      throw StateError(
+          'Battery power status requires flags and two state bytes',);
+    }
+    int powerState = powerStateList[1] | (powerStateList[2] << 8);
     logger.d("Battery power status bits: ${powerState.toRadixString(2)}");
 
-    bool batteryPresent = powerState >> 15 & 0x1 != 0;
+    bool batteryPresent = powerState & 0x1 != 0;
 
-    int wiredExternalPowerSourceConnectedRaw = (powerState >> 13) & 0x3;
+    int wiredExternalPowerSourceConnectedRaw = (powerState >> 1) & 0x3;
     ExternalPowerSourceConnected wiredExternalPowerSourceConnected =
-        ExternalPowerSourceConnected
-            .values[wiredExternalPowerSourceConnectedRaw];
+        wiredExternalPowerSourceConnectedRaw <
+                ExternalPowerSourceConnected.values.length
+            ? ExternalPowerSourceConnected
+                .values[wiredExternalPowerSourceConnectedRaw]
+            : ExternalPowerSourceConnected.unknown;
 
-    int wirelessExternalPowerSourceConnectedRaw = (powerState >> 11) & 0x3;
+    int wirelessExternalPowerSourceConnectedRaw = (powerState >> 3) & 0x3;
     ExternalPowerSourceConnected wirelessExternalPowerSourceConnected =
-        ExternalPowerSourceConnected
-            .values[wirelessExternalPowerSourceConnectedRaw];
+        wirelessExternalPowerSourceConnectedRaw <
+                ExternalPowerSourceConnected.values.length
+            ? ExternalPowerSourceConnected
+                .values[wirelessExternalPowerSourceConnectedRaw]
+            : ExternalPowerSourceConnected.unknown;
 
-    int chargeStateRaw = (powerState >> 9) & 0x3;
+    int chargeStateRaw = (powerState >> 5) & 0x3;
     ChargeState chargeState = ChargeState.values[chargeStateRaw];
 
     int chargeLevelRaw = (powerState >> 7) & 0x3;
     BatteryChargeLevel chargeLevel = BatteryChargeLevel.values[chargeLevelRaw];
 
-    int chargingTypeRaw = (powerState >> 5) & 0x7;
+    int chargingTypeRaw = (powerState >> 9) & 0x7;
     BatteryChargingType chargingType =
-        BatteryChargingType.values[chargingTypeRaw];
+        chargingTypeRaw < BatteryChargingType.values.length
+            ? BatteryChargingType.values[chargingTypeRaw]
+            : BatteryChargingType.unknown;
 
-    int chargingFaultReasonRaw = (powerState >> 2) & 0x5;
+    int chargingFaultReasonRaw = (powerState >> 12) & 0x7;
     List<ChargingFaultReason> chargingFaultReason = [];
     if ((chargingFaultReasonRaw & 0x1) != 0) {
-      chargingFaultReason.add(ChargingFaultReason.other);
+      chargingFaultReason.add(ChargingFaultReason.battery);
     }
     if ((chargingFaultReasonRaw & 0x2) != 0) {
       chargingFaultReason.add(ChargingFaultReason.externalPowerSource);
     }
     if ((chargingFaultReasonRaw & 0x4) != 0) {
-      chargingFaultReason.add(ChargingFaultReason.battery);
+      chargingFaultReason.add(ChargingFaultReason.other);
     }
 
     BatteryPowerStatus batteryPowerStatus = BatteryPowerStatus(
