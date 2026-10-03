@@ -32,10 +32,28 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
       _abortRequested = false;
       await _cancelSubscriptions();
 
-      _firmwareUpdateManager = await handler.handleFirmwareUpdate(
-        firmwareUpdateRequest,
-        (FirmwareUpdateState state) => add(_StateConverter.convert(state)),
-      );
+      try {
+        _firmwareUpdateManager = await handler.handleFirmwareUpdate(
+          firmwareUpdateRequest,
+          (FirmwareUpdateState state) {
+            if (_abortRequested || isClosed) {
+              throw StateError('Firmware update was aborted');
+            }
+            add(_StateConverter.convert(state));
+          },
+        );
+      } catch (error) {
+        if (!_abortRequested && !isClosed) {
+          add(UploadFailed(error.toString()));
+        }
+        return;
+      }
+      if (_abortRequested || isClosed) {
+        await _firmwareUpdateManager?.cancel();
+        await _firmwareUpdateManager?.kill();
+        _firmwareUpdateManager = null;
+        return;
+      }
 
       final progressStream = _firmwareUpdateManager!.progressStream
           .map(
@@ -104,14 +122,17 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
       );
     });
     on<DownloadStarted>((event, emit) {
+      if (_abortRequested || (_state?.isComplete ?? false)) return;
       _state = _updatedState(UpdateFirmware('Download firmware'));
       emit(_state!);
     });
     on<UnpackStarted>((event, emit) {
+      if (_abortRequested || (_state?.isComplete ?? false)) return;
       _state = _updatedState(UpdateFirmware('Unpack firmware'));
       emit(_state!);
     });
     on<UploadState>((event, emit) {
+      if (_abortRequested || (_state?.isComplete ?? false)) return;
       if (event is UploadProgress) {
         _state = _updatedState(
           UpdateProgressFirmware(
@@ -127,6 +148,7 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
       }
     });
     on<UploadFinished>((event, emit) {
+      if (_abortRequested || (_state?.isComplete ?? false)) return;
       _state = _updatedState(
         UpdateCompleteSuccess(),
         updateManager: _firmwareUpdateManager,
@@ -165,6 +187,16 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
     UpdateFirmware currentState, {
     FirmwareUpdateManager? updateManager,
   }) {
+    if (currentState is UpdateCompleteSuccess ||
+        currentState is UpdateCompleteFailure ||
+        currentState is UpdateCompleteAborted) {
+      return UpdateFirmwareStateHistory(
+        null,
+        [...?_state?.history, currentState],
+        isComplete: true,
+        updateManager: updateManager,
+      );
+    }
     if (_state == null) {
       return UpdateFirmwareStateHistory(
         currentState,
@@ -191,15 +223,6 @@ class UpdateBloc extends Bloc<UpdateEvent, UpdateState> {
           updateManager: updateManager,
         );
       }
-    } else if (currentState is UpdateCompleteSuccess ||
-        currentState is UpdateCompleteFailure ||
-        currentState is UpdateCompleteAborted) {
-      return UpdateFirmwareStateHistory(
-        null,
-        _state!.history + [currentState],
-        isComplete: true,
-        updateManager: updateManager,
-      );
     } else {
       return UpdateFirmwareStateHistory(
         currentState,
