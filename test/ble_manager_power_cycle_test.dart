@@ -54,7 +54,7 @@ void main() {
 
     platform.updateAvailability(AvailabilityState.poweredOn);
     await manager.connectToDevice(
-        device('left'), () => disconnected.add('left'));
+        device('left'), () => disconnected.add('left'),);
     expect(manager.isConnected('left'), isTrue);
     platform.updateConnection('left', false);
     expect(disconnected, ['left', 'right', 'left']);
@@ -132,7 +132,7 @@ class _Platform extends UniversalBlePlatform {
   Future<void> connect(String deviceId,
       {Duration? connectionTimeout,
       bool autoConnect = false,
-      Object? platformConfig}) async {
+      Object? platformConfig,}) async {
     updateConnection(deviceId, true);
   }
 
@@ -140,7 +140,7 @@ class _Platform extends UniversalBlePlatform {
   Future<int> requestMtu(String deviceId, int expectedMtu) async => expectedMtu;
   @override
   Future<List<BleService>> discoverServices(
-      String deviceId, bool withDescriptors) async {
+      String deviceId, bool withDescriptors,) async {
     final index = discoveryCalls++;
     return discoveryReplies == null
         ? []
@@ -149,7 +149,7 @@ class _Platform extends UniversalBlePlatform {
 
   @override
   Future<void> setNotifiable(String deviceId, String service,
-      String characteristic, BleInputProperty property) async {}
+      String characteristic, BleInputProperty property,) async {}
   @override
   Future<void> stopScan() async {}
 }
@@ -157,11 +157,11 @@ class _Platform extends UniversalBlePlatform {
 class _Factory extends WearableFactory {
   @override
   Future<bool> matches(
-          DiscoveredDevice device, List<BleService> services) async =>
+          DiscoveredDevice device, List<BleService> services,) async =>
       true;
   @override
   Future<Wearable> createFromDevice(DiscoveredDevice device,
-          {Set<ConnectionOption> options = const {}}) async =>
+          {Set<ConnectionOption> options = const {},}) async =>
       _Wearable(device.id, disconnectNotifier!);
 }
 
