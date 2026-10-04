@@ -62,6 +62,14 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
 
+# Remove after the protocol 0.0.4 package is published.
+dependency_overrides:
+  open_earable_protocols:
+    git:
+      url: https://github.com/OpenEarable/protocol.git
+      ref: 7dc1765e5490bc7b6843ac7236a503df11b6e8a7
+      path: generated/dart
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
