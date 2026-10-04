@@ -65,5 +65,5 @@ dependency_overrides:
   open_earable_protocols:
     git:
       url: https://github.com/OpenEarable/protocol.git
-      ref: 7dc1765e5490bc7b6843ac7236a503df11b6e8a7
+      ref: bf61cbe72922045ff850dbdbabfaece8c7a38177
       path: generated/dart
