@@ -91,7 +91,7 @@ class OpenEarableFactory extends WearableFactory {
       );
     } else if (_v2Regex.hasMatch(firmwareVersion)) {
       (List<Sensor>, List<SensorConfiguration>) sensorInfo =
-          await _initSensors(device);
+          await _initSensors(device, firmwareVersion);
       final wearable = OpenEarableV2(
         name: device.name,
         disconnectNotifier: disconnectNotifier!,
@@ -202,6 +202,7 @@ class OpenEarableFactory extends WearableFactory {
 
   Future<(List<Sensor>, List<SensorConfiguration>)> _initSensors(
     DiscoveredDevice device,
+    String firmwareVersion,
   ) async {
     List<Sensor> sensors = [];
     List<SensorConfiguration> sensorConfigurations = [];
@@ -212,7 +213,7 @@ class OpenEarableFactory extends WearableFactory {
       bleManager: bleManager!,
       discoveredDevice: device,
       sensorSchemeParser: schemeParser,
-      sensorValueParser: V2SensorValueParser(),
+      sensorValueParser: V2SensorValueParser.forFirmware(firmwareVersion),
     );
 
     List<SensorScheme> sensorSchemes = await schemeParser.readSensorSchemes();

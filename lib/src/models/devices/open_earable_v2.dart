@@ -44,7 +44,7 @@ const String _timeSyncRttCharacteristicUuid =
     "2e04cbf9-939d-4be5-823e-271838b75259";
 
 final VersionConstraint _versionConstraint =
-    VersionConstraint.parse(">=2.1.0 <2.3.0");
+    VersionConstraint.parse(">=2.1.0 <2.4.0");
 
 // MARK: OpenEarableV2
 
