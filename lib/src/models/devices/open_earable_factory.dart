@@ -34,8 +34,10 @@ import 'wearable.dart';
 import '../../fota/firmware_slot_manager_impl.dart';
 
 const String _deviceInfoServiceUuid = "45622510-6468-465a-b141-0b9b0f96b468";
-const String _deviceFirmwareVersionCharacteristicUuid =
+const String _deviceHardwareVersionCharacteristicUuid =
     "45622512-6468-465a-b141-0b9b0f96b468";
+const String _deviceFirmwareVersionCharacteristicUuid =
+    "45622513-6468-465a-b141-0b9b0f96b468";
 
 class OpenEarableFactory extends WearableFactory {
   final _v1Regex = RegExp(r'^1\.\d+\.\d+$');
@@ -58,13 +60,16 @@ class OpenEarableFactory extends WearableFactory {
       logger.d("'$device' has no service matching '$_deviceInfoServiceUuid'");
       return false;
     }
-    String firmwareVersion = await _getFirmwareVersion(device);
-    logger.d("Firmware Version: '$firmwareVersion'");
+    final hardwareVersion = await _readVersion(
+      device,
+      _deviceHardwareVersionCharacteristicUuid,
+    );
+    logger.d("Hardware Version: '$hardwareVersion'");
 
-    logger.t("matches V2: ${_v2Regex.hasMatch(firmwareVersion)}");
+    logger.t("matches V2: ${_v2Regex.hasMatch(hardwareVersion)}");
 
-    return _v1Regex.hasMatch(firmwareVersion) ||
-        _v2Regex.hasMatch(firmwareVersion);
+    return _v1Regex.hasMatch(hardwareVersion) ||
+        _v2Regex.hasMatch(hardwareVersion);
   }
 
   @override
@@ -80,18 +85,23 @@ class OpenEarableFactory extends WearableFactory {
         "disconnectNotifier needs to be set before using the factory",
       );
     }
-    String firmwareVersion = await _getFirmwareVersion(device);
+    final hardwareVersion = await _readVersion(
+      device,
+      _deviceHardwareVersionCharacteristicUuid,
+    );
 
-    if (_v1Regex.hasMatch(firmwareVersion)) {
+    if (_v1Regex.hasMatch(hardwareVersion)) {
       return OpenEarableV1(
         name: device.name,
         disconnectNotifier: disconnectNotifier!,
         bleManager: bleManager!,
         discoveredDevice: device,
       );
-    } else if (_v2Regex.hasMatch(firmwareVersion)) {
-      (List<Sensor>, List<SensorConfiguration>) sensorInfo =
-          await _initSensors(device, firmwareVersion);
+    } else if (_v2Regex.hasMatch(hardwareVersion)) {
+      (List<Sensor>, List<SensorConfiguration>) sensorInfo = await _initSensors(
+        device,
+        await _readVersion(device, _deviceFirmwareVersionCharacteristicUuid),
+      );
       final wearable = OpenEarableV2(
         name: device.name,
         disconnectNotifier: disconnectNotifier!,
@@ -172,13 +182,15 @@ class OpenEarableFactory extends WearableFactory {
     }
   }
 
-  Future<String> _getFirmwareVersion(DiscoveredDevice device) async {
+  Future<String> _readVersion(
+    DiscoveredDevice device,
+    String characteristicId,
+  ) async {
     List<int> softwareGenerationBytes = await bleManager!.read(
       deviceId: device.id,
       serviceId: _deviceInfoServiceUuid,
-      characteristicId: _deviceFirmwareVersionCharacteristicUuid,
+      characteristicId: characteristicId,
     );
-    logger.d("Raw Firmware Version: $softwareGenerationBytes");
     int firstZeroIndex = softwareGenerationBytes.indexOf(0);
     if (firstZeroIndex != -1) {
       softwareGenerationBytes =
