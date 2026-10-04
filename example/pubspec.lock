@@ -416,7 +416,7 @@ packages:
     source: path
     version: "2.5.0"
   open_earable_protocols:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
       path: "generated/dart"
       ref: "7dc1765e5490bc7b6843ac7236a503df11b6e8a7"
