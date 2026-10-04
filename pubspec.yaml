@@ -39,7 +39,7 @@ dependencies:
   bloc: ^9.1.0
   meta: ^1.16.0
   pub_semver: ^2.2.0
-  open_earable_protocols: ^0.0.2
+  open_earable_protocols: ^0.0.4
 
 dev_dependencies:
   flutter_test:
@@ -59,3 +59,11 @@ flutter:
     - assets/wearable_icons/polar/default/
     - assets/wearable_icons/polar/watch/
     - assets/wearable_icons/polar/strap_sensor/
+
+# Remove after the protocol 0.0.4 package is published.
+dependency_overrides:
+  open_earable_protocols:
+    git:
+      url: https://github.com/OpenEarable/protocol.git
+      ref: bf61cbe72922045ff850dbdbabfaece8c7a38177
+      path: generated/dart

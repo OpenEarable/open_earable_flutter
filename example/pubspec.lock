@@ -414,15 +414,16 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "2.4.1"
+    version: "2.5.0"
   open_earable_protocols:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: open_earable_protocols
-      sha256: c11cae4914827c1d7617d44647a5c49304f0c2a2c02c907c595682cfade6ddb2
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.0.2"
+      path: "generated/dart"
+      ref: bf61cbe72922045ff850dbdbabfaece8c7a38177
+      resolved-ref: bf61cbe72922045ff850dbdbabfaece8c7a38177
+      url: "https://github.com/OpenEarable/protocol.git"
+    source: git
+    version: "0.0.4"
   package_config:
     dependency: transitive
     description:
