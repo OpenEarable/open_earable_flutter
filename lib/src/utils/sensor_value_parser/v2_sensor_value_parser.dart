@@ -10,17 +10,19 @@ const int _boneAccelSensorId = 0x07;
 
 class V2SensorValueParser extends SensorValueParser {
   /// Defaults to the legacy layout, which all SD/.oe files still use.
-  V2SensorValueParser({this.compactPpg = false});
+  V2SensorValueParser({this.compactPpg = false, this.compactImu = false});
 
   /// Select once per BLE connection; never infer encoding from packet length.
   factory V2SensorValueParser.forFirmware(String firmwareVersion) {
     final version = Version.parse(firmwareVersion.trim());
     return V2SensorValueParser(
       compactPpg: version.major == 2 && version.minor >= 3,
+      compactImu: version.major == 2 && version.minor >= 3,
     );
   }
 
   final bool compactPpg;
+  final bool compactImu;
 
   @override
   List<Map<String, dynamic>> parse(
@@ -49,6 +51,9 @@ class V2SensorValueParser extends SensorValueParser {
 
     if (compactPpg && sensorId == 4) {
       return _parseCompactPpg(data, scheme, baseTimestamp);
+    }
+    if (compactImu && sensorId == 0) {
+      return _parseCompactImu(data, scheme, baseTimestamp);
     }
 
     // Precompute size of one component payload for efficiency.
@@ -126,6 +131,61 @@ class V2SensorValueParser extends SensorValueParser {
     }
 
     return results;
+  }
+
+  List<Map<String, dynamic>> _parseCompactImu(
+    ByteData data,
+    SensorScheme scheme,
+    int timestamp,
+  ) {
+    final payloadSize = data.lengthInBytes - 10;
+    if (data.getUint8(1) != payloadSize ||
+        (payloadSize != 24 &&
+            (payloadSize < 50 || (payloadSize - 2) % 24 != 0))) {
+      throw const FormatException('Invalid compact IMU payload length');
+    }
+    if (scheme.components.length != 9 ||
+        scheme.components.any((c) => c.type != ParseType.float)) {
+      throw const FormatException('Compact IMU requires nine float components');
+    }
+    final count = payloadSize == 24 ? 1 : (payloadSize - 2) ~/ 24;
+    final period = count == 1 ? 0 : _getTimeDiff(data);
+    if (count > 1 && period == 0) {
+      throw const FormatException('Invalid compact IMU sample period');
+    }
+    final expanded = ByteData(36);
+    final result = <Map<String, dynamic>>[];
+    for (var i = 0; i < count; i++) {
+      final sample = ImuCompactSample.fromBytes(
+        data.buffer.asUint8List(data.offsetInBytes + 10 + i * 24, 24),
+      );
+      final raw = [
+        sample.accel_x,
+        sample.accel_y,
+        sample.accel_z,
+        sample.gyro_x,
+        sample.gyro_y,
+        sample.gyro_z,
+      ];
+      for (var axis = 0; axis < 6; axis++) {
+        // Exact firmware float32 scales; round the product back to float32.
+        final scale = axis < 3 ? 0.0005985504249110818 : 0.06103515625;
+        expanded.setFloat32(axis * 4, raw[axis] * scale, Endian.little);
+      }
+      expanded.setFloat32(24, sample.mag_x, Endian.little);
+      expanded.setFloat32(28, sample.mag_y, Endian.little);
+      expanded.setFloat32(32, sample.mag_z, Endian.little);
+      result.add(
+        _parseSample(
+          data: expanded,
+          startIndex: 0,
+          scheme: scheme,
+          timestamp: timestamp + i * period,
+          compSizes: const [4, 4, 4, 4, 4, 4, 4, 4, 4],
+        ).map,
+      );
+    }
+    return result;
   }
 
   List<Map<String, dynamic>> _parseCompactPpg(
