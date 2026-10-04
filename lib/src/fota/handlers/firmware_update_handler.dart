@@ -97,47 +97,48 @@ class FirmwareUnpacker extends FirmwareUpdateHandler {
     final tempDir = Directory('${systemTempDir.path}/$prefix');
     await tempDir.create();
 
-    final firmware = request as MultiImageFirmwareUpdateRequest;
-    final firmwareFileData = firmware.zipFile!;
-    final firmwareFile = File('${tempDir.path}/firmware.zip');
-    await firmwareFile.writeAsBytes(firmwareFileData);
-
-    final destinationDir = Directory('${tempDir.path}/firmware');
-    await destinationDir.create();
     try {
-      await ZipFile.extractToDirectory(
-        zipFile: firmwareFile,
-        destinationDir: destinationDir,
-      );
-    } catch (e) {
-      throw Exception('Failed to unzip firmware');
+      final firmware = request as MultiImageFirmwareUpdateRequest;
+      final firmwareFileData = firmware.zipFile!;
+      final firmwareFile = File('${tempDir.path}/firmware.zip');
+      await firmwareFile.writeAsBytes(firmwareFileData);
+
+      final destinationDir = Directory('${tempDir.path}/firmware');
+      await destinationDir.create();
+      try {
+        await ZipFile.extractToDirectory(
+          zipFile: firmwareFile,
+          destinationDir: destinationDir,
+        );
+      } catch (e) {
+        throw Exception('Failed to unzip firmware');
+      }
+
+      // read manifest.json
+      final manifestFile = File('${destinationDir.path}/manifest.json');
+      final manifestString = await manifestFile.readAsString();
+      Map<String, dynamic> manifestJson = json.decode(manifestString);
+      Manifest manifest;
+
+      try {
+        manifest = Manifest.fromJson(manifestJson);
+      } catch (e) {
+        throw Exception('Failed to parse manifest.json');
+      }
+
+      firmware.firmwareImages = [];
+      for (final file in manifest.files) {
+        final firmwareFile = File('${destinationDir.path}/${file.file}');
+        final firmwareFileData = await firmwareFile.readAsBytes();
+        final image = Image(
+          image: file.image,
+          data: firmwareFileData,
+        );
+        firmware.firmwareImages!.add(image);
+      }
+    } finally {
+      await tempDir.delete(recursive: true);
     }
-
-    // read manifest.json
-    final manifestFile = File('${destinationDir.path}/manifest.json');
-    final manifestString = await manifestFile.readAsString();
-    Map<String, dynamic> manifestJson = json.decode(manifestString);
-    Manifest manifest;
-
-    try {
-      manifest = Manifest.fromJson(manifestJson);
-    } catch (e) {
-      throw Exception('Failed to parse manifest.json');
-    }
-
-    firmware.firmwareImages = [];
-    for (final file in manifest.files) {
-      final firmwareFile = File('${destinationDir.path}/${file.file}');
-      final firmwareFileData = await firmwareFile.readAsBytes();
-      final image = Image(
-        image: file.image,
-        data: firmwareFileData,
-      );
-      firmware.firmwareImages!.add(image);
-    }
-
-    // delete tempDir
-    await tempDir.delete(recursive: true);
 
     return await _nextHandler!.handleFirmwareUpdate(request, callback);
   }
