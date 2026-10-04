@@ -1,3 +1,8 @@
+## Unreleased
+
+- Decode compact BLE PPG for firmware 2.3.x per device while preserving legacy 2.2.x and SD sample decoding.
+- Accept firmware 2.3.x in the OpenEarable V2 support range.
+
 ## 2.4.1
 
 * fixed microphone gain capability detection so it is only registered when the device exposes the required characteristic.

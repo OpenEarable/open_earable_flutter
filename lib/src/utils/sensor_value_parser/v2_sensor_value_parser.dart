@@ -1,13 +1,32 @@
 import 'dart:typed_data';
 
+import 'package:open_earable_protocols/open_earable_protocols.dart';
+import 'package:pub_semver/pub_semver.dart';
+
 import '../sensor_scheme_parser/sensor_scheme_reader.dart';
 import 'sensor_value_parser.dart';
 
 const int _boneAccelSensorId = 0x07;
 
 class V2SensorValueParser extends SensorValueParser {
+  /// Defaults to the legacy layout, which all SD/.oe files still use.
+  V2SensorValueParser({this.compactPpg = false});
+
+  /// Select once per BLE connection; never infer encoding from packet length.
+  factory V2SensorValueParser.forFirmware(String firmwareVersion) {
+    final version = Version.parse(firmwareVersion.trim());
+    return V2SensorValueParser(
+      compactPpg: version.major == 2 && version.minor >= 3,
+    );
+  }
+
+  final bool compactPpg;
+
   @override
-  List<Map<String, dynamic>> parse(ByteData data, List<SensorScheme> sensorSchemes) {
+  List<Map<String, dynamic>> parse(
+    ByteData data,
+    List<SensorScheme> sensorSchemes,
+  ) {
     int i = 0;
 
     // Header
@@ -28,6 +47,10 @@ class V2SensorValueParser extends SensorValueParser {
     final baseTimestamp = _readUint64(data, i);
     i += 8;
 
+    if (compactPpg && sensorId == 4) {
+      return _parseCompactPpg(data, scheme, baseTimestamp);
+    }
+
     // Precompute size of one component payload for efficiency.
     final compSizes = scheme.components.map((c) => c.type.size()).toList();
     final payloadSizePerSample = compSizes.fold<int>(0, (a, b) => a + b);
@@ -36,11 +59,15 @@ class V2SensorValueParser extends SensorValueParser {
     const headerSize = 2;
 
     if (data.lengthInBytes - headerSize - payloadSizePerSample < 0) {
-      throw FormatException('Truncated frame: need at least ${timestampSize + offsetSize} bytes '
+      throw FormatException(
+          'Truncated frame: need at least ${timestampSize + offsetSize} bytes '
           'for first sample, have ${data.lengthInBytes - headerSize}.');
     }
-    if ((data.lengthInBytes - headerSize - timestampSize) != payloadSizePerSample &&
-        (data.lengthInBytes - headerSize - timestampSize - offsetSize) % payloadSizePerSample != 0) {
+    if ((data.lengthInBytes - headerSize - timestampSize) !=
+            payloadSizePerSample &&
+        (data.lengthInBytes - headerSize - timestampSize - offsetSize) %
+                payloadSizePerSample !=
+            0) {
       if (sensorId == _boneAccelSensorId) {
         final fixedBytes = Uint8List(data.lengthInBytes + 2);
         // Bulk-copy existing bytes
@@ -55,18 +82,25 @@ class V2SensorValueParser extends SensorValueParser {
 
         data = fixedData;
       }
-      if ((data.lengthInBytes - headerSize - timestampSize) != payloadSizePerSample &&
-        (data.lengthInBytes - headerSize - timestampSize - offsetSize) % payloadSizePerSample != 0) {
-        throw FormatException('Truncated frame: have ${data.lengthInBytes - headerSize} bytes, '
+      if ((data.lengthInBytes - headerSize - timestampSize) !=
+              payloadSizePerSample &&
+          (data.lengthInBytes - headerSize - timestampSize - offsetSize) %
+                  payloadSizePerSample !=
+              0) {
+        throw FormatException(
+            'Truncated frame: have ${data.lengthInBytes - headerSize} bytes, '
             'which is not consistent with sample size $payloadSizePerSample, timestamp and offset sizes.');
       }
     }
 
     int dataCount;
-    if (data.lengthInBytes - headerSize - timestampSize == payloadSizePerSample) {
+    if (data.lengthInBytes - headerSize - timestampSize ==
+        payloadSizePerSample) {
       dataCount = 1;
     } else {
-      dataCount = (data.lengthInBytes - headerSize - timestampSize - offsetSize) ~/ payloadSizePerSample;
+      dataCount =
+          (data.lengthInBytes - headerSize - timestampSize - offsetSize) ~/
+              payloadSizePerSample;
     }
 
     if (dataCount < 1) {
@@ -92,6 +126,62 @@ class V2SensorValueParser extends SensorValueParser {
     }
 
     return results;
+  }
+
+  List<Map<String, dynamic>> _parseCompactPpg(
+    ByteData data,
+    SensorScheme scheme,
+    int timestamp,
+  ) {
+    final payloadSize = data.lengthInBytes - 10;
+    if (data.getUint8(1) != payloadSize ||
+        (payloadSize != 10 &&
+            (payloadSize < 22 || (payloadSize - 2) % 10 != 0))) {
+      throw const FormatException('Invalid compact PPG payload length');
+    }
+    if (scheme.components.length != 4 ||
+        scheme.components.any((c) => c.type != ParseType.uint32)) {
+      throw const FormatException(
+        'Compact PPG requires four uint32 components',
+      );
+    }
+    final count = payloadSize == 10 ? 1 : (payloadSize - 2) ~/ 10;
+    final period = count == 1 ? 0 : _getTimeDiff(data);
+    if (count > 1 && period == 0) {
+      throw const FormatException('Invalid compact PPG sample period');
+    }
+    final expanded = ByteData(16);
+    final result = <Map<String, dynamic>>[];
+    for (var i = 0; i < count; i++) {
+      final sample = PpgCompactSample.fromBytes(
+        data.buffer.asUint8List(data.offsetInBytes + 10 + i * 10, 10),
+      );
+      if (sample.bits_64_79 > 0x0fff) {
+        throw const FormatException('Nonzero compact PPG reserved bits');
+      }
+      expanded.setUint32(0, sample.bits_0_31 & 0x7ffff, Endian.little);
+      expanded.setUint32(
+        4,
+        (sample.bits_0_31 >>> 19) | ((sample.bits_32_63 & 0x3f) << 13),
+        Endian.little,
+      );
+      expanded.setUint32(8, (sample.bits_32_63 >>> 6) & 0x7ffff, Endian.little);
+      expanded.setUint32(
+        12,
+        (sample.bits_32_63 >>> 25) | (sample.bits_64_79 << 7),
+        Endian.little,
+      );
+      result.add(
+        _parseSample(
+          data: expanded,
+          startIndex: 0,
+          scheme: scheme,
+          timestamp: timestamp + i * period,
+          compSizes: const [4, 4, 4, 4],
+        ).map,
+      );
+    }
+    return result;
   }
 }
 
@@ -177,7 +267,10 @@ _ParsedSample _parseSample({
     i += sz;
 
     // install group and component
-    out.putIfAbsent(comp.groupName, () => <String, dynamic>{'units': <String, String>{}});
+    out.putIfAbsent(
+      comp.groupName,
+      () => <String, dynamic>{'units': <String, String>{}},
+    );
     (out[comp.groupName] as Map<String, dynamic>)[comp.componentName] = val;
 
     // units
