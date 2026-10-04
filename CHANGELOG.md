@@ -1,3 +1,7 @@
+## Unreleased
+
+* added wireless audio policy configuration and runtime-state support for OpenEarable V2 devices exposing the new protocol service.
+
 ## 2.4.1
 
 * fixed microphone gain capability detection so it is only registered when the device exposes the required characteristic.

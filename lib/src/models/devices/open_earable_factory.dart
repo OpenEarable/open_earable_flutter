@@ -25,11 +25,13 @@ import '../capabilities/sensor_configuration_specializations/sensor_configuratio
 import '../capabilities/sensor_configuration_specializations/streamable_sensor_configuration.dart';
 import '../capabilities/system_device.dart';
 import '../capabilities/time_synchronizable.dart';
+import '../capabilities/wireless_audio_configuration_manager.dart';
 import 'discovered_device.dart';
 import 'open_earable_v1.dart';
 import 'open_earable_v2.dart';
 import 'open_earable_v2_audio_response_manager.dart';
 import 'open_earable_v2_microphone_gain_manager.dart';
+import 'open_earable_v2_wireless_audio_configuration_manager.dart';
 import 'wearable.dart';
 import '../../fota/firmware_slot_manager_impl.dart';
 
@@ -45,6 +47,7 @@ class OpenEarableFactory extends WearableFactory {
   Set<String> get usedServiceUuids => {
         ...OpenEarableV1.serviceUuids,
         ...OpenEarableV2.serviceUuids,
+        WirelessAudioConfigurationBleUuids.serviceUuid,
         mcuMgrSmpServiceUuid,
         timeSynchronizationServiceUuid,
       };
@@ -127,6 +130,17 @@ class OpenEarableFactory extends WearableFactory {
       )) {
         wearable.registerCapability<AudioResponseManager>(
           OpenEarableV2AudioResponseManager(
+            bleManager: bleManager!,
+            deviceId: device.id,
+          ),
+        );
+      }
+      if (await bleManager!.hasService(
+        deviceId: device.id,
+        serviceId: WirelessAudioConfigurationBleUuids.serviceUuid,
+      )) {
+        wearable.registerCapability<WirelessAudioConfigurationManager>(
+          OpenEarableV2WirelessAudioConfigurationManager(
             bleManager: bleManager!,
             deviceId: device.id,
           ),
