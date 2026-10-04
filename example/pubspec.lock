@@ -419,8 +419,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: "generated/dart"
-      ref: "7dc1765e5490bc7b6843ac7236a503df11b6e8a7"
-      resolved-ref: "7dc1765e5490bc7b6843ac7236a503df11b6e8a7"
+      ref: bf61cbe72922045ff850dbdbabfaece8c7a38177
+      resolved-ref: bf61cbe72922045ff850dbdbabfaece8c7a38177
       url: "https://github.com/OpenEarable/protocol.git"
     source: git
     version: "0.0.4"
