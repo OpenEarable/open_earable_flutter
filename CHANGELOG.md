@@ -1,3 +1,10 @@
+## Unreleased
+
+- Decode compact firmware 2.3.x IMU samples back to the same float values and units; retain legacy firmware and SD formats.
+
+- Decode compact BLE PPG for firmware 2.3.x per device while preserving legacy 2.2.x and SD sample decoding.
+- Accept firmware 2.3.x in the OpenEarable V2 support range.
+
 ## 2.4.2
 
 * fixed firmware update version comparisons for development firmware labels, prereleases, build metadata, and release tag prefixes.
