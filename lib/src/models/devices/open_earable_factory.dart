@@ -7,6 +7,7 @@ import 'package:open_earable_flutter/src/utils/sensor_scheme_parser/sensor_schem
 import 'package:open_earable_flutter/src/utils/sensor_scheme_parser/v2_sensor_scheme_reader.dart';
 import 'package:open_earable_protocols/open_earable_protocols.dart';
 import 'package:universal_ble/universal_ble.dart';
+import 'package:pub_semver/pub_semver.dart' as semver;
 
 import '../../../open_earable_flutter.dart' show logger;
 import '../../constants.dart';
@@ -17,6 +18,7 @@ import '../capabilities/audio_response_manager.dart';
 import '../capabilities/fota_capability.dart';
 import '../capabilities/fota_slot_info_capability.dart';
 import '../capabilities/microphone_gain_manager.dart';
+import '../capabilities/led_state_reader.dart';
 import '../capabilities/power_saving_mode_manager.dart';
 import '../capabilities/sensor.dart';
 import '../capabilities/sensor_configuration.dart';
@@ -30,6 +32,7 @@ import 'open_earable_v1.dart';
 import 'open_earable_v2.dart';
 import 'open_earable_v2_audio_response_manager.dart';
 import 'open_earable_v2_microphone_gain_manager.dart';
+import 'open_earable_v2_led_state_reader.dart';
 import 'wearable.dart';
 import '../../fota/firmware_slot_manager_impl.dart';
 
@@ -98,9 +101,11 @@ class OpenEarableFactory extends WearableFactory {
         discoveredDevice: device,
       );
     } else if (_v2Regex.hasMatch(hardwareVersion)) {
+      final firmwareVersion =
+          await _readVersion(device, _deviceFirmwareVersionCharacteristicUuid);
       (List<Sensor>, List<SensorConfiguration>) sensorInfo = await _initSensors(
         device,
-        await _readVersion(device, _deviceFirmwareVersionCharacteristicUuid),
+        firmwareVersion,
       );
       final wearable = OpenEarableV2(
         name: device.name,
@@ -120,6 +125,14 @@ class OpenEarableFactory extends WearableFactory {
         },
         isConnectedViaSystem: options.contains(const ConnectedViaSystem()),
       );
+      if (_supportsLedReadback(firmwareVersion)) {
+        wearable.registerCapability<LedStateReader>(
+          OpenEarableV2LedStateReader(
+            bleManager: bleManager!,
+            deviceId: device.id,
+          ),
+        );
+      }
       if (await bleManager!.hasService(
         deviceId: device.id,
         serviceId: timeSynchronizationServiceUuid,
@@ -197,6 +210,15 @@ class OpenEarableFactory extends WearableFactory {
           softwareGenerationBytes.sublist(0, firstZeroIndex);
     }
     return String.fromCharCodes(softwareGenerationBytes);
+  }
+
+  bool _supportsLedReadback(String firmwareVersion) {
+    try {
+      final version = semver.Version.parse(firmwareVersion.trim());
+      return version.major == 2 && version.minor >= 3;
+    } on FormatException {
+      return false;
+    }
   }
 
   Future<bool> _hasPowerSavingService(DiscoveredDevice device) async {

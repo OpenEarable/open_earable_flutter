@@ -116,6 +116,10 @@ void main() {
       );
       final wearable = await factory.createFromDevice(device);
       expect(ble.reads, contains(firmwareUuid));
+      expect(
+        wearable.hasCapability<LedStateReader>(),
+        version.startsWith('2.3.'),
+      );
       final sensor = wearable.requireCapability<SensorManager>().sensors.single;
       expect(sensor.axisUnits, ['ADC', 'ADC', 'ADC', 'ADC']);
       final value = sensor.sensorStream.first;
