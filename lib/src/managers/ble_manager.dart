@@ -298,7 +298,13 @@ class BleManager extends BleGattManager {
     };
 
     try {
-      UniversalBle.connect(device.id);
+      UniversalBle.connect(
+        device.id,
+        platformConfig: ConnectionPlatformConfig(
+          // A new Flutter engine cannot receive the old GATT client's callbacks.
+          android: AndroidConnectionOptions(closeGattOnDetach: true),
+        ),
+      );
     } catch (error, stack) {
       _connectCallbacks.remove(device.id);
       _disconnectCallbacks.remove(device.id);

@@ -689,10 +689,10 @@ packages:
     dependency: transitive
     description:
       name: universal_ble
-      sha256: "8e5f4e2827375900b805fe3eb6cb8a305ade2303289d9a5cba0d09a3a37fea29"
+      sha256: bdebe7d4ff3a24f28b5e56c999104ea1584a9de55da4ee0b4c2346bcf8f8c528
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.1"
+    version: "2.3.0"
   uuid:
     dependency: transitive
     description:
