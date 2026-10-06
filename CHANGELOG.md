@@ -4,7 +4,7 @@
 
 - Decode compact BLE PPG for firmware 2.3.x per device while preserving legacy 2.2.x and SD sample decoding.
 - Accept firmware 2.3.x in the OpenEarable V2 support range.
-- Read and subscribe to LED state on firmware 2.3.x.
+- Read back the configured LED color and status mode on firmware 2.3.x.
 - Correct battery status decoding and finish failed or aborted firmware update preparation.
 - Clean up Bluetooth connections after adapter power cycles and Flutter engine shutdown.
 - Use the published `open_earable_protocols` 0.0.4 package.
