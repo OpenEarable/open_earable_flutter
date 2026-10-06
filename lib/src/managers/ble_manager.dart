@@ -33,6 +33,8 @@ class BleManager extends BleGattManager {
   final Map<String, VoidCallback> _disconnectCallbacks = {};
 
   final List<String> _connectedDevicesIds = [];
+  StreamSubscription<AvailabilityState>? _availabilitySubscription;
+  final Map<String, Future<void>> _adapterShutdowns = {};
 
   bool _firstScan = true;
 
@@ -61,6 +63,25 @@ class BleManager extends BleGattManager {
   void _init() {
     _scanStreamController = StreamController<DiscoveredDevice>.broadcast();
 
+    _availabilitySubscription = UniversalBle.availabilityStream.listen((state) {
+      if (state == AvailabilityState.poweredOff) {
+        // Adapter shutdown does not always emit a disconnect for each device.
+        for (final deviceId in {
+          ..._connectedDevicesIds,
+          ..._disconnectCallbacks.keys,
+        }) {
+          _handleDisconnect(deviceId);
+          // Android may retain a GATT handle tied to the stopped BT service.
+          _adapterShutdowns[deviceId] ??=
+              UniversalBle.disconnect(deviceId).catchError((Object error) {
+            logger.w('Bluetooth shutdown cleanup failed for $deviceId: $error');
+          }).whenComplete(() {
+            _adapterShutdowns.remove(deviceId);
+          });
+        }
+      }
+    });
+
     UniversalBle.onConnectionChange = (
       String deviceId,
       bool isConnected,
@@ -72,10 +93,7 @@ class BleManager extends BleGattManager {
         _connectCallbacks[deviceId]?.call();
         _connectCallbacks.remove(deviceId);
       } else {
-        _connectedDevicesIds.remove(deviceId);
-        _closeAndRemoveStreamsForDevice(deviceId);
-        _disconnectCallbacks[deviceId]?.call();
-        _disconnectCallbacks.remove(deviceId);
+        _handleDisconnect(deviceId);
       }
     };
 
@@ -96,6 +114,12 @@ class BleManager extends BleGattManager {
       }
       _streamControllers[streamIdentifier]!.add(value);
     };
+  }
+
+  void _handleDisconnect(String deviceId) {
+    _connectedDevicesIds.removeWhere((id) => id == deviceId);
+    _closeAndRemoveStreamsForDevice(deviceId);
+    _disconnectCallbacks.remove(deviceId)?.call();
   }
 
   static Future<bool> checkAndRequestPermissions() async {
@@ -219,7 +243,8 @@ class BleManager extends BleGattManager {
   Future<(bool, List<BleService>)> connectToDevice(
     DiscoveredDevice device,
     VoidCallback onDisconnect,
-  ) {
+  ) async {
+    await _adapterShutdowns[device.id];
     final pendingConnection = _connectionFutures[device.id];
     if (pendingConnection != null) {
       logger.d("Reusing pending connection for ${device.id}");
@@ -232,8 +257,11 @@ class BleManager extends BleGattManager {
 
     final completer = Completer<(bool, List<BleService>)>();
     _connectionCompleters[device.id] = completer;
-    final connectionFuture = completer.future.whenComplete(() {
-      _connectionFutures.remove(device.id);
+    late final Future<(bool, List<BleService>)> connectionFuture;
+    connectionFuture = completer.future.whenComplete(() {
+      if (identical(_connectionFutures[device.id], connectionFuture)) {
+        _connectionFutures.remove(device.id);
+      }
     });
     _connectionFutures[device.id] = connectionFuture;
 
@@ -245,12 +273,18 @@ class BleManager extends BleGattManager {
 
         final services = await UniversalBle.discoverServices(device.id);
 
-        _connectionCompleters[device.id]?.complete((true, services));
+        if (!completer.isCompleted) {
+          completer.complete((true, services));
+        }
       } catch (error, stack) {
-        _connectionCompleters[device.id]?.completeError(error, stack);
+        if (!completer.isCompleted) {
+          completer.completeError(error, stack);
+        }
       } finally {
-        _connectionCompleters.remove(device.id);
-        _connectCallbacks.remove(device.id);
+        if (identical(_connectionCompleters[device.id], completer)) {
+          _connectionCompleters.remove(device.id);
+          _connectCallbacks.remove(device.id);
+        }
       }
     };
 
@@ -264,7 +298,13 @@ class BleManager extends BleGattManager {
     };
 
     try {
-      UniversalBle.connect(device.id);
+      UniversalBle.connect(
+        device.id,
+        platformConfig: ConnectionPlatformConfig(
+          // A new Flutter engine cannot receive the old GATT client's callbacks.
+          android: AndroidConnectionOptions(closeGattOnDetach: true),
+        ),
+      );
     } catch (error, stack) {
       _connectCallbacks.remove(device.id);
       _disconnectCallbacks.remove(device.id);
@@ -458,6 +498,7 @@ class BleManager extends BleGattManager {
 
   /// Cancel connection state subscription
   void dispose() {
+    _availabilitySubscription?.cancel();
     UniversalBle.onConnectionChange = (
       String deviceId,
       bool isConnected,

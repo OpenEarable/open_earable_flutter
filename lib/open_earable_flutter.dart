@@ -48,6 +48,7 @@ export 'src/models/capabilities/battery_health_status.dart';
 export 'src/models/capabilities/battery_energy_status.dart';
 export 'src/models/capabilities/rgb_led.dart';
 export 'src/models/capabilities/status_led.dart';
+export 'src/models/capabilities/led_state_reader.dart';
 export 'src/models/capabilities/sensor.dart';
 export 'src/models/capabilities/sensor_specializations/heart_rate_sensor.dart';
 export 'src/models/capabilities/sensor_specializations/heart_rate_variability_sensor.dart';
