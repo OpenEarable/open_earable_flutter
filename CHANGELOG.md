@@ -1,9 +1,13 @@
-## Unreleased
+## 2.5.0
 
 - Decode compact firmware 2.3.x IMU samples back to the same float values and units; retain legacy firmware and SD formats.
 
 - Decode compact BLE PPG for firmware 2.3.x per device while preserving legacy 2.2.x and SD sample decoding.
 - Accept firmware 2.3.x in the OpenEarable V2 support range.
+- Read and subscribe to LED state on firmware 2.3.x.
+- Correct battery status decoding and finish failed or aborted firmware update preparation.
+- Clean up Bluetooth connections after adapter power cycles and Flutter engine shutdown.
+- Use the published `open_earable_protocols` 0.0.4 package.
 
 ## 2.4.2
 
