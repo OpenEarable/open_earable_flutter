@@ -22,6 +22,7 @@ import 'src/models/capabilities/stereo_device.dart';
 import 'src/models/capabilities/system_device.dart';
 import 'src/models/devices/discovered_device.dart';
 import 'src/models/devices/open_ring_factory.dart';
+import 'src/models/devices/omnibuds_factory.dart';
 import 'src/models/devices/wearable.dart';
 
 export 'package:open_earable_protocols/open_earable_protocols.dart'
@@ -33,6 +34,12 @@ export 'src/models/devices/cosinuss_one.dart';
 export 'src/models/devices/open_earable_v1.dart';
 export 'src/models/devices/open_earable_v2.dart';
 export 'src/models/devices/polar.dart';
+export 'src/models/devices/omnibuds.dart';
+export 'src/models/devices/omnibuds_factory.dart';
+export 'src/omnibuds/omnibuds_protocol.dart';
+export 'src/omnibuds/omnibuds_configuration.dart';
+export 'src/omnibuds/omnibuds_transport.dart'
+    show OmniBudsConfigurationException;
 
 export 'src/managers/wearable_disconnect_notifier.dart';
 
@@ -123,6 +130,7 @@ class WearableManager {
     DevKitFactory(),
     OpenRingFactory(),
     EsenseFactory(),
+    OmniBudsFactory(),
   ];
 
   factory WearableManager() {

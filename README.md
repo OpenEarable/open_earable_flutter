@@ -19,6 +19,14 @@ This Dart package provides functionality for interacting with OpenEarable device
 
 See [CONTRIBUTING.md](https://github.com/OpenEarable/open_earable_flutter/CONTRIBUTING.md) for the contribution workflow, code quality expectations, rebasing policy, and required verification steps.
 
+## OmniBuds
+
+Experimental [OmniBuds support](doc/OMNIBUDS.md) includes side-labelled motion,
+PPG, temperature and vital-sign streams, configuration controls, and single-ear
+and pair illustrations. The Bluetooth protocol was derived from the official
+Android APK; hardware rates and compatibility are not yet verified. See the
+integration guide for supported settings, usage, and limitations.
+
 ## Permissions
 For your app to be able to use [UniversalBLE](https://pub.dev/packages/universal_ble) in this package, you need to grant the following permissions:
 ### Android
