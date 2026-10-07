@@ -1,3 +1,9 @@
+## Unreleased
+
+- Add experimental, APK-derived OmniBuds sensor support with per-ear streams,
+  acknowledged configuration, raw packet access, and single/pair illustrations.
+  Hardware throughput and compatibility remain unverified; see `doc/OMNIBUDS.md`.
+
 ## 2.5.0
 
 - Decode compact firmware 2.3.x IMU samples back to the same float values and units; retain legacy firmware and SD formats.
